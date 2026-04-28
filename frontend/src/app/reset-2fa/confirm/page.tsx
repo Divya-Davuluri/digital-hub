@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import ConfirmContent from './ConfirmContent';
 
-export const dynamic = "force-dynamic";
+
 
 export default function Reset2FAConfirmPage() {
   return (
