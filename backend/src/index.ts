@@ -6,7 +6,6 @@ import passport from 'passport';
 import { configurePassport } from './config/passport';
 import authRoutes from './routes/authRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
-
 import rateLimit from 'express-rate-limit';
 
 // Load environment variables
@@ -41,7 +40,10 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'digital-marketing-hub-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: process.env.NODE_ENV === 'production' }
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+  }
 }));
 app.use(passport.initialize());
 app.use(passport.session());
