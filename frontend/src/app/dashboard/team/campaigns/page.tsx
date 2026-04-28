@@ -128,7 +128,7 @@ export default function TeamCampaignsPage() {
                <div className="p-20 text-center bg-white">
                   <div className="text-4xl mb-4">🚀</div>
                   <h3 className="text-lg font-bold text-slate-900 mb-1">No Active Campaigns</h3>
-                  <p className="text-sm text-slate-500">You haven't launched any campaigns yet. Start by creating one!</p>
+                  <p className="text-sm text-slate-500">You haven&apos;t launched any campaigns yet. Start by creating one!</p>
                   <button onClick={() => setShowModal(true)} className="text-sm font-bold text-indigo-600 hover:underline mt-4">Create First Campaign →</button>
                </div>
              )}

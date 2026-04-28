@@ -85,7 +85,7 @@ export default function DashboardPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
             <div>
               <h1 className="text-2xl font-bold text-slate-900">Good morning, {user?.name?.split(' ')[0] || 'Partner'}!</h1>
-              <p className="text-sm text-slate-500 mt-1">Here is a summary of your agency's performance today.</p>
+              <p className="text-sm text-slate-500 mt-1">Here is a summary of your agency&apos;s performance today.</p>
             </div>
             <div className="flex items-center gap-3">
               <button

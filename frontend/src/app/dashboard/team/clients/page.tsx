@@ -115,7 +115,7 @@ export default function TeamClientsPage() {
                <div className="p-20 text-center bg-white">
                   <div className="text-4xl mb-4">👥</div>
                   <h3 className="text-lg font-bold text-slate-900 mb-1">No Assigned Clients</h3>
-                  <p className="text-sm text-slate-500">You haven't been assigned any clients yet.</p>
+                  <p className="text-sm text-slate-500">You haven&apos;t been assigned any clients yet.</p>
                   <button onClick={() => setShowModal(true)} className="text-sm font-bold text-indigo-600 hover:underline mt-4">Add Your First Client →</button>
                </div>
              )}

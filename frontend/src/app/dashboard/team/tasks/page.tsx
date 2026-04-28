@@ -83,7 +83,7 @@ export default function TeamTasksPage() {
                <div className="p-20 text-center">
                   <div className="text-4xl mb-4">✅</div>
                   <h3 className="text-lg font-bold text-slate-900 mb-1">All Tasks Completed</h3>
-                  <p className="text-sm text-slate-500">You're all caught up for the day!</p>
+                  <p className="text-sm text-slate-500">You&apos;re all caught up for the day!</p>
                </div>
              )}
           </div>
