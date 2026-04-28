@@ -35,25 +35,27 @@ router.post('/forgot-2fa-confirm', reset2FAConfirm);
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/login' }), async (req: any, res) => {
   const { id, twoFactorEnabled } = req.user;
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
   if (twoFactorEnabled) {
-    return res.redirect(`http://localhost:3000/login?2fa_required=true&userId=${id}`);
+    return res.redirect(`${FRONTEND_URL}/login?2fa_required=true&userId=${id}`);
   }
   const { token, refreshToken } = await generateTokens(id);
   const user = await db.query.users.findFirst({ where: eq(users.id, id) });
   const userData = encodeURIComponent(JSON.stringify({ id: user?.id, email: user?.email, name: user?.name }));
-  res.redirect(`http://localhost:3000/login?token=${token}&refreshToken=${refreshToken}&user=${userData}`);
+  res.redirect(`${FRONTEND_URL}/login?token=${token}&refreshToken=${refreshToken}&user=${userData}`);
 });
 
 router.get('/facebook', passport.authenticate('facebook', { scope: ['email'] }));
 router.get('/facebook/callback', passport.authenticate('facebook', { failureRedirect: '/login' }), async (req: any, res) => {
   const { id, twoFactorEnabled } = req.user;
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
   if (twoFactorEnabled) {
-    return res.redirect(`http://localhost:3000/login?2fa_required=true&userId=${id}`);
+    return res.redirect(`${FRONTEND_URL}/login?2fa_required=true&userId=${id}`);
   }
   const { token, refreshToken } = await generateTokens(id);
   const user = await db.query.users.findFirst({ where: eq(users.id, id) });
   const userData = encodeURIComponent(JSON.stringify({ id: user?.id, email: user?.email, name: user?.name }));
-  res.redirect(`http://localhost:3000/login?token=${token}&refreshToken=${refreshToken}&user=${userData}`);
+  res.redirect(`${FRONTEND_URL}/login?token=${token}&refreshToken=${refreshToken}&user=${userData}`);
 });
 
 // --- Dev ---
