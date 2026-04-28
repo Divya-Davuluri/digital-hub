@@ -1,20 +1,65 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
+// --- Multi-Tenant Core ---
+export const tenants = sqliteTable('tenants', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  logo: text('logo'),
+  themeColor: text('theme_color').default('#4f46e5'),
+  subdomain: text('subdomain').notNull().unique(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
+  tenantId: text('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   password: text('password'),
   provider: text('provider', { enum: ['local', 'google', 'facebook'] }).default('local').notNull(),
   providerId: text('provider_id'),
-  role: text('role', { enum: ['admin', 'user'] }).default('user').notNull(),
+  role: text('role', { enum: ['admin', 'team', 'client'] }).default('team').notNull(),
   twoFactorEnabled: integer('two_factor_enabled').default(0).notNull(),
   twoFactorSecret: text('two_factor_secret'),
   twoFactorTempSecret: text('two_factor_temp_secret'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+// --- Agency Business Logic ---
+export const clients = sqliteTable('clients', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  logo: text('logo'),
+  status: text('status', { enum: ['active', 'inactive', 'pending'] }).default('active'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const campaigns = sqliteTable('campaigns', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  budget: integer('budget').notNull(),
+  status: text('status', { enum: ['active', 'paused', 'completed', 'review'] }).default('active'),
+  startDate: text('start_date'),
+  endDate: text('end_date'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const analytics = sqliteTable('analytics', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  campaignId: text('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  date: text('date').notNull(),
+  clicks: integer('clicks').default(0),
+  impressions: integer('impressions').default(0),
+  conversions: integer('conversions').default(0),
+  spend: integer('spend').default(0),
+});
+
+// --- Auth Utilities ---
 export const backupCodes = sqliteTable('backup_codes', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

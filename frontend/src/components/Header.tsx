@@ -33,62 +33,76 @@ export default function Header() {
   };
 
   return (
-    <header className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-background/50 backdrop-blur-xl sticky top-0 z-30">
+    <header className="h-[64px] border-b border-border flex items-center justify-between px-8 bg-white sticky top-0 z-40">
       <div className="flex items-center gap-4">
         <div className="relative group">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
           <input 
             type="text" 
-            placeholder="Search campaigns, users, reports..." 
-            className="w-96 bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-2.5 text-sm transition-all focus:w-[450px] focus:bg-white/[0.05] focus:border-primary/40 focus:outline-none placeholder:text-text-muted"
+            placeholder="Search anything..." 
+            className="w-64 bg-slate-50 border border-transparent rounded-lg pl-10 pr-4 py-1.5 text-sm transition-all focus:w-80 focus:bg-white focus:border-primary/40 focus:outline-none placeholder:text-slate-400"
           />
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted">
-            <kbd className="text-[10px] font-bold bg-white/5 px-1.5 py-0.5 rounded border border-white/10">⌘K</kbd>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hidden md:block">
+            <kbd className="text-[10px] font-medium bg-white px-1.5 py-0.5 rounded border border-border shadow-sm">⌘K</kbd>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
-        <button className="relative p-2 text-text-muted hover:text-text transition-colors">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      <div className="flex items-center gap-4">
+        <button className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors relative">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
-          <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"></span>
+          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full border-2 border-white"></span>
         </button>
+
+        <div className="h-6 w-px bg-border mx-1"></div>
 
         <div className="relative">
           <button 
             onClick={() => setShowDropdown(!showDropdown)}
-            className="flex items-center gap-3 p-1 pr-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all"
+            className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-50 transition-all"
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center font-bold text-sm shadow-lg">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-primary flex items-center justify-center font-bold text-sm border border-indigo-100">
               {user?.name?.[0] || 'U'}
             </div>
-            <div className="text-left hidden sm:block">
-              <p className="text-xs font-bold">{user?.name || 'User'}</p>
-              <p className="text-[10px] text-text-muted uppercase tracking-widest font-black">Admin</p>
+            <div className="text-left hidden md:block mr-1">
+              <p className="text-sm font-semibold text-slate-900 leading-tight">{user?.name || 'User'}</p>
+              <p className="text-[11px] text-slate-500 font-medium">Administrator</p>
             </div>
-            <svg className={`w-4 h-4 text-text-muted transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
 
           {showDropdown && (
-            <div className="absolute right-0 mt-3 w-56 card p-2 shadow-2xl animate-fade-in">
-              <div className="px-4 py-3 border-b border-white/5 mb-2">
-                <p className="text-xs font-bold">{user?.email}</p>
-                <p className="text-[10px] text-primary font-black uppercase tracking-widest mt-1">Free Tier</p>
+            <div className="absolute right-0 mt-2 w-56 bg-white border border-border rounded-xl shadow-xl py-1 animate-subtle-fade z-50">
+              <div className="px-4 py-3 border-b border-border mb-1">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Account</p>
+                <p className="text-sm font-medium text-slate-900 truncate">{user?.email}</p>
               </div>
               <button 
                 onClick={() => { router.push('/settings'); setShowDropdown(false); }}
-                className="w-full text-left px-4 py-2 text-sm text-text-muted hover:text-text hover:bg-white/5 rounded-xl transition-all"
+                className="w-full text-left px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
-                Settings
+                Profile Settings
               </button>
               <button 
-                onClick={handleLogout}
-                className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-400/10 rounded-xl transition-all"
+                onClick={() => { router.push('/billing'); setShowDropdown(false); }}
+                className="w-full text-left px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
-                Logout
+                Billing & Plan
+              </button>
+              <div className="h-px bg-border my-1"></div>
+              <button 
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-all"
+              >
+                Sign out
               </button>
             </div>
           )}

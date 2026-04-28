@@ -6,38 +6,58 @@ import { useRouter, usePathname } from 'next/navigation';
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check if user is authenticated (token exists in localStorage)
     const token = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
     
-    if (!token) {
-      setIsAuthenticated(false);
-      // Redirect to login if trying to access protected routes
-      if (pathname?.startsWith('/dashboard') || 
-          pathname?.startsWith('/settings') || 
-          pathname?.startsWith('/analytics') || 
-          pathname?.startsWith('/projects')) {
+    if (!token || !storedUser) {
+      setIsAuthorized(false);
+      if (pathname !== '/login' && pathname !== '/signup') {
         router.push('/login');
       }
-    } else {
-      setIsAuthenticated(true);
+      return;
+    }
+
+    try {
+      const user = JSON.parse(storedUser);
+      // Fallback to 'admin' or 'team' if role is missing, or redirect to a default
+      const role = user.role || 'team'; 
+
+      // 1. Handle root /dashboard redirect to specific role dashboard
+      if (pathname === '/dashboard' || pathname === '/dashboard/') {
+        router.push(`/dashboard/${role}`);
+        return;
+      }
+
+      // 2. Role-based route protection
+      if (pathname.startsWith('/dashboard/admin') && role !== 'admin') {
+        router.push(`/dashboard/${role}`);
+        return;
+      }
+      if (pathname.startsWith('/dashboard/team') && role !== 'team' && role !== 'admin') {
+        router.push(`/dashboard/${role}`);
+        return;
+      }
+      if (pathname.startsWith('/dashboard/client') && role !== 'client' && role !== 'admin') {
+        router.push(`/dashboard/${role}`);
+        return;
+      }
+
+      setIsAuthorized(true);
+    } catch (e) {
+      localStorage.clear();
+      router.push('/login');
     }
   }, [pathname, router]);
 
-  // Show nothing or a loader while checking authentication to prevent flicker
-  if (isAuthenticated === null) {
+  if (isAuthorized === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
       </div>
     );
-  }
-
-  // If not authenticated and on a protected route, it will redirect, but we return null to prevent rendering
-  if (!isAuthenticated && (pathname?.startsWith('/dashboard') || pathname?.startsWith('/settings') || pathname?.startsWith('/analytics'))) {
-    return null;
   }
 
   return <>{children}</>;

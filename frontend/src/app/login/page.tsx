@@ -15,6 +15,8 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [userId, setUserId] = useState("");
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5001';
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -76,31 +78,31 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background px-6 relative overflow-hidden">
+    <main className="min-h-screen flex items-center justify-center bg-[#0F172A] px-6 relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full -z-10">
-        <div className="absolute top-1/4 left-1/4 w-[60%] h-[60%] bg-primary/10 blur-[120px] rounded-full" />
-        <div className="absolute bottom-1/4 right-1/4 w-[60%] h-[60%] bg-secondary/10 blur-[120px] rounded-full" />
+        <div className="absolute top-1/4 left-1/4 w-[60%] h-[60%] bg-indigo-500/10 blur-[120px] rounded-full" />
+        <div className="absolute bottom-1/4 right-1/4 w-[60%] h-[60%] bg-blue-500/10 blur-[120px] rounded-full" />
       </div>
 
-      <div className="w-full max-w-[440px] card p-10">
-        <div className="text-center mb-10">
-          <Link href="/" className="inline-flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <div className="w-4 h-4 bg-white rounded-sm rotate-45" />
+      <div className="w-full max-w-[440px] bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl">
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <div className="w-5 h-5 bg-white rounded-sm rotate-45" />
             </div>
-            <span className="text-2xl font-bold tracking-tight">DMH<span className="text-primary">Hub</span></span>
+            <span className="text-2xl font-bold tracking-tight text-white">Hub<span className="text-indigo-500">SaaS</span></span>
           </Link>
-          <h2 className="text-3xl font-extrabold text-white tracking-tight">
+          <h2 className="text-3xl font-bold text-white tracking-tight">
             {showOTP ? "Security Check" : "Sign In"}
           </h2>
-          <p className="text-text-muted mt-2 text-sm">
-            {showOTP ? "Enter the 6-digit code or a backup code" : "Manage your agency campaigns"}
+          <p className="text-slate-400 mt-2 text-sm">
+            {showOTP ? "Enter the 6-digit verification code" : "Manage your agency campaigns"}
           </p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 text-red-400 text-xs font-bold border border-red-500/20">
-            {error}
+          <div className="mb-6 p-4 rounded-xl bg-red-500/10 text-red-400 text-xs font-bold border border-red-500/20 animate-shake">
+            ⚠️ {error}
           </div>
         )}
 
@@ -108,75 +110,74 @@ export default function LoginPage() {
           {!showOTP ? (
             <>
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-text-muted uppercase tracking-widest pl-1">Email</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Email</label>
                 <input 
                   type="email" 
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="input-field"
-                  placeholder="name@agency.com"
+                  className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-indigo-500 transition-all"
+                  placeholder="admin@demo.com"
                 />
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center pl-1">
-                  <label className="block text-xs font-bold text-text-muted uppercase tracking-widest">Password</label>
-                  <Link href="/forgot-password" className="text-[11px] text-primary font-bold hover:text-primary-light uppercase">Forgot?</Link>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest">Password</label>
+                  <Link href="/forgot-password" hidden className="text-[11px] text-indigo-400 font-bold hover:text-indigo-300 uppercase">Forgot?</Link>
                 </div>
                 <input 
                   type="password" 
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input-field"
+                  className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-indigo-500 transition-all"
                   placeholder="••••••••"
                 />
               </div>
             </>
           ) : (
             <div className="space-y-4">
-              <label className="block text-xs font-bold text-text-muted uppercase tracking-widest text-center">Verification or Backup Code</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Verification Code</label>
               <input 
                 type="text" 
                 required
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
-                className="input-field text-center text-2xl tracking-[0.2em] font-bold py-4"
+                className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-5 text-white outline-none focus:border-indigo-500 text-center text-2xl tracking-[0.2em] font-bold transition-all"
                 placeholder="000000"
               />
-              <div className="text-center pt-2">
-                <Link href="/reset-2fa" className="text-[10px] text-primary font-bold hover:text-primary-light uppercase tracking-widest">Lost 2FA Access?</Link>
-              </div>
             </div>
           )}
 
           <button 
             type="submit" 
             disabled={loading}
-            className="btn-primary w-full"
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50"
           >
-            {loading ? "Please wait..." : (showOTP ? "Verify" : "Sign In")}
+            {loading ? "Authenticating..." : (showOTP ? "Verify" : "Sign In")}
           </button>
         </form>
+
+        <div className="mt-6 text-center">
+          <p className="text-sm text-slate-400">
+            Don't have an account?{' '}
+            <Link href="/signup" className="text-indigo-400 font-bold hover:text-indigo-300">Create Account</Link>
+          </p>
+        </div>
 
         <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-white/5"></div>
           </div>
-          <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-text-muted">
-            <span className="px-4 bg-background/50 backdrop-blur-sm">Social Login</span>
+          <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
+            <span className="px-4 bg-[#1e293b]/50 backdrop-blur-sm">Social Login</span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <button onClick={() => window.location.href = "http://localhost:5000/api/auth/google"} className="btn-secondary text-sm">Google</button>
-          <button onClick={() => window.location.href = "http://localhost:5000/api/auth/facebook"} className="btn-secondary text-sm">Facebook</button>
+          <button onClick={() => window.location.href = `${apiUrl}/auth/google`} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm">Google</button>
+          <button onClick={() => window.location.href = `${apiUrl}/auth/facebook`} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm">Facebook</button>
         </div>
-
-        <p className="mt-10 text-center text-sm text-text-muted font-medium">
-          New here?{' '}
-          <Link href="/signup" className="text-primary font-bold hover:text-primary-light">Create Account</Link>
-        </p>
       </div>
     </main>
   );

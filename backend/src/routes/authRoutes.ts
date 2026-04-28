@@ -14,22 +14,32 @@ import { eq } from 'drizzle-orm';
 
 const router = Router();
 
+// --- Safety Validation Helper ---
+const safeAttach = (method: 'get' | 'post' | 'put' | 'delete', path: string, ...handlers: any[]) => {
+  handlers.forEach(handler => {
+    if (typeof handler !== 'function') {
+      throw new Error(`Invalid route handler for ${method.toUpperCase()} ${path}: Expected function but got ${typeof handler}. Ensure the controller is properly exported.`);
+    }
+  });
+  (router as any)[method](path, ...handlers);
+};
+
 // --- Local Auth ---
-router.post('/register', register);
-router.post('/login', login);
-router.post('/refresh', refresh);
-router.post('/update-profile', authMiddleware, updateProfile);
+safeAttach('post', '/register', register);
+safeAttach('post', '/login', login);
+safeAttach('post', '/refresh', refresh);
+safeAttach('post', '/update-profile', authMiddleware, updateProfile);
 
 // --- 2FA ---
-router.post('/2fa/setup', authMiddleware, setup2FA);
-router.post('/2fa/verify', authMiddleware, verify2FA);
-router.post('/2fa/validate', validate2FA);
+safeAttach('post', '/2fa/setup', authMiddleware, setup2FA);
+safeAttach('post', '/2fa/verify', authMiddleware, verify2FA);
+safeAttach('post', '/2fa/validate', validate2FA);
 
 // --- Recovery ---
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
-router.post('/forgot-2fa-request', reset2FARequest);
-router.post('/forgot-2fa-confirm', reset2FAConfirm);
+safeAttach('post', '/forgot-password', forgotPassword);
+safeAttach('post', '/reset-password', resetPassword);
+safeAttach('post', '/forgot-2fa-request', reset2FARequest);
+safeAttach('post', '/forgot-2fa-confirm', reset2FAConfirm);
 
 // --- OAuth ---
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
@@ -59,6 +69,6 @@ router.get('/facebook/callback', passport.authenticate('facebook', { failureRedi
 });
 
 // --- Dev ---
-router.post('/dev/disable-2fa', disable2FA_Dev);
+safeAttach('post', '/dev/disable-2fa', disable2FA_Dev);
 
 export default router;

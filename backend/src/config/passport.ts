@@ -2,7 +2,7 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as FacebookStrategy } from 'passport-facebook';
 import { db } from '../db';
-import { users } from '../db/schema';
+import { users, tenants } from '../db/schema';
 import { eq, or, and } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -30,13 +30,24 @@ export const configurePassport = () => {
         }
       } else {
         const userId = uuidv4();
+        const tenantId = uuidv4();
+        const subdomain = profile.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).substring(2, 7);
+
+        // Create a new tenant for social registration
+        await db.insert(tenants).values({
+          id: tenantId,
+          name: `${profile.displayName}'s Agency`,
+          subdomain,
+        });
+
         await db.insert(users).values({
           id: userId,
+          tenantId,
           name: profile.displayName,
           email: email,
           provider: 'google',
           providerId: profile.id,
-          role: 'user'
+          role: 'admin'
         });
         user = await db.query.users.findFirst({ where: eq(users.id, userId) });
       }
@@ -71,13 +82,24 @@ export const configurePassport = () => {
         }
       } else {
         const userId = uuidv4();
+        const tenantId = uuidv4();
+        const subdomain = profile.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).substring(2, 7);
+
+        // Create a new tenant for social registration
+        await db.insert(tenants).values({
+          id: tenantId,
+          name: `${profile.displayName}'s Agency`,
+          subdomain,
+        });
+
         await db.insert(users).values({
           id: userId,
+          tenantId,
           name: profile.displayName,
           email: email,
           provider: 'facebook',
           providerId: profile.id,
-          role: 'user'
+          role: 'admin'
         });
         user = await db.query.users.findFirst({ where: eq(users.id, userId) });
       }

@@ -6,6 +6,7 @@ import passport from 'passport';
 import { configurePassport } from './config/passport';
 import authRoutes from './routes/authRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
+import agencyRoutes from './routes/agencyRoutes';
 import rateLimit from 'express-rate-limit';
 
 // Load environment variables
@@ -31,7 +32,10 @@ configurePassport();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    'http://localhost:3000',
+    'https://digital-hub-frontend.onrender.com'
+  ],
   credentials: true
 }));
 app.use(express.json());
@@ -56,8 +60,9 @@ app.get('/', (req: Request, res: Response) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/agency', agencyRoutes);
 
 // Start server
 app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT} (0.0.0.0)`);
+  console.log(`🚀 BACKEND READY: Server running on http://localhost:${PORT}`);
 });
