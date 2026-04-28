@@ -1,0 +1,16 @@
+{
+  "development": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "digital_marketing_hub_dev",
+    "user": "postgres",
+    "password": "password"
+  },
+  "production": {
+    "host": "db.marketinghub.com",
+    "port": 5432,
+    "database": "marketing_hub_prod",
+    "user": "admin",
+    "password": "strongpassword"
+  }
+}

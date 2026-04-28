@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #020617;
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --primary: #6366f1;
+    --secondary: #a855f7;
+    --surface: #0f172a;
+    --border: rgba(255, 255, 255, 0.05);
+  }
+
+  body {
+    @apply bg-background text-text antialiased selection:bg-primary/30;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply relative overflow-hidden bg-primary text-white px-6 py-3 rounded-xl font-bold transition-all 
+    hover:bg-primary-dark hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] 
+    active:scale-[0.98] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-secondary {
+    @apply border border-white/10 text-text-muted px-6 py-3 rounded-xl font-bold transition-all 
+    hover:bg-white/5 hover:text-text hover:border-white/20 
+    active:scale-[0.98] flex items-center justify-center;
+  }
+
+  .card {
+    @apply bg-surface/50 border border-white/5 rounded-2xl p-8 shadow-2xl backdrop-blur-xl 
+    hover:border-white/10 transition-all duration-300;
+  }
+
+  .input-field {
+    @apply bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-text 
+    placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40 
+    focus:border-primary/40 transition-all w-full;
+  }
+
+  .glass-panel {
+    @apply bg-white/[0.01] border border-white/5 backdrop-blur-md rounded-2xl shadow-2xl;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-text-muted 
+    hover:text-text hover:bg-white/5;
+  }
+
+  .nav-link-active {
+    @apply bg-primary text-white shadow-[0_8px_20px_rgba(99,102,241,0.3)];
+  }
+}
+
+/* Custom Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Grid Patterns */
+.bg-grid {
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.03) 1px, transparent 0);
+  background-size: 24px 24px;
+}
