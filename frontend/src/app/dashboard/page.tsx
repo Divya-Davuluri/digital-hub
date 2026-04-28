@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { apiFetch } from "@/lib/api";
@@ -15,6 +15,7 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
@@ -34,7 +35,14 @@ export default function DashboardPage() {
     }
 
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const u = JSON.parse(storedUser);
+      setUser(u);
+      // Redirect to correct dashboard if hitting the root /dashboard
+      if (pathname === '/dashboard' || pathname === '/dashboard/') {
+        const role = u.role === 'admin' ? 'admin' : 'team';
+        router.push(`/dashboard/${role}`);
+        return;
+      }
     }
 
     const fetchDashboard = async () => {

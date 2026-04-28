@@ -14,7 +14,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     
     if (!token || !storedUser) {
       setIsAuthorized(false);
-      if (pathname !== '/login' && pathname !== '/signup') {
+      if (pathname !== '/login' && pathname !== '/signup' && pathname !== '/') {
         router.push('/login');
       }
       return;
@@ -22,8 +22,13 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
     try {
       const user = JSON.parse(storedUser);
-      // Fallback to 'admin' or 'team' if role is missing, or redirect to a default
-      const role = user.role || 'team'; 
+      // VALIDATE ROLE: Only allow 'admin', 'team', or 'client'
+      // If the role is unknown (like 'user'), default to 'team' or 'admin' based on user status
+      let role = user.role;
+      if (role !== 'admin' && role !== 'team' && role !== 'client') {
+        console.warn(`[ProtectedRoute] Unknown role detected: "${role}". Defaulting to "team".`);
+        role = 'team';
+      }
 
       // 1. Handle root /dashboard redirect to specific role dashboard
       if (pathname === '/dashboard' || pathname === '/dashboard/') {
@@ -32,15 +37,25 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       }
 
       // 2. Role-based route protection
-      if (pathname.startsWith('/dashboard/admin') && role !== 'admin') {
+      const isAdminRoute = pathname.startsWith('/dashboard/admin');
+      const isTeamRoute = pathname.startsWith('/dashboard/team');
+      const isClientRoute = pathname.startsWith('/dashboard/client');
+
+      if (isAdminRoute && role !== 'admin') {
         router.push(`/dashboard/${role}`);
         return;
       }
-      if (pathname.startsWith('/dashboard/team') && role !== 'team' && role !== 'admin') {
+      if (isTeamRoute && role !== 'team' && role !== 'admin') {
         router.push(`/dashboard/${role}`);
         return;
       }
-      if (pathname.startsWith('/dashboard/client') && role !== 'client' && role !== 'admin') {
+      if (isClientRoute && role !== 'client' && role !== 'admin') {
+        router.push(`/dashboard/${role}`);
+        return;
+      }
+
+      // 3. Handle dead-end routes like /dashboard/user
+      if (pathname === '/dashboard/user' || pathname === '/dashboard/user/') {
         router.push(`/dashboard/${role}`);
         return;
       }
