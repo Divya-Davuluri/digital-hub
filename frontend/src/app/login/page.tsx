@@ -49,6 +49,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    localStorage.clear(); // Clear any stale sessions/tokens before login
     setLoading(true);
     setError("");
 
@@ -68,7 +69,13 @@ export default function LoginPage() {
         localStorage.setItem("token", data.token);
         localStorage.setItem("refreshToken", data.refreshToken);
         localStorage.setItem("user", JSON.stringify(data.user));
-        router.push("/dashboard");
+        
+        // Dynamic redirection based on role
+        if (data.user.role === 'admin') {
+          router.push("/dashboard/admin");
+        } else {
+          router.push("/dashboard/team");
+        }
       }
     } catch (err: any) {
       setError(err.message || "Authentication failed");

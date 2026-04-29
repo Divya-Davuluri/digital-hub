@@ -16,8 +16,7 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage({ type: '', text: '' });
-
+    localStorage.clear(); // Ensure clean state for new registration
     try {
       await apiFetch('/auth/register', {
         method: 'POST',

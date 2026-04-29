@@ -20,6 +20,8 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
 
   try {
     const decoded: any = jwt.verify(token, JWT_SECRET);
+    console.log(`🛡️ AUTH VERIFIED - User: ${decoded.userId}, Role: ${decoded.role}, Tenant: ${decoded.tenantId}`);
+    
     const user = await db.query.users.findFirst({
       where: eq(users.id, decoded.userId),
     });

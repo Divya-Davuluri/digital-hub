@@ -37,9 +37,20 @@ const updateProfileSchema = z.object({
 });
 
 // --- Utilities ---
-export const generateTokens = async (userId: string) => {
-  const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '15m' });
-  const refreshToken = jwt.sign({ userId }, REFRESH_SECRET, { expiresIn: '7d' });
+export const generateTokens = async (userId: string, role: string, tenantId: string) => {
+  console.log(`🔑 GENERATING TOKENS - User: ${userId}, Role: ${role}, Tenant: ${tenantId}`);
+  
+  const token = jwt.sign(
+    { userId, role, tenantId }, 
+    JWT_SECRET, 
+    { expiresIn: '2h' } // Increased to 2 hours for stability
+  );
+  
+  const refreshToken = jwt.sign(
+    { userId }, 
+    REFRESH_SECRET, 
+    { expiresIn: '7d' }
+  );
 
   await db.insert(sessions).values({
     userId,
@@ -87,7 +98,7 @@ export const register = async (req: Request, res: Response) => {
       role: 'admin', 
     });
 
-    const { token, refreshToken } = await generateTokens(userId);
+    const { token, refreshToken } = await generateTokens(userId, 'admin', tenantId);
     res.status(201).json({ 
       token, 
       refreshToken, 
@@ -118,7 +129,7 @@ export const login = async (req: Request, res: Response) => {
       return res.json({ status: "2FA_REQUIRED", userId: user.id });
     }
 
-    const { token, refreshToken } = await generateTokens(user.id);
+    const { token, refreshToken } = await generateTokens(user.id, user.role, user.tenantId || '');
     res.json({ 
       token, 
       refreshToken, 

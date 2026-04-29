@@ -13,7 +13,9 @@ let client: any;
 
 // LOGIC: Use Turso if credentials exist, otherwise fallback to local SQLite for development
 if (dbUrl && dbToken && dbToken !== 'your_token_here') {
-  console.log(`📡 CONNECTING TO TURSO: ${dbUrl.substring(0, 25)}...`);
+  console.log(`📡 ATTEMPTING TURSO CONNECTION:`);
+  console.log(`🔗 URL: ${dbUrl}`);
+  console.log(`🔑 TOKEN: ${dbToken.substring(0, 15)}...`);
   
   const safeUrl = dbUrl.replace(/['"]/g, '').trim();
   const safeToken = dbToken.replace(/['"]/g, '').trim();
