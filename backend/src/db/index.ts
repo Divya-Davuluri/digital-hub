@@ -2,33 +2,34 @@ import { drizzle } from 'drizzle-orm/libsql';
 import { createClient } from '@libsql/client';
 import * as schema from './schema';
 import dotenv from 'dotenv';
+import path from 'path';
 
 dotenv.config();
 
-const isCI = process.env.CI === "true";
 const dbUrl = process.env.TURSO_DATABASE_URL;
 const dbToken = process.env.TURSO_AUTH_TOKEN;
 
 let client: any;
 
-if (!dbUrl || !dbToken) {
-  if (isCI) {
-    console.log("Skipping DB connection in CI mode");
-    // Use a dummy client for CI to prevent crashes during initialization/build
-    client = createClient({ url: "libsql://ci-dummy-url" });
-  } else {
-    console.error("CRITICAL: Missing TURSO_DATABASE_URL or TURSO_AUTH_TOKEN in environment.");
-    throw new Error('Database environment variables are missing.');
-  }
-} else {
-  console.log(`Connecting to database: ${dbUrl.substring(0, 15)}...`);
-  // Render users frequently paste quotes by mistake. Strip them to prevent URL_INVALID errors.
+// LOGIC: Use Turso if credentials exist, otherwise fallback to local SQLite for development
+if (dbUrl && dbToken && dbToken !== 'your_token_here') {
+  console.log(`📡 CONNECTING TO TURSO: ${dbUrl.substring(0, 25)}...`);
+  
   const safeUrl = dbUrl.replace(/['"]/g, '').trim();
   const safeToken = dbToken.replace(/['"]/g, '').trim();
 
   client = createClient({
     url: safeUrl,
     authToken: safeToken,
+  });
+} else {
+  // FALLBACK: Use local SQLite file 'local.db' inside the backend folder
+  const localDbPath = `file:${path.join(process.cwd(), 'local.db')}`;
+  console.warn(`⚠️  TURSO CREDENTIALS MISSING: Falling back to local database: ${localDbPath}`);
+  console.warn(`👉 To use Turso, update TURSO_AUTH_TOKEN in backend/.env`);
+  
+  client = createClient({
+    url: localDbPath,
   });
 }
 
