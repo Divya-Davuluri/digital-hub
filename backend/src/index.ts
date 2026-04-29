@@ -7,6 +7,7 @@ import { configurePassport } from './config/passport';
 import authRoutes from './routes/authRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import agencyRoutes from './routes/agencyRoutes';
+import taskRoutes from './routes/taskRoutes';
 import rateLimit from 'express-rate-limit';
 
 // Load environment variables
@@ -71,6 +72,7 @@ app.get('/', (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/agency', agencyRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // Start server
 app.listen(Number(PORT), '0.0.0.0', () => {

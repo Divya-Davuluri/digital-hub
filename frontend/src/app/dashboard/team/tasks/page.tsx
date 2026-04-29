@@ -1,35 +1,56 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import { apiFetch } from "@/lib/api";
 
 export default function TeamTasksPage() {
-  const [tasks, setTasks] = useState([
-    { id: 1, title: "Review Nike Summer Campaign", priority: "High", status: "Pending", due: "Today" },
-    { id: 2, title: "Approve Tesla Social Graphics", priority: "Medium", status: "Completed", due: "Yesterday" },
-    { id: 3, title: "Generate Monthly ROI Report", priority: "High", status: "In Progress", due: "In 2 days" },
-  ]);
-
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', priority: 'Medium' });
+  const [newTask, setNewTask] = useState({ title: '', priority: 'medium' });
 
-  const handleCreateTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    const task = {
-      id: tasks.length + 1,
-      title: newTask.title,
-      priority: newTask.priority,
-      status: "Pending",
-      due: "Today"
-    };
-    setTasks([task, ...tasks]);
-    setShowModal(false);
-    setNewTask({ title: '', priority: 'Medium' });
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  const loadTasks = async () => {
+    try {
+      const data = await apiFetch('/tasks');
+      setTasks(data);
+    } catch (err) {
+      console.error("Failed to load tasks:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const markComplete = (id: number) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, status: 'Completed' } : t));
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const savedTask = await apiFetch('/tasks', {
+        method: 'POST',
+        body: JSON.stringify(newTask),
+      });
+      setTasks([savedTask, ...tasks]);
+      setShowModal(false);
+      setNewTask({ title: '', priority: 'medium' });
+    } catch (err) {
+      alert("Failed to create task");
+    }
+  };
+
+  const markComplete = async (id: string) => {
+    try {
+      await apiFetch(`/tasks/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'completed' }),
+      });
+      setTasks(tasks.map(t => t.id === id ? { ...t, status: 'completed' } : t));
+    } catch (err) {
+      alert("Failed to update task");
+    }
   };
 
   return (
@@ -78,22 +99,24 @@ export default function TeamTasksPage() {
                                <span className="font-semibold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">{task.title}</span>
                             </td>
                             <td className="px-8 py-5">
-                               <span className={`text-[10px] font-black uppercase tracking-tighter ${task.priority === 'High' ? 'text-red-500' : 'text-amber-500'}`}>
-                                  {task.priority}
-                               </span>
-                            </td>
-                            <td className="px-8 py-5">
-                               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                                  task.status === 'Completed' 
-                                     ? 'bg-green-50 text-green-700 border-green-100' 
-                                     : task.status === 'In Progress'
-                                     ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
-                                     : 'bg-slate-50 text-slate-700 border-slate-200'
-                               }`}>
-                                  {task.status}
-                               </span>
-                            </td>
-                            <td className="px-8 py-5 text-xs text-slate-500 font-medium">{task.due}</td>
+                                <span className={`text-[10px] font-black uppercase tracking-tighter ${task.priority?.toLowerCase() === 'high' ? 'text-red-500' : task.priority?.toLowerCase() === 'medium' ? 'text-amber-500' : 'text-slate-400'}`}>
+                                   {task.priority}
+                                </span>
+                             </td>
+                             <td className="px-8 py-5">
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                   task.status?.toLowerCase() === 'completed' 
+                                      ? 'bg-green-50 text-green-700 border-green-100' 
+                                      : task.status?.toLowerCase() === 'in_progress'
+                                      ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                      : 'bg-slate-50 text-slate-700 border-slate-200'
+                                }`}>
+                                   {task.status}
+                                </span>
+                             </td>
+                             <td className="px-8 py-5 text-xs text-slate-500 font-medium">
+                               {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : 'Today'}
+                             </td>
                             <td className="px-8 py-5 text-right">
                                {task.status !== 'Completed' && (
                                  <button 
@@ -144,14 +167,14 @@ export default function TeamTasksPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Priority Level</label>
-                <select 
+                 <select 
                   className="input-field"
                   value={newTask.priority}
                   onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
                 >
-                  <option value="High">High Priority</option>
-                  <option value="Medium">Medium Priority</option>
-                  <option value="Low">Low Priority</option>
+                  <option value="high">High Priority</option>
+                  <option value="medium">Medium Priority</option>
+                  <option value="low">Low Priority</option>
                 </select>
               </div>
               <button type="submit" className="w-full btn-primary py-3 mt-4 text-sm font-bold">

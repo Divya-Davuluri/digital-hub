@@ -59,6 +59,18 @@ export const analytics = sqliteTable('analytics', {
   spend: integer('spend').default(0),
 });
 
+export const tasks = sqliteTable('tasks', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  status: text('status', { enum: ['todo', 'in_progress', 'completed'] }).default('todo').notNull(),
+  priority: text('priority', { enum: ['low', 'medium', 'high'] }).default('medium').notNull(),
+  assignedTo: text('assigned_to').references(() => users.id, { onDelete: 'set null' }),
+  createdBy: text('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 // --- Auth Utilities ---
 export const backupCodes = sqliteTable('backup_codes', {
   id: integer('id').primaryKey({ autoIncrement: true }),
