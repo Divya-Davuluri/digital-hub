@@ -191,7 +191,7 @@ export const validate2FA = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid or expired code' });
     }
 
-    const { token: accessToken, refreshToken } = await generateTokens(user.id);
+    const { token: accessToken, refreshToken } = await generateTokens(user.id, user.role, user.tenantId || '');
     res.json({ 
       token: accessToken, 
       refreshToken, 
@@ -253,7 +253,10 @@ export const refresh = async (req: Request, res: Response) => {
     const session = await db.query.sessions.findFirst({ where: eq(sessions.refreshToken, refreshToken) });
     if (!session || new Date() > session.expiresAt) return res.status(401).json({ message: 'Invalid or expired refresh token' });
     const decoded: any = jwt.verify(refreshToken, REFRESH_SECRET);
-    const newTokens = await generateTokens(decoded.userId);
+    const user = await db.query.users.findFirst({ where: eq(users.id, decoded.userId) });
+    if (!user) return res.status(401).json({ message: 'User no longer exists' });
+    
+    const newTokens = await generateTokens(user.id, user.role, user.tenantId || '');
     await db.delete(sessions).where(eq(sessions.id, session.id));
     res.json(newTokens);
   } catch (error) {

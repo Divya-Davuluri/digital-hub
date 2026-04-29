@@ -49,8 +49,10 @@ router.get('/google/callback', passport.authenticate('google', { failureRedirect
   if (twoFactorEnabled) {
     return res.redirect(`${FRONTEND_URL}/login?2fa_required=true&userId=${id}`);
   }
-  const { token, refreshToken } = await generateTokens(id);
+  
   const user = await db.query.users.findFirst({ where: eq(users.id, id) });
+  const { token, refreshToken } = await generateTokens(id, user?.role || 'admin', user?.tenantId || '');
+  
   const userData = encodeURIComponent(JSON.stringify({ id: user?.id, email: user?.email, name: user?.name }));
   res.redirect(`${FRONTEND_URL}/login?token=${token}&refreshToken=${refreshToken}&user=${userData}`);
 });
@@ -62,8 +64,10 @@ router.get('/facebook/callback', passport.authenticate('facebook', { failureRedi
   if (twoFactorEnabled) {
     return res.redirect(`${FRONTEND_URL}/login?2fa_required=true&userId=${id}`);
   }
-  const { token, refreshToken } = await generateTokens(id);
+  
   const user = await db.query.users.findFirst({ where: eq(users.id, id) });
+  const { token, refreshToken } = await generateTokens(id, user?.role || 'admin', user?.tenantId || '');
+  
   const userData = encodeURIComponent(JSON.stringify({ id: user?.id, email: user?.email, name: user?.name }));
   res.redirect(`${FRONTEND_URL}/login?token=${token}&refreshToken=${refreshToken}&user=${userData}`);
 });
