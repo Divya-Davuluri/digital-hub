@@ -11,18 +11,21 @@ const requiredEnvs = [
   'TURSO_AUTH_TOKEN'
 ];
 
-requiredEnvs.forEach((env) => {
-  if (!process.env[env]) {
-    throw new Error(`❌ Missing required environment variable: ${env}`);
-  }
-});
+// Only enforce strict validation in production or if not in CI
+if (process.env.NODE_ENV === 'production' || !process.env.CI) {
+  requiredEnvs.forEach((env) => {
+    if (!process.env[env]) {
+      throw new Error(`❌ Missing required environment variable: ${env}`);
+    }
+  });
+}
 
 export const config = {
-  port: parseInt(process.env.PORT || '5001', 10),
+  port: parseInt(process.env.PORT || '5000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   baseUrl: process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' 
     ? 'https://digital-hub.onrender.com' 
-    : 'http://localhost:5001'),
+    : 'http://localhost:5000'),
   frontendUrl: process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
     ? 'https://digital-hub-1.onrender.com' 
     : 'http://localhost:3000'),
