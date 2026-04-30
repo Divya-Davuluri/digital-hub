@@ -8,8 +8,8 @@ router.use(authMiddleware);
 
 router.get('/', getClients);
 router.get('/:id', getClientById);
-router.post('/', authorize(['admin']), createClient);
-router.put('/:id', authorize(['admin', 'team']), updateClient);
-router.delete('/:id', authorize(['admin']), deleteClient);
+router.post('/', authorize('admin'), createClient);
+router.put('/:id', authorize('admin', 'team'), updateClient);
+router.delete('/:id', authorize('admin'), deleteClient);
 
 export default router;

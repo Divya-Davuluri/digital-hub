@@ -9,7 +9,7 @@ async function reset() {
   console.log('🗑️ Resetting Database...');
   
   const tables = [
-    'analytics', 'backup_codes', 'branding', 'campaigns', 'clients', 
+    'analytics', 'backup_codes', 'tenant_branding', 'campaigns', 'clients', 
     'notifications', 'reset_tokens', 'sessions', 'tasks', 'users', 'tenants'
   ];
 

@@ -32,6 +32,7 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
     }
 
     req.user = user;
+    req.tenantId = user.tenantId; // Attach for convenience
     next();
   } catch (err: any) {
     if (err.name === 'TokenExpiredError') {

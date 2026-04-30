@@ -10,6 +10,7 @@ import { db } from '../db';
 import { users, backupCodes, sessions, resetTokens, tenants } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { encrypt, decrypt } from '../utils/crypto';
+import { getCookieOptions } from '../config/cookies';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'digital-marketing-hub-v1-secret-key-2026';
 const REFRESH_SECRET = process.env.REFRESH_SECRET || 'digital-marketing-hub-v1-refresh-key-2026';
@@ -54,6 +55,7 @@ export const generateTokens = async (userId: string, role: string, tenantId: str
 
   await db.insert(sessions).values({
     userId,
+    tenantId,
     refreshToken,
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   });
@@ -99,6 +101,12 @@ export const register = async (req: Request, res: Response) => {
     });
 
     const { token, refreshToken } = await generateTokens(userId, 'admin', tenantId, null);
+    
+    // Set tokens in cookies
+    const cookieOptions = getCookieOptions(7);
+    res.cookie('token', token, cookieOptions);
+    res.cookie('refreshToken', refreshToken, cookieOptions);
+
     res.status(201).json({ 
       token, 
       refreshToken, 
@@ -117,11 +125,19 @@ export const login = async (req: Request, res: Response) => {
     const validated = loginSchema.parse(req.body);
     const { email, password } = validated;
 
+    console.log(`🔐 LOGIN ATTEMPT - Email: ${email}`);
     const user = await db.query.users.findFirst({
       where: eq(users.email, email),
     });
 
-    if (!user || !user.password || !(await bcrypt.compare(password, user.password))) {
+    if (!user) {
+      console.log(`❌ LOGIN FAILED - User not found: ${email}`);
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password || '');
+    if (!isMatch) {
+      console.log(`❌ LOGIN FAILED - Password mismatch: ${email}`);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -130,6 +146,12 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const { token, refreshToken } = await generateTokens(user.id, user.role, user.tenantId || '', user.clientId);
+    
+    // Set tokens in cookies
+    const cookieOptions = getCookieOptions(7);
+    res.cookie('token', token, cookieOptions);
+    res.cookie('refreshToken', refreshToken, cookieOptions);
+
     res.json({ 
       token, 
       refreshToken, 
@@ -192,6 +214,12 @@ export const validate2FA = async (req: Request, res: Response) => {
     }
 
     const { token: accessToken, refreshToken } = await generateTokens(user.id, user.role, user.tenantId || '');
+    
+    // Set tokens in cookies
+    const cookieOptions = getCookieOptions(7);
+    res.cookie('token', accessToken, cookieOptions);
+    res.cookie('refreshToken', refreshToken, cookieOptions);
+
     res.json({ 
       token: accessToken, 
       refreshToken, 

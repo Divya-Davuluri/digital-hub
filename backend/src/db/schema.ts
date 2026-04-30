@@ -13,7 +13,7 @@ export const tenants = sqliteTable('tenants', {
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
-  tenantId: text('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   password: text('password'),
@@ -58,6 +58,7 @@ export const campaigns = sqliteTable('campaigns', {
 
 export const analytics = sqliteTable('analytics', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   campaignId: text('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
   date: text('date').notNull(),
   clicks: integer('clicks').default(0),
@@ -109,6 +110,7 @@ export const backupCodes = sqliteTable('backup_codes', {
 export const sessions = sqliteTable('sessions', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   refreshToken: text('refresh_token').notNull(),
   expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
 });

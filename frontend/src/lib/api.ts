@@ -13,7 +13,8 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
-  let fullUrl = `${API_URL}${endpoint}`;
+  const base = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`;
+  let fullUrl = `${base}${endpoint}`;
   
   // Local Dev Fallback: Pass tenant query param to backend
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
@@ -34,6 +35,7 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     let response = await fetch(fullUrl, {
       ...options,
       headers,
+      credentials: 'include',
     });
 
     // Handle 401 Unauthorized (Token Expired)
@@ -42,10 +44,11 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
       if (refreshToken) {
         console.warn('[API] Access token expired, attempting refresh...');
         try {
-          const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+          const refreshRes = await fetch(`${base}/auth/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ refreshToken }),
+            credentials: 'include',
           });
 
           if (refreshRes.ok) {
@@ -63,6 +66,7 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
             response = await fetch(fullUrl, {
               ...options,
               headers: retryHeaders,
+              credentials: 'include',
             });
           } else {
             throw new Error('Refresh failed');
