@@ -52,7 +52,7 @@ export const createClient = async (req: AuthRequest, res: Response) => {
       name,
       email,
       status: 'active'
-    }).returning();
+    }).returning() as any;
 
     console.log('[CREATE_CLIENT_SUCCESS] New client created:', result[0].id);
     res.status(201).json(result[0]);
@@ -108,7 +108,7 @@ export const createCampaign = async (req: AuthRequest, res: Response) => {
       name,
       budget,
       status: 'active'
-    }).returning();
+    }).returning() as any;
 
     res.status(201).json(newCampaign[0]);
   } catch (err: any) {

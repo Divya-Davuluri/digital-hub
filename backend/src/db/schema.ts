@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { AnySQLiteColumn, sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // --- Multi-Tenant Core ---
@@ -23,7 +23,7 @@ export const users = sqliteTable('users', {
   twoFactorEnabled: integer('two_factor_enabled').default(0).notNull(),
   twoFactorSecret: text('two_factor_secret'),
   twoFactorTempSecret: text('two_factor_temp_secret'),
-  clientId: text('client_id').references(() => clients.id, { onDelete: 'set null' }), // For 'client' role users
+  clientId: text('client_id').references((): AnySQLiteColumn => clients.id, { onDelete: 'set null' }), // For 'client' role users
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -35,7 +35,7 @@ export const clients = sqliteTable('clients', {
   email: text('email').notNull(),
   logo: text('logo'),
   status: text('status', { enum: ['active', 'inactive', 'pending'] }).default('active'),
-  assignedTo: text('assigned_to').references(() => users.id, { onDelete: 'set null' }), // Assigned Team Member
+  assignedTo: text('assigned_to').references((): AnySQLiteColumn => users.id, { onDelete: 'set null' }), // Assigned Team Member
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
