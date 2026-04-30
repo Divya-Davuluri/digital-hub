@@ -31,9 +31,7 @@ export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-3h88.onrender.com',
-  frontendUrl: process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
-    ? 'https://digital-hub-1.onrender.com' 
-    : 'http://localhost:3000'),
+  frontendUrl: process.env.FRONTEND_URL || 'https://digital-hub-1.onrender.com',
   jwtSecret: process.env.JWT_SECRET as string,
   refreshSecret: process.env.REFRESH_SECRET as string,
   sessionSecret: process.env.SESSION_SECRET as string,
