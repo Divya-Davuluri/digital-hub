@@ -20,8 +20,12 @@ requiredEnvs.forEach((env) => {
 export const config = {
   port: parseInt(process.env.PORT || '5001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001',
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  baseUrl: process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' 
+    ? 'https://digital-hub.onrender.com' 
+    : 'http://localhost:5001'),
+  frontendUrl: process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
+    ? 'https://digital-hub-1.onrender.com' 
+    : 'http://localhost:3000'),
   jwtSecret: process.env.JWT_SECRET as string,
   refreshSecret: process.env.REFRESH_SECRET as string,
   sessionSecret: process.env.SESSION_SECRET as string,
