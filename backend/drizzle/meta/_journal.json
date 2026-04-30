@@ -8,6 +8,13 @@
       "when": 1777284302603,
       "tag": "0000_massive_enchantress",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1777526988401,
+      "tag": "0001_tiny_wendigo",
+      "breakpoints": true
     }
   ]
 }

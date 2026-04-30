@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 /**
  * Enhanced Fetch Wrapper for Digital Marketing Hub
@@ -13,7 +13,17 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
-  const fullUrl = `${API_URL}${endpoint}`;
+  let fullUrl = `${API_URL}${endpoint}`;
+  
+  // Local Dev Fallback: Pass tenant query param to backend
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tenant = urlParams.get('tenant');
+    if (tenant) {
+      const joiner = fullUrl.includes('?') ? '&' : '?';
+      fullUrl += `${joiner}tenant=${tenant}`;
+    }
+  }
   
   // Debugging logs in development
   if (process.env.NODE_ENV === 'development') {

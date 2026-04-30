@@ -7,11 +7,11 @@
     --background: #f8fafc;
     --text: #0f172a;
     --text-muted: #64748b;
-    --primary: #4f46e5;
-    --secondary: #7c3aed;
+    --primary: var(--primary-color, #4f46e5);
+    --secondary: var(--secondary-color, #10b981);
     --surface: #ffffff;
     --border: #e2e8f0;
-    --ring: rgba(79, 70, 229, 0.2);
+    --ring: rgba(var(--primary-rgb, 79, 70, 229), 0.2);
   }
 
   body {

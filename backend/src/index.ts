@@ -8,13 +8,19 @@ import authRoutes from './routes/authRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import agencyRoutes from './routes/agencyRoutes';
 import taskRoutes from './routes/taskRoutes';
+import clientRoutes from './routes/clientRoutes';
+import brandingRoutes from './routes/brandingRoutes';
+import notificationRoutes from './routes/notificationRoutes';
+import reportRoutes from './routes/reportRoutes';
+import documentRoutes from './routes/documentRoutes';
 import rateLimit from 'express-rate-limit';
+import { tenantMiddleware } from './middleware/tenantMiddleware';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Trust proxy is required for secure cookies and correct OAuth redirects behind Render's load balancer
 app.set('trust proxy', 1);
@@ -22,7 +28,7 @@ app.set('trust proxy', 1);
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 500, // Increased for development
   message: 'Too many requests from this IP, please try again after 15 minutes',
   standardHeaders: true,
   legacyHeaders: false,
@@ -33,23 +39,11 @@ configurePassport();
 
 // Middleware
 app.use(cors({
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:5001',
-      'https://digital-hub-frontend.onrender.com',
-      'https://digital-hub-1.onrender.com' // Adding the user's new Render URL
-    ];
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Allow all origins for debugging, will tighten later
   credentials: true
 }));
 app.use(express.json());
+app.use(tenantMiddleware);
 app.use('/api', limiter);
 app.use(session({
   secret: process.env.SESSION_SECRET || 'digital-marketing-hub-secret',
@@ -68,11 +62,25 @@ app.get('/', (req: Request, res: Response) => {
   res.send('API is running with Turso + Drizzle');
 });
 
+app.get('/health', (req: Request, res: Response) => {
+  res.json({ 
+    status: 'ok', 
+    time: new Date().toISOString(),
+    env: process.env.NODE_ENV,
+    db: process.env.TURSO_DATABASE_URL ? 'turso' : 'local'
+  });
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/agency', agencyRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/clients', clientRoutes);
+app.use('/api/branding', brandingRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/documents', documentRoutes);
 
 // Start server
 app.listen(Number(PORT), '0.0.0.0', () => {

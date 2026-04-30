@@ -37,26 +37,11 @@ export default function DashboardPage() {
     if (storedUser) {
       const u = JSON.parse(storedUser);
       setUser(u);
-      // Redirect to correct dashboard if hitting the root /dashboard
-      if (pathname === '/dashboard' || pathname === '/dashboard/') {
-        const role = u.role === 'admin' ? 'admin' : 'team';
-        router.push(`/dashboard/${role}`);
-        return;
-      }
+      
+      // Redirect to correct dashboard based on role
+      const role = u.role || 'team';
+      router.push(`/dashboard/${role}`);
     }
-
-    const fetchDashboard = async () => {
-      try {
-        const dashboardData = await apiFetch("/dashboard");
-        setData(dashboardData);
-      } catch (err) {
-        console.error("Dashboard error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboard();
   }, [router]);
 
   const triggerToast = (message: string, type: 'success' | 'error' = 'success') => {

@@ -9,13 +9,17 @@ import { v4 as uuidv4 } from 'uuid';
 export const getClients = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.user.tenantId;
-    if (!tenantId) {
-      console.warn('[GET_CLIENTS] Tenant context missing for user:', req.user.id);
-      return res.status(400).json({ message: 'Tenant context missing. Please re-login.' });
+    let condition = eq(clients.tenantId, tenantId);
+    
+    // ROLE-BASED FILTERING
+    if (req.user.role === 'team') {
+      condition = and(condition, eq(clients.assignedTo, req.user.id)) as any;
+    } else if (req.user.role === 'client') {
+      condition = and(condition, eq(clients.id, req.user.clientId || '')) as any;
     }
 
     const allClients = await db.query.clients.findMany({
-      where: eq(clients.tenantId, tenantId),
+      where: condition,
       orderBy: (clients, { desc }) => [desc(clients.createdAt)],
     });
 

@@ -8,6 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'digital-marketing-hub-v1-secret-ke
 
 export interface AuthRequest extends Request {
   user?: any;
+  tenantId?: string;
 }
 
 export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -20,7 +21,7 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
 
   try {
     const decoded: any = jwt.verify(token, JWT_SECRET);
-    console.log(`🛡️ AUTH VERIFIED - User: ${decoded.userId}, Role: ${decoded.role}, Tenant: ${decoded.tenantId}`);
+    console.log(`🛡️ AUTH VERIFIED - User: ${decoded.userId}, Role: ${decoded.role}, Tenant: ${decoded.tenantId}, Client: ${decoded.clientId}`);
     
     const user = await db.query.users.findFirst({
       where: eq(users.id, decoded.userId),
@@ -38,4 +39,15 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
     }
     res.status(401).json({ message: 'Token is not valid' });
   }
+};
+export const authorize = (...roles: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
+    }
+    next();
+  };
 };

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "../styles/globals.css";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { BrandingProvider } from "@/providers/BrandingProvider";
 
 export const metadata: Metadata = {
   title: "Digital Marketing Hub",
@@ -15,9 +16,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ProtectedRoute>
-          {children}
-        </ProtectedRoute>
+        <BrandingProvider>
+          <ProtectedRoute>
+            {children}
+          </ProtectedRoute>
+        </BrandingProvider>
       </body>
     </html>
   );

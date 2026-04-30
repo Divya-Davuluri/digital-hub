@@ -23,6 +23,7 @@ export const users = sqliteTable('users', {
   twoFactorEnabled: integer('two_factor_enabled').default(0).notNull(),
   twoFactorSecret: text('two_factor_secret'),
   twoFactorTempSecret: text('two_factor_temp_secret'),
+  clientId: text('client_id').references(() => clients.id, { onDelete: 'set null' }), // For 'client' role users
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -34,6 +35,7 @@ export const clients = sqliteTable('clients', {
   email: text('email').notNull(),
   logo: text('logo'),
   status: text('status', { enum: ['active', 'inactive', 'pending'] }).default('active'),
+  assignedTo: text('assigned_to').references(() => users.id, { onDelete: 'set null' }), // Assigned Team Member
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -43,6 +45,11 @@ export const campaigns = sqliteTable('campaigns', {
   clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   budget: integer('budget').notNull(),
+  channel: text('channel', { enum: ['google', 'facebook', 'instagram', 'linkedin', 'tiktok'] }).default('google'),
+  impressions: integer('impressions').default(0),
+  clicks: integer('clicks').default(0),
+  spend: integer('spend').default(0),
+  conversions: integer('conversions').default(0),
   status: text('status', { enum: ['active', 'paused', 'completed', 'review'] }).default('active'),
   startDate: text('start_date'),
   endDate: text('end_date'),
@@ -57,6 +64,26 @@ export const analytics = sqliteTable('analytics', {
   impressions: integer('impressions').default(0),
   conversions: integer('conversions').default(0),
   spend: integer('spend').default(0),
+});
+
+export const notifications = sqliteTable('notifications', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  type: text('type', { enum: ['alert', 'info', 'success', 'warning'] }).default('info'),
+  message: text('message').notNull(),
+  isRead: integer('is_read').default(0).notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const tenantBranding = sqliteTable('tenant_branding', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().unique().references(() => tenants.id, { onDelete: 'cascade' }),
+  logoUrl: text('logo_url'),
+  primaryColor: text('primary_color').default('#4f46e5'),
+  secondaryColor: text('secondary_color').default('#10b981'),
+  subdomain: text('subdomain').unique(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const tasks = sqliteTable('tasks', {

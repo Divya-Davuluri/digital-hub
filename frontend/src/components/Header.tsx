@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getNotifications, markNotificationAsRead, Notification } from '@/services/notificationService';
 
 export default function Header() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     const fetchUser = () => {
@@ -20,7 +23,17 @@ export default function Header() {
       }
     };
 
+    const fetchNotifications = async () => {
+      try {
+        const data = await getNotifications();
+        setNotifications(data);
+      } catch (err) {
+        console.error("Failed to fetch notifications", err);
+      }
+    };
+
     fetchUser();
+    fetchNotifications();
     window.addEventListener('storage', fetchUser);
     return () => window.removeEventListener('storage', fetchUser);
   }, []);
@@ -31,6 +44,17 @@ export default function Header() {
     localStorage.removeItem('user');
     router.push('/login');
   };
+
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await markNotificationAsRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch (err) {
+      console.error("Error marking as read", err);
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
     <header className="h-[64px] border-b border-border flex items-center justify-between px-8 bg-white sticky top-0 z-40">
@@ -46,25 +70,60 @@ export default function Header() {
             placeholder="Search anything..." 
             className="w-64 bg-slate-50 border border-transparent rounded-lg pl-10 pr-4 py-1.5 text-sm transition-all focus:w-80 focus:bg-white focus:border-primary/40 focus:outline-none placeholder:text-slate-400"
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hidden md:block">
-            <kbd className="text-[10px] font-medium bg-white px-1.5 py-0.5 rounded border border-border shadow-sm">⌘K</kbd>
-          </div>
         </div>
       </div>
 
       <div className="flex items-center gap-4">
-        <button className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors relative">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full border-2 border-white"></span>
-        </button>
+        {/* Notification Center */}
+        <div className="relative">
+          <button 
+            onClick={() => { setShowNotifications(!showNotifications); setShowDropdown(false); }}
+            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors relative"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            )}
+          </button>
+
+          {showNotifications && (
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-border rounded-xl shadow-xl py-2 animate-subtle-fade z-50">
+              <div className="px-4 py-2 border-b border-border flex justify-between items-center">
+                <span className="font-bold text-sm">Notifications</span>
+                {unreadCount > 0 && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">{unreadCount} New</span>}
+              </div>
+              <div className="max-h-[300px] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 text-xs">No notifications yet</div>
+                ) : (
+                  notifications.map(n => (
+                    <div 
+                      key={n.id} 
+                      className={`px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer border-b border-slate-50 last:border-none ${!n.isRead ? 'bg-indigo-50/30' : ''}`}
+                      onClick={() => handleMarkAsRead(n.id)}
+                    >
+                      <div className="flex gap-3">
+                        <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${!n.isRead ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+                        <div>
+                          <p className={`text-xs ${!n.isRead ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>{n.message}</p>
+                          <p className="text-[10px] text-slate-400 mt-1">{new Date(n.createdAt).toLocaleTimeString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="h-6 w-px bg-border mx-1"></div>
 
         <div className="relative">
           <button 
-            onClick={() => setShowDropdown(!showDropdown)}
+            onClick={() => { setShowDropdown(!showDropdown); setShowNotifications(false); }}
             className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-50 transition-all"
           >
             <div className="w-8 h-8 rounded-lg bg-indigo-50 text-primary flex items-center justify-center font-bold text-sm border border-indigo-100">
@@ -72,7 +131,7 @@ export default function Header() {
             </div>
             <div className="text-left hidden md:block mr-1">
               <p className="text-sm font-semibold text-slate-900 leading-tight">{user?.name || 'User'}</p>
-              <p className="text-[11px] text-slate-500 font-medium">Administrator</p>
+              <p className="text-[11px] text-slate-500 font-medium capitalize">{user?.role || 'Member'}</p>
             </div>
             <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -91,12 +150,14 @@ export default function Header() {
               >
                 Profile Settings
               </button>
-              <button 
-                onClick={() => { router.push('/billing'); setShowDropdown(false); }}
-                className="w-full text-left px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
-              >
-                Billing & Plan
-              </button>
+              {user?.role === 'admin' && (
+                <button 
+                  onClick={() => { router.push('/dashboard/admin/branding'); setShowDropdown(false); }}
+                  className="w-full text-left px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+                >
+                  Agency Branding
+                </button>
+              )}
               <div className="h-px bg-border my-1"></div>
               <button 
                 onClick={handleLogout}
