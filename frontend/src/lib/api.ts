@@ -28,8 +28,10 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     }
   }
   
-  // Debugging logs in development
-  if (process.env.NODE_ENV === 'development') {
+  // Critical Debug: Reveal which backend we are calling
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`[PRODUCTION API] Targeting: ${fullUrl}`);
+  } else {
     console.log(`[API REQUEST] ${options.method || 'GET'} ${fullUrl}`);
   }
 

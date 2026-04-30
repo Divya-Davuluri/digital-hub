@@ -17,17 +17,14 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
   const fetchBranding = async () => {
     try {
-      // Check for tenant override in URL (for local dev)
-      const urlParams = new URLSearchParams(window.location.search);
-      const tenantOverride = urlParams.get('tenant');
-      
       const data = await getBranding();
       if (data) {
         setBranding(data);
         applyBranding(data);
       }
     } catch (err) {
-      console.error('Failed to load branding:', err);
+      // Gracefully handle missing branding (e.g. on login page)
+      console.warn('Branding not available for current context');
     } finally {
       setLoading(false);
     }
