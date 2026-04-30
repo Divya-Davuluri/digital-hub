@@ -8,6 +8,7 @@ import {
   disable2FA_Dev, generateTokens
 } from '../controllers/authController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { config } from '../config/env';
 import { db } from '../db';
 import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -45,31 +46,29 @@ safeAttach('post', '/forgot-2fa-confirm', reset2FAConfirm);
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/login' }), async (req: any, res) => {
   const { id, twoFactorEnabled } = req.user;
-  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
   if (twoFactorEnabled) {
-    return res.redirect(`${FRONTEND_URL}/login?2fa_required=true&userId=${id}`);
+    return res.redirect(`${config.frontendUrl}/login?2fa_required=true&userId=${id}`);
   }
   
   const user = await db.query.users.findFirst({ where: eq(users.id, id) });
   const { token, refreshToken } = await generateTokens(id, user?.role || 'admin', user?.tenantId || '');
   
   const userData = encodeURIComponent(JSON.stringify({ id: user?.id, email: user?.email, name: user?.name }));
-  res.redirect(`${FRONTEND_URL}/login?token=${token}&refreshToken=${refreshToken}&user=${userData}`);
+  res.redirect(`${config.frontendUrl}/login?token=${token}&refreshToken=${refreshToken}&user=${userData}`);
 });
 
 router.get('/facebook', passport.authenticate('facebook', { scope: ['email'] }));
 router.get('/facebook/callback', passport.authenticate('facebook', { failureRedirect: '/login' }), async (req: any, res) => {
   const { id, twoFactorEnabled } = req.user;
-  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
   if (twoFactorEnabled) {
-    return res.redirect(`${FRONTEND_URL}/login?2fa_required=true&userId=${id}`);
+    return res.redirect(`${config.frontendUrl}/login?2fa_required=true&userId=${id}`);
   }
   
   const user = await db.query.users.findFirst({ where: eq(users.id, id) });
   const { token, refreshToken } = await generateTokens(id, user?.role || 'admin', user?.tenantId || '');
   
   const userData = encodeURIComponent(JSON.stringify({ id: user?.id, email: user?.email, name: user?.name }));
-  res.redirect(`${FRONTEND_URL}/login?token=${token}&refreshToken=${refreshToken}&user=${userData}`);
+  res.redirect(`${config.frontendUrl}/login?token=${token}&refreshToken=${refreshToken}&user=${userData}`);
 });
 
 // --- Dev ---
