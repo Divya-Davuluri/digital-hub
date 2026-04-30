@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [userId, setUserId] = useState("");
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5001';
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
   useEffect(() => {
     if (typeof window !== "undefined") {

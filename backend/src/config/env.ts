@@ -18,6 +18,13 @@ if (process.env.NODE_ENV === 'production' || !process.env.CI) {
       throw new Error(`❌ Missing required environment variable: ${env}`);
     }
   });
+
+  // Strict check for Turso in Production
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
+      throw new Error('❌ PRODUCTION ERROR: TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be set in production!');
+    }
+  }
 }
 
 export const config = {
