@@ -1,3 +1,4 @@
+import { Router } from 'express';
 import { authMiddleware, authorize } from '../middleware/authMiddleware';
 import { 
   getClients, createClient, 
