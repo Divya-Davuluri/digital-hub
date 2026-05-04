@@ -50,10 +50,10 @@ export default function TeamDashboard() {
               onClick={() => router.push('/dashboard/team/clients')}
             />
             <StatCard 
-              label="My Campaigns" 
+              label="Project Pipeline" 
               value={stats?.activeCampaigns || 0} 
               icon="📊" 
-              onClick={() => router.push('/dashboard/team/campaigns')}
+              onClick={() => router.push('/projects')}
             />
             <StatCard 
               label="Pending Tasks" 
