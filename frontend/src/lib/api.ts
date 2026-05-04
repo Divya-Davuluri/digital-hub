@@ -83,9 +83,17 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     }
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Server responded with an error' }));
-      console.error(`[API ERROR] ${response.status} ${endpoint}:`, errorData);
-      throw new Error(errorData.message || 'API request failed');
+      let errorMessage = 'API request failed';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        // Handle non-JSON errors (like Render 502/503)
+        errorMessage = `Server Error: ${response.status} ${response.statusText}`;
+      }
+      
+      console.error(`[API ERROR] ${response.status} ${endpoint}:`, errorMessage);
+      throw new Error(errorMessage);
     }
 
     return response.json();

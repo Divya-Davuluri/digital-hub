@@ -22,7 +22,10 @@ if (process.env.NODE_ENV === 'production' || !process.env.CI) {
   // Strict check for Turso in Production
   if (process.env.NODE_ENV === 'production') {
     if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
-      throw new Error('❌ PRODUCTION ERROR: TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be set in production!');
+      const missing = [];
+      if (!process.env.TURSO_DATABASE_URL) missing.push('TURSO_DATABASE_URL');
+      if (!process.env.TURSO_AUTH_TOKEN) missing.push('TURSO_AUTH_TOKEN');
+      throw new Error(`❌ FATAL PRODUCTION ERROR: Missing critical database credentials: ${missing.join(', ')}. Please set these in your Render Dashboard!`);
     }
   }
 }
