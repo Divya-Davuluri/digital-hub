@@ -154,36 +154,46 @@ export default function BrandingPage() {
               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)'
             }}>
               {/* Top navbar */}
-              <div style={{ 
-                display: 'flex', 
+              <div style={{
+                display: 'flex',
                 alignItems: 'center',
-                padding: '8px 16px',
-                background: 'white',
-                borderBottom: '1px solid #e5e7eb'
+                justifyContent: 'space-between',
+                padding: '8px 14px',
+                background: '#1e1e2e',
+                borderBottom: '1px solid rgba(255,255,255,0.05)'
               }}>
-                {settings.logoUrl ? (
-                  <Image 
-                    src={settings.logoUrl} 
-                    alt="Logo" 
-                    width={100}
-                    height={28}
-                    style={{ height: '28px', width: 'auto', objectFit: 'contain' }}
-                    unoptimized
-                  />
-                ) : (
-                  <div style={{ 
-                    width: '80px', height: '28px', 
-                    background: '#e5e7eb', borderRadius: '4px',
-                    display: 'flex', alignItems: 'center', 
-                    justifyContent: 'center', fontSize: '10px',
-                    color: '#9ca3af'
-                  }}>Your Logo</div>
-                )}
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
-                  <div style={{ width: '8px', height: '8px', 
-                    borderRadius: '50%', background: '#e5e7eb' }}></div>
-                  <div style={{ width: '8px', height: '8px', 
-                    borderRadius: '50%', background: '#e5e7eb' }}></div>
+                {/* Left - Logo */}
+                <div>
+                  {settings.logoUrl ? (
+                    <Image 
+                      src={settings.logoUrl} 
+                      alt="logo" 
+                      width={90}
+                      height={24}
+                      style={{ height: '24px', width: 'auto', objectFit: 'contain' }}
+                      unoptimized
+                    />
+                  ) : (
+                    <div style={{ 
+                      background: settings.primaryColor, 
+                      color: 'white', 
+                      fontSize: '11px',
+                      fontWeight: '500',
+                      padding: '3px 10px', 
+                      borderRadius: '4px' 
+                    }}>YourLogo</div>
+                  )}
+                </div>
+
+                {/* Right - 3 colored dots */}
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '6px', 
+                  alignItems: 'center' 
+                }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ff5f57' }}></div>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#febc2e' }}></div>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#28c840' }}></div>
                 </div>
               </div>
               
