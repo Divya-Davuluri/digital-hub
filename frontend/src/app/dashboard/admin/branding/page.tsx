@@ -141,36 +141,111 @@ export default function BrandingPage() {
             </div>
           </form>
 
-          {/* Preview Section */}
+          {/* Live Preview Section */}
           <div className="mt-12">
             <h3 className="text-lg font-bold mb-4">Live Preview</h3>
-            <div className="bg-slate-200 p-8 rounded-2xl border-4 border-dashed border-slate-300 flex items-center justify-center">
-               <div className="bg-white w-full max-w-sm rounded-xl shadow-lg overflow-hidden">
-                  <div className="h-12 border-b border-slate-100 flex items-center px-4 justify-between">
-                    <div className="w-24 h-6 bg-slate-100 rounded flex items-center justify-center text-[10px] text-slate-400">
-                      {settings.logoUrl ? <img src={settings.logoUrl} alt="Logo" className="max-h-full" /> : 'Your Logo'}
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="w-2 h-2 rounded-full bg-slate-200"></div>
-                      <div className="w-2 h-2 rounded-full bg-slate-200"></div>
-                    </div>
+            <div style={{ 
+              border: '1px solid #e5e7eb', 
+              borderRadius: '8px',
+              overflow: 'hidden',
+              background: '#f9fafb'
+            }}>
+              {/* Top navbar */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                padding: '8px 16px',
+                background: 'white',
+                borderBottom: '1px solid #e5e7eb'
+              }}>
+                {settings.logoUrl ? (
+                  <img src={settings.logoUrl} alt="Logo" 
+                    style={{ height: '28px', objectFit: 'contain' }} />
+                ) : (
+                  <div style={{ 
+                    width: '80px', height: '28px', 
+                    background: '#e5e7eb', borderRadius: '4px',
+                    display: 'flex', alignItems: 'center', 
+                    justifyContent: 'center', fontSize: '10px',
+                    color: '#9ca3af'
+                  }}>Your Logo</div>
+                )}
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+                  <div style={{ width: '8px', height: '8px', 
+                    borderRadius: '50%', background: '#e5e7eb' }}></div>
+                  <div style={{ width: '8px', height: '8px', 
+                    borderRadius: '50%', background: '#e5e7eb' }}></div>
+                </div>
+              </div>
+              
+              {/* Body */}
+              <div style={{ display: 'flex', height: '200px' }}>
+                {/* Sidebar */}
+                <div style={{ 
+                  width: '60px', 
+                  background: settings.primaryColor,
+                  opacity: 0.9,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  padding: '12px 8px'
+                }}>
+                  {[1,2,3,4].map(i => (
+                    <div key={i} style={{ 
+                      height: '6px', 
+                      background: 'rgba(255,255,255,0.4)', 
+                      borderRadius: '3px' 
+                    }}></div>
+                  ))}
+                </div>
+                
+                {/* Content */}
+                <div style={{ flex: 1, padding: '16px', background: 'white' }}>
+                  <div style={{ 
+                    height: '8px', width: '60%',
+                    background: '#e5e7eb', borderRadius: '4px',
+                    marginBottom: '16px'
+                  }}></div>
+                  <div style={{ 
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    height: '80px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '16px'
+                  }}>
+                    <div style={{ 
+                      width: '32px', height: '32px',
+                      borderRadius: '50%',
+                      background: settings.primaryColor,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontSize: '16px'
+                    }}>✓</div>
                   </div>
-                  <div className="p-6">
-                    <div className="w-2/3 h-4 bg-slate-100 rounded mb-4"></div>
-                    <div className="w-full h-32 bg-slate-50 rounded mb-4 flex items-center justify-center">
-                       <div 
-                         style={{ backgroundColor: settings.primaryColor }}
-                         className="w-12 h-12 rounded-full flex items-center justify-center text-white text-xl"
-                       >
-                         ✓
-                       </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="flex-1 h-10 rounded-lg" style={{ backgroundColor: settings.primaryColor }}></div>
-                      <div className="flex-1 h-10 rounded-lg border border-slate-200"></div>
-                    </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ 
+                      padding: '6px 16px',
+                      background: settings.primaryColor,
+                      borderRadius: '6px',
+                      color: 'white',
+                      fontSize: '11px',
+                      fontWeight: '500'
+                    }}>Primary</div>
+                    <div style={{ 
+                      padding: '6px 16px',
+                      background: settings.secondaryColor,
+                      borderRadius: '6px',
+                      color: 'white',
+                      fontSize: '11px',
+                      fontWeight: '500'
+                    }}>Secondary</div>
                   </div>
-               </div>
+                </div>
+              </div>
             </div>
           </div>
         </main>

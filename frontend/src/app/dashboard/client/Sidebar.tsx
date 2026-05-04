@@ -1,7 +1,4 @@
-'use client';
-
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useBranding } from '@/context/BrandingContext';
 
 interface SidebarProps {
   role?: 'admin' | 'team' | 'client';
@@ -9,6 +6,7 @@ interface SidebarProps {
 
 export default function Sidebar({ role = 'admin' }: SidebarProps) {
   const pathname = usePathname();
+  const { branding } = useBranding();
 
   const getMenuItems = () => {
     const common = [
@@ -48,10 +46,16 @@ export default function Sidebar({ role = 'admin' }: SidebarProps) {
   return (
     <aside className="w-[260px] h-screen bg-white border-r border-border flex flex-col fixed left-0 top-0 z-50">
       <div className="p-6 flex items-center gap-2.5">
-        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
-          <span className="text-white text-xs font-black">DH</span>
-        </div>
-        <span className="text-xl font-bold tracking-tight text-slate-900">Hub<span className="text-indigo-600">SaaS</span></span>
+        {branding?.logoUrl ? (
+          <img src={branding.logoUrl} alt="Logo" className="h-8 w-auto object-contain" />
+        ) : (
+          <>
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200" style={{ backgroundColor: branding?.primaryColor }}>
+              <span className="text-white text-xs font-black">DH</span>
+            </div>
+            <span className="text-xl font-bold tracking-tight text-slate-900">Hub<span style={{ color: branding?.primaryColor || '#4f46e5' }}>SaaS</span></span>
+          </>
+        )}
       </div>
 
       <nav className="flex-1 px-3 py-6 space-y-1">
@@ -64,9 +68,10 @@ export default function Sidebar({ role = 'admin' }: SidebarProps) {
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm font-medium ${
                 isActive 
-                  ? 'bg-indigo-50 text-indigo-600' 
+                  ? 'text-white' 
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
+              style={isActive ? { backgroundColor: branding?.primaryColor || '#4f46e5' } : {}}
             >
               <span className="text-lg">{item.icon}</span>
               {item.name}
