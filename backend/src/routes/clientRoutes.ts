@@ -8,7 +8,7 @@ router.use(authMiddleware);
 
 router.get('/', getClients);
 router.get('/:id', getClientById);
-router.post('/', authorize('admin'), createClient);
+router.post('/', authorize('admin', 'team'), createClient);
 router.put('/:id', authorize('admin', 'team'), updateClient);
 router.delete('/:id', authorize('admin'), deleteClient);
 

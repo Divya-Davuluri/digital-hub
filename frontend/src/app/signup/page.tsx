@@ -117,8 +117,8 @@ export default function SignupPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-           <button onClick={() => window.location.href = `${apiUrl}/auth/google`} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm">Google</button>
-           <button onClick={() => window.location.href = `${apiUrl}/auth/facebook`} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm">Facebook</button>
+           <button onClick={() => window.location.href = `${apiUrl}/api/auth/google`} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm">Google</button>
+           <button onClick={() => window.location.href = `${apiUrl}/api/auth/facebook`} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm">Facebook</button>
         </div>
 
         <p className="mt-10 text-center text-sm text-slate-400 font-medium">

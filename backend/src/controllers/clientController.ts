@@ -45,7 +45,7 @@ export const createClient = async (req: AuthRequest, res: Response) => {
       email,
       industry,
       status: status || 'active',
-      createdBy: req.user.userId,
+      createdBy: req.user.id,
     };
 
     await db.insert(clients).values(newClient);
