@@ -26,7 +26,11 @@ export const getDashboardStats = async (): Promise<ChannelStat[]> => {
 
 export const exportReport = async (format: 'csv' | 'pdf') => {
   const token = localStorage.getItem('token');
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reports/export?format=${format}`, {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL?.endsWith('/api') 
+    ? process.env.NEXT_PUBLIC_API_URL 
+    : `${process.env.NEXT_PUBLIC_API_URL}/api`;
+    
+  const response = await fetch(`${baseUrl}/reports/export?format=${format}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
