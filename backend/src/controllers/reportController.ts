@@ -309,7 +309,25 @@ export const downloadClientReport = async (req: AuthRequest, res: Response) => {
 export const requestCustomReport = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.user.tenantId;
-    const clientId = req.user.clientId || req.user.id; 
+    let clientId = req.user.clientId;
+
+    // Fallback for demo users who might not have a linked clientId
+    if (!clientId) {
+      const [fallbackClient] = await db.select().from(clients).where(eq(clients.tenantId, tenantId)).limit(1);
+      if (fallbackClient) {
+        clientId = fallbackClient.id;
+      } else {
+        clientId = uuidv4();
+        await db.insert(clients).values({
+          id: clientId,
+          tenantId,
+          name: req.user.name || 'Demo Client',
+          email: req.user.email || 'client@demo.com',
+          status: 'active'
+        });
+      }
+    }
+    
     const { reportType, dateFrom, dateTo, notes } = req.body;
 
     if (!reportType) {
