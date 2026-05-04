@@ -134,3 +134,15 @@ export const projects = sqliteTable('projects', {
   createdBy: text('created_by').references(() => users.id, { onDelete: 'cascade' }),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
+
+export const reportRequests = sqliteTable('report_requests', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  reportType: text('report_type').notNull(),
+  dateFrom: text('date_from'),
+  dateTo: text('date_to'),
+  notes: text('notes'),
+  status: text('status', { enum: ['PENDING', 'COMPLETED', 'REJECTED'] }).default('PENDING').notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
