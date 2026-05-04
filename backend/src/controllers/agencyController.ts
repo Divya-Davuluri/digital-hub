@@ -35,8 +35,8 @@ export const getClients = async (req: AuthRequest, res: Response) => {
         WHERE c.tenant_id = ${tenantId}
         ORDER BY createdAt DESC;
       `;
-      const result: any = await db.execute(query);
-      return res.json(result.rows || result);
+      const result: any = await db.all(query);
+      return res.json(result);
     } else if (req.user.role === 'client') {
       const allClients = await db.query.clients.findMany({
         where: eq(clients.id, req.user.clientId || ''),
