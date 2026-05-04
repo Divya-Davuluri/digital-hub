@@ -122,3 +122,15 @@ export const resetTokens = sqliteTable('reset_tokens', {
   type: text('type', { enum: ['password', '2fa'] }).notNull(),
   expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
 });
+
+export const projects = sqliteTable('projects', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  clientName: text('client_name').notNull(),
+  status: text('status', { enum: ['PLANNING', 'IN PROGRESS', 'COMPLETED'] }).default('PLANNING').notNull(),
+  completion: integer('completion').default(0).notNull(),
+  dueDate: text('due_date').notNull(),
+  createdBy: text('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
