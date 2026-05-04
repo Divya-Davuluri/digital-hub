@@ -29,8 +29,11 @@ export default function ClientDashboard() {
       setDownloading(true);
       const token = localStorage.getItem('token');
       
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-3h88.onrender.com';
+      const base = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`;
+      
       const response = await fetch(
-        '/api/client/report/pdf',
+        `${base}/client/report/pdf`,
         {
           method: 'GET',
           headers: {
