@@ -1,3 +1,8 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import { useBranding } from '@/context/BrandingContext';
 
 interface SidebarProps {
@@ -47,7 +52,14 @@ export default function Sidebar({ role = 'admin' }: SidebarProps) {
     <aside className="w-[260px] h-screen bg-white border-r border-border flex flex-col fixed left-0 top-0 z-50">
       <div className="p-6 flex items-center gap-2.5">
         {branding?.logoUrl ? (
-          <img src={branding.logoUrl} alt="Logo" className="h-8 w-auto object-contain" />
+          <Image 
+            src={branding.logoUrl} 
+            alt="Logo" 
+            width={120} 
+            height={32} 
+            style={{ objectFit: 'contain', height: '32px', width: 'auto' }}
+            unoptimized 
+          />
         ) : (
           <>
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200" style={{ backgroundColor: branding?.primaryColor }}>

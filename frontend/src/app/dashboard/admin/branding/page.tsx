@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { updateBranding, BrandingSettings } from "@/services/brandingService";
 import { useBranding } from "@/context/BrandingContext";
+import Image from 'next/image';
 
 export default function BrandingPage() {
   const { branding: globalBranding, refreshBranding } = useBranding();
@@ -159,8 +160,14 @@ export default function BrandingPage() {
                 borderBottom: '1px solid #e5e7eb'
               }}>
                 {settings.logoUrl ? (
-                  <img src={settings.logoUrl} alt="Logo" 
-                    style={{ height: '28px', objectFit: 'contain' }} />
+                  <Image 
+                    src={settings.logoUrl} 
+                    alt="Logo" 
+                    width={100}
+                    height={28}
+                    style={{ height: '28px', width: 'auto', objectFit: 'contain' }}
+                    unoptimized
+                  />
                 ) : (
                   <div style={{ 
                     width: '80px', height: '28px', 

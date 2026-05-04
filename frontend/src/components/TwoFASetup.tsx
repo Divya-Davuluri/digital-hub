@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface TwoFASetupProps {
   user: any;
@@ -116,7 +117,14 @@ export default function TwoFASetup({ user, onComplete, onCancel }: TwoFASetupPro
                 <p className="text-sm font-medium">1. Scan this QR code in your app</p>
                 <div className="bg-white p-sm rounded-xl inline-block border border-gray-100">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrCode} alt="2FA QR Code" className="w-48 h-48" />
+                  <Image 
+                    src={qrCode} 
+                    alt="2FA QR Code" 
+                    width={192}
+                    height={192}
+                    className="w-48 h-48"
+                    unoptimized
+                  />
                 </div>
                 <div className="mt-sm">
                   <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Or enter code manually</p>
