@@ -15,7 +15,13 @@ export const getBranding = async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId || req.user?.tenantId;
 
     if (!tenantId) {
-      return res.status(400).json({ message: 'Tenant context missing' });
+      // Fallback to default branding for non-tenant contexts (e.g., login page)
+      return res.json({ 
+        primaryColor: '#4f46e5', 
+        secondaryColor: '#10b981', 
+        logoUrl: '',
+        subdomain: '' 
+      });
     }
 
     const settings = await db.query.tenantBranding.findFirst({

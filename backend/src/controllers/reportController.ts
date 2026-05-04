@@ -42,7 +42,13 @@ export const exportReport = async (req: AuthRequest, res: Response) => {
       return res.send(csvContent);
     }
 
-    res.json(data);
+    if (format === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename=report-${Date.now()}.json`);
+      return res.json(data);
+    }
+
+    res.json({ message: 'Requested format not yet implemented. Try format=csv or format=json' });
   } catch (error) {
     console.error('[REPORT_EXPORT_ERROR]', error);
     res.status(500).json({ message: 'Error generating report' });

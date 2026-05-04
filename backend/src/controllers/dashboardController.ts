@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { db } from '../db';
 import { campaigns, clients, tasks } from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and } from 'drizzle-orm';
 import { AuthRequest } from '../middleware/authMiddleware';
 
 /**
@@ -86,4 +86,3 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   }
 };
 
-import { and } from 'drizzle-orm';
