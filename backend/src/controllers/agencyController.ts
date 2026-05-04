@@ -73,10 +73,10 @@ export const getCampaigns = async (req: AuthRequest, res: Response) => {
       condition = and(condition, eq(campaigns.clientId, clientId as string)) as any;
     }
 
-    const allCampaigns = await db.query.campaigns.findMany({
-      where: condition,
-      orderBy: (campaigns, { desc }) => [desc(campaigns.createdAt)],
-    });
+    const allCampaigns = await db.selectDistinct()
+      .from(campaigns)
+      .where(condition)
+      .orderBy(sql`${campaigns.createdAt} DESC`);
 
     res.json(allCampaigns);
   } catch (err: any) {

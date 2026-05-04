@@ -93,9 +93,10 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/documents', documentRoutes);
 
 // Client Specific Report Route
-import { exportClientPDF } from './controllers/reportController';
+import { exportClientPDF, exportSingleCampaignPDF } from './controllers/reportController';
 import { authMiddleware } from './middleware/authMiddleware';
 app.get('/api/client/report/pdf', authMiddleware, exportClientPDF);
+app.get('/api/client/campaigns/:campaignId/pdf', authMiddleware, exportSingleCampaignPDF);
 
 // Catch-all 404 for API routes
 app.use('/api/*', (req: Request, res: Response) => {
