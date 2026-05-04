@@ -1,5 +1,5 @@
 import { db } from '../src/db';
-import { tenants, clients, campaigns, tasks, users } from '../src/db/schema';
+import { tenants, clients, campaigns, tasks, users, projects } from '../src/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import * as dotenv from 'dotenv';
 import path from 'path';
@@ -54,6 +54,13 @@ async function seedDemoData() {
     { id: uuidv4(), tenantId, title: 'Finalize Q2 Ad Copy', status: 'todo', priority: 'high', createdBy: user.id },
     { id: uuidv4(), tenantId, title: 'Weekly Reporting for EcoWare', status: 'todo', priority: 'medium', createdBy: user.id },
     { id: uuidv4(), tenantId, title: 'Budget Allocation Meeting', status: 'todo', priority: 'low', createdBy: user.id }
+  ]).onConflictDoNothing();
+  // 4. Create Projects
+  console.log('📊 [DEMO SEED] Creating Demo Projects...');
+  await db.insert(projects).values([
+    { id: uuidv4(), tenantId, title: 'Q4 SEO Optimization', clientName: 'EcoWare Solutions', status: 'IN PROGRESS', completion: 65, dueDate: '2026-12-15', createdBy: user.id },
+    { id: uuidv4(), tenantId, title: 'Global Brand Refresh', clientName: 'FutureTech Systems', status: 'PLANNING', completion: 15, dueDate: '2027-02-01', createdBy: user.id },
+    { id: uuidv4(), tenantId, title: 'Holiday Ad Campaign', clientName: 'EcoWare Solutions', status: 'COMPLETED', completion: 100, dueDate: '2026-11-20', createdBy: user.id }
   ]).onConflictDoNothing();
 
   console.log('✨ [DEMO SEED] DEMO DATA INJECTED SUCCESSFULLY!');
