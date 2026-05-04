@@ -124,13 +124,13 @@ export const resetTokens = sqliteTable('reset_tokens', {
 });
 
 export const projects = sqliteTable('projects', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+  id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   clientName: text('client_name').notNull(),
   status: text('status', { enum: ['PLANNING', 'IN PROGRESS', 'COMPLETED'] }).default('PLANNING').notNull(),
   completion: integer('completion').default(0).notNull(),
   dueDate: text('due_date').notNull(),
-  createdBy: text('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdBy: text('created_by').references(() => users.id, { onDelete: 'cascade' }),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
