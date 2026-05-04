@@ -89,7 +89,7 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
         errorMessage = errorData.message || errorMessage;
       } catch (e) {
         // Handle non-JSON errors (like Render 502/503)
-        errorMessage = `Server Error: ${response.status} ${response.statusText}`;
+        errorMessage = `${response.status} ${response.statusText}`;
       }
       
       console.error(`[API ERROR] ${response.status} ${endpoint}:`, errorMessage);

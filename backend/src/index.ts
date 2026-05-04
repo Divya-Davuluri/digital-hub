@@ -86,6 +86,15 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/documents', documentRoutes);
 
+// Catch-all 404 for API routes
+app.use('/api/*', (req: Request, res: Response) => {
+  console.warn(`[404_API] ${req.method} ${req.originalUrl} - Not Found`);
+  res.status(404).json({
+    message: `API Route not found: ${req.method} ${req.originalUrl}`,
+    suggested: 'Check if the URL prefix /api is correct and if the endpoint exists.'
+  });
+});
+
 // Error Handling Middleware
 app.use((err: any, req: Request, res: Response, next: any) => {
   console.error('[SERVER_ERROR]', err);
