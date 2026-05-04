@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { getDashboardSummary, getDashboardStats, exportReport, DashboardSummary, ChannelStat } from "@/services/dashboardService";
-import { useBranding } from "@/providers/BrandingProvider";
+import { useBranding } from "@/context/BrandingContext";
 
 export default function AdminDashboard() {
   const router = useRouter();

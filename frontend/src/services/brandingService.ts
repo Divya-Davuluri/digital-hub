@@ -8,12 +8,12 @@ export interface BrandingSettings {
 }
 
 export const getBranding = async (): Promise<BrandingSettings> => {
-  return apiFetch('/branding');
+  return apiFetch('/admin/branding');
 };
 
 export const updateBranding = async (settings: BrandingSettings): Promise<void> => {
-  return apiFetch('/branding', {
-    method: 'POST',
+  return apiFetch('/admin/branding', {
+    method: 'PUT',
     body: JSON.stringify(settings),
   });
 };

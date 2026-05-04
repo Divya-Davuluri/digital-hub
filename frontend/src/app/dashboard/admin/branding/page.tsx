@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { updateBranding, BrandingSettings } from "@/services/brandingService";
-import { useBranding } from "@/providers/BrandingProvider";
+import { useBranding } from "@/context/BrandingContext";
 
 export default function BrandingPage() {
   const { branding: globalBranding, refreshBranding } = useBranding();

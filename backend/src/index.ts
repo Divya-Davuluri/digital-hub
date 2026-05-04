@@ -75,10 +75,13 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
+import adminBrandingRoutes from './routes/adminBrandingRoutes';
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/agency', agencyRoutes);
+app.use('/api/admin/branding', adminBrandingRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/branding', brandingRoutes);

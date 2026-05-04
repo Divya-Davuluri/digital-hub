@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "../styles/globals.css";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { BrandingProvider } from "@/providers/BrandingProvider";
+import { BrandingProvider } from "@/context/BrandingContext";
 
 export const metadata: Metadata = {
   title: "Digital Marketing Hub",

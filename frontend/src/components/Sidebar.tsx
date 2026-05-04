@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useBranding } from '@/providers/BrandingProvider';
+import { useBranding } from '@/context/BrandingContext';
 
 interface SidebarProps {
   role?: 'admin' | 'team' | 'client';
