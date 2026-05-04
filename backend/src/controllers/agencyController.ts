@@ -1,29 +1,49 @@
 import { Response } from 'express';
 import { db } from '../db';
-import { clients, campaigns, analytics } from '../db/schema';
+import { clients, campaigns, analytics, users } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
 
 // --- Client Management ---
 export const getClients = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.user.tenantId;
-    let condition = eq(clients.tenantId, tenantId);
     
     // ROLE-BASED FILTERING
-    if (req.user.role === 'team') {
-      condition = and(condition, eq(clients.assignedTo, req.user.id)) as any;
+    if (req.user.role === 'team' || req.user.role === 'admin') {
+      const query = sql`
+        SELECT DISTINCT 
+          u.id,
+          u.name,
+          u.email,
+          COALESCE(c.status, 'ACTIVE') as status,
+          u.created_at as createdAt
+        FROM users u
+        LEFT JOIN clients c ON c.email = u.email
+        WHERE u.tenant_id = ${tenantId} 
+        AND u.role = 'client'
+        UNION
+        SELECT 
+          c.id,
+          c.name,
+          c.email,
+          c.status,
+          c.created_at as createdAt
+        FROM clients c
+        WHERE c.tenant_id = ${tenantId}
+        ORDER BY createdAt DESC;
+      `;
+      const result: any = await db.execute(query);
+      return res.json(result.rows || result);
     } else if (req.user.role === 'client') {
-      condition = and(condition, eq(clients.id, req.user.clientId || '')) as any;
+      const allClients = await db.query.clients.findMany({
+        where: eq(clients.id, req.user.clientId || ''),
+        orderBy: (clients, { desc }) => [desc(clients.createdAt)],
+      });
+      return res.json(allClients);
     }
-
-    const allClients = await db.query.clients.findMany({
-      where: condition,
-      orderBy: (clients, { desc }) => [desc(clients.createdAt)],
-    });
-
-    res.json(allClients);
   } catch (err: any) {
     console.error('[GET_CLIENTS_ERROR]', err);
     res.status(500).json({ message: 'Failed to fetch clients: ' + err.message });
@@ -33,29 +53,48 @@ export const getClients = async (req: AuthRequest, res: Response) => {
 export const createClient = async (req: AuthRequest, res: Response) => {
   try {
     console.log('[CREATE_CLIENT] Incoming payload:', req.body);
-    const { name, email } = req.body;
+    const { name, email, companyName, password, status } = req.body;
     const tenantId = req.user.tenantId;
 
     if (!tenantId) {
-      console.warn('[CREATE_CLIENT] Tenant context missing for user:', req.user.id);
-      return res.status(400).json({ message: 'Tenant context missing. Agency setup required.' });
+      return res.status(400).json({ message: 'Tenant context missing.' });
     }
 
-    if (!name || !email) {
-      return res.status(400).json({ message: 'Name and email are required fields.' });
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email, and password are required fields.' });
     }
 
     const clientId = uuidv4();
-    const result = await db.insert(clients).values({
+    const userId = uuidv4();
+    const clientStatus = status || 'ACTIVE';
+
+    // Hash the initial password for the client user
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // 1. Insert into clients table first
+    const clientResult = await db.insert(clients).values({
       id: clientId,
+      tenantId,
+      name: companyName || name,
+      email,
+      status: clientStatus
+    }).returning() as any;
+
+    // 2. Insert into users table
+    await db.insert(users).values({
+      id: userId,
       tenantId,
       name,
       email,
-      status: 'active'
-    }).returning() as any;
+      password: hashedPassword,
+      role: 'client',
+      clientId: clientId,
+      provider: 'local'
+    });
 
-    console.log('[CREATE_CLIENT_SUCCESS] New client created:', result[0].id);
-    res.status(201).json(result[0]);
+    console.log('[CREATE_CLIENT_SUCCESS] New client and user created:', clientId);
+    res.status(201).json(clientResult[0]);
   } catch (err: any) {
     console.error('[CREATE_CLIENT_ERROR] Details:', err);
     res.status(500).json({ message: 'Database failure: ' + (err.message || 'Unknown error') });

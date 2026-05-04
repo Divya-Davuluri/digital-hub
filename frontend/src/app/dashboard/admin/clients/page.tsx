@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { apiFetch } from "@/lib/api";
+import Link from "next/link";
 
 export default function AdminClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', email: '' });
+  const [newClient, setNewClient] = useState({ name: '', email: '', companyName: '', password: '', status: 'ACTIVE' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchClients = async () => {
     try {
@@ -29,20 +31,24 @@ export default function AdminClientsPage() {
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setIsSubmitting(true);
       await apiFetch("/agency/clients", {
         method: 'POST',
         body: JSON.stringify(newClient),
       });
+      alert("Client added successfully!");
       setShowAddModal(false);
-      setNewClient({ name: '', email: '' });
+      setNewClient({ name: '', email: '', companyName: '', password: '', status: 'ACTIVE' });
       fetchClients();
     } catch (err) {
       alert("Failed to add client");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50 relative">
       <Sidebar role="admin" />
       <div className="flex-1 ml-[260px] flex flex-col">
         <Header />
@@ -84,12 +90,17 @@ export default function AdminClientsPage() {
                               <td className="px-8 py-5 font-semibold text-sm text-slate-900">{client.name}</td>
                               <td className="px-8 py-5 text-sm text-slate-500">{client.email}</td>
                               <td className="px-8 py-5">
-                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-100 uppercase">
+                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${client.status === 'ACTIVE' || !client.status ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
                                     {client.status || 'Active'}
                                  </span>
                               </td>
                               <td className="px-8 py-5 text-right">
-                                 <button className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors">Edit Settings</button>
+                                 <Link 
+                                   href={`/dashboard/admin/clients/${client.id}/settings`}
+                                   className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors inline-block"
+                                 >
+                                   Edit Settings
+                                 </Link>
                               </td>
                            </tr>
                         ))}
@@ -111,17 +122,17 @@ export default function AdminClientsPage() {
       {showAddModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl relative z-10 animate-subtle-fade">
-            <div className="p-6 border-b border-border flex justify-between items-center">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl relative z-10 animate-subtle-fade max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-border flex justify-between items-center sticky top-0 bg-white z-20">
               <h2 className="text-xl font-bold text-slate-900">Add New Client</h2>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
             </div>
             <form className="p-6 space-y-4" onSubmit={handleAddClient}>
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Client Name</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Full Name *</label>
                 <input 
                   type="text" 
-                  placeholder="e.g. Nike Marketing" 
+                  placeholder="e.g. John Doe" 
                   className="input-field" 
                   required 
                   value={newClient.name}
@@ -129,7 +140,7 @@ export default function AdminClientsPage() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Contact Email</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Contact Email *</label>
                 <input 
                   type="email" 
                   placeholder="contact@client.com" 
@@ -139,8 +150,40 @@ export default function AdminClientsPage() {
                   onChange={(e) => setNewClient({...newClient, email: e.target.value})}
                 />
               </div>
-              <button type="submit" className="w-full btn-primary py-3 mt-4 text-sm font-bold">
-                Create Client Workspace
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Company Name (Optional)</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Nike Marketing" 
+                  className="input-field" 
+                  value={newClient.companyName}
+                  onChange={(e) => setNewClient({...newClient, companyName: e.target.value})}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Initial Password *</label>
+                <input 
+                  type="password" 
+                  placeholder="Create a strong password" 
+                  className="input-field" 
+                  required 
+                  value={newClient.password}
+                  onChange={(e) => setNewClient({...newClient, password: e.target.value})}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</label>
+                <select 
+                  className="input-field" 
+                  value={newClient.status}
+                  onChange={(e) => setNewClient({...newClient, status: e.target.value})}
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
+              </div>
+              <button type="submit" disabled={isSubmitting} className="w-full btn-primary py-3 mt-4 text-sm font-bold disabled:opacity-50">
+                {isSubmitting ? 'Creating...' : 'Create Client Workspace'}
               </button>
             </form>
           </div>
