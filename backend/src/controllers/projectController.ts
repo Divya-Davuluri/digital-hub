@@ -4,6 +4,8 @@ import { projects } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { AuthRequest } from '../middleware/authMiddleware';
 
+import { randomUUID } from 'crypto';
+
 export const getProjects = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.user.tenantId;
@@ -31,13 +33,15 @@ export const createProject = async (req: AuthRequest, res: Response) => {
     }
 
     const [newProject] = await db.insert(projects).values({
+      id: randomUUID(),
       tenantId,
       title,
       clientName,
       status: status || 'PLANNING',
       dueDate,
       createdBy: userId,
-      completion: 0
+      completion: 0,
+      createdAt: new Date().toISOString()
     }).returning();
 
     res.status(201).json(newProject);
