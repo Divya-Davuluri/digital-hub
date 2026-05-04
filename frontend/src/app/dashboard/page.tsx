@@ -39,7 +39,7 @@ export default function DashboardPage() {
       setUser(u);
       
       // Redirect to correct dashboard based on role
-      const role = u.role || 'team';
+      const role = u.role || 'client';
       router.push(`/dashboard/${role}`);
     }
   }, [router]);
