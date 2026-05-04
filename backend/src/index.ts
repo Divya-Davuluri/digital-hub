@@ -92,6 +92,11 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/documents', documentRoutes);
 
+// Client Specific Report Route
+import { exportClientPDF } from './controllers/reportController';
+import { authMiddleware } from './middleware/authMiddleware';
+app.get('/api/client/report/pdf', authMiddleware, exportClientPDF);
+
 // Catch-all 404 for API routes
 app.use('/api/*', (req: Request, res: Response) => {
   console.warn(`[404_API] ${req.method} ${req.originalUrl} - Not Found`);

@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api";
 export default function ClientDashboard() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const fetchCampaigns = async () => {
@@ -23,6 +24,44 @@ export default function ClientDashboard() {
     fetchCampaigns();
   }, []);
 
+  const handleDownloadPDF = async () => {
+    try {
+      setDownloading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(
+        '/api/client/report/pdf',
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `campaign-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('PDF download failed:', error);
+      alert('PDF download failed. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar role="client" />
@@ -34,7 +73,13 @@ export default function ClientDashboard() {
               <h1 className="text-2xl font-bold text-slate-900">Campaign Report</h1>
               <p className="text-sm text-slate-500 mt-1">View live performance metrics and download your agency reports.</p>
             </div>
-            <button className="btn-primary !py-2 !px-4 text-xs font-bold">Download PDF Report</button>
+            <button 
+              onClick={handleDownloadPDF}
+              disabled={downloading}
+              className="btn-primary !py-2 !px-4 text-xs font-bold disabled:opacity-50"
+            >
+              {downloading ? 'Generating PDF...' : 'Download PDF Report'}
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
