@@ -1,51 +1,33 @@
 import express from 'express';
 import { db } from '../db';
-import { clients } from '../db/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
-import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
+import { sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import { authMiddleware } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
-// GET /api/team/clients
-router.get('/clients', authMiddleware, async (req: AuthRequest, res) => {
+router.post('/clients', 
+  authMiddleware, 
+  async (req: any, res: any) => {
   try {
-    const userId = req.user.userId;
-    const tenantId = req.user.tenantId;
+    const { 
+      contactPerson, 
+      companyName, 
+      contactEmail 
+    } = req.body;
 
-    const results = await db.run(sql`
-      SELECT 
-        id, name, email, company_name as companyName,
-        status, created_at as createdAt
-      FROM clients
-      WHERE tenant_id = ${tenantId}
-      AND assigned_team_member_id = ${userId}
-      ORDER BY created_at DESC
-    `);
+    const teamMemberId = req.user.id;
+    const tenantId = req.user.tenantId 
+      || req.user.tenant_id;
 
-    // Handle results format depending on driver
-    const teamClients = results.rows || results;
-
-    res.json(teamClients);
-  } catch (err: any) {
-    console.error('[GET_TEAM_CLIENTS_ERROR]', err);
-    res.status(500).json({ error: 'Failed to load clients. Please refresh.' });
-  }
-});
-
-// POST /api/team/clients
-router.post('/clients', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const { contactPerson, companyName, contactEmail } = req.body;
-    const userId = req.user.userId;
-    const tenantId = req.user.tenantId;
-
-    if (!contactPerson || !companyName || !contactEmail) {
-      return res.status(400).json({ error: 'Contact person, company name, and email are required' });
+    if (!contactPerson || !contactEmail) {
+      return res.status(400).json({
+        success: false,
+        error: 'Contact person and email required'
+      });
     }
 
     const clientId = uuidv4();
-    const createdAt = new Date().toISOString();
 
     await db.run(sql`
       INSERT INTO clients (
@@ -62,28 +44,68 @@ router.post('/clients', authMiddleware, async (req: AuthRequest, res) => {
         ${tenantId},
         ${contactPerson},
         ${contactEmail},
-        ${companyName},
+        ${companyName || null},
         'active',
-        ${userId},
-        ${createdAt}
+        ${teamMemberId},
+        ${new Date().toISOString()}
       )
     `);
 
-    res.status(201).json({
+    return res.json({
       success: true,
       client: {
         id: clientId,
         name: contactPerson,
         email: contactEmail,
-        companyName: companyName,
+        companyName: companyName || '',
         status: 'active',
-        assignedTeamMemberId: userId,
-        createdAt: createdAt
+        assignedTeamMemberId: teamMemberId,
+        createdAt: new Date().toISOString()
       }
     });
-  } catch (err: any) {
-    console.error('[POST_TEAM_CLIENT_ERROR]', err);
-    res.status(500).json({ error: 'Failed to create client. Please try again.' });
+
+  } catch (error: any) {
+    console.error('Create client error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to create client',
+      details: error.message
+    });
+  }
+});
+
+router.get('/clients',
+  authMiddleware,
+  async (req: any, res: any) => {
+  try {
+    const teamMemberId = req.user.id;
+    const tenantId = req.user.tenantId 
+      || req.user.tenant_id;
+
+    const results = await db.run(sql`
+      SELECT 
+        id, name, email, 
+        company_name as companyName, status, created_at as createdAt
+      FROM clients
+      WHERE tenant_id = ${tenantId}
+      AND assigned_team_member_id = ${teamMemberId}
+      ORDER BY created_at DESC
+    `);
+
+    const clientsList = results.rows || results;
+
+    return res.json({
+      success: true,
+      clients: clientsList
+    });
+
+  } catch (error: any) {
+    console.error('Get clients error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch clients',
+      details: error.message
+    });
   }
 });
 

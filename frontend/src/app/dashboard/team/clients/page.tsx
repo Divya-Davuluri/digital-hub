@@ -57,7 +57,10 @@ export default function TeamClientsPage() {
         throw new Error(result.error || "Failed to create client.");
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to create client. Please try again.');
+      const errorMsg = err.response?.data?.error 
+        || err.message 
+        || 'Failed to create client workspace';
+      setError(errorMsg);
     } finally {
       setSubmitting(false);
     }

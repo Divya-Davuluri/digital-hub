@@ -81,8 +81,8 @@ import projectRoutes from './routes/projectRoutes';
 
 import onboardingRoutes from './routes/onboarding';
 
-import teamRoutes from './routes/teamRoutes';
 import teamClientRoutes from './routes/teamClients';
+import teamRoutes from './routes/teamRoutes';
 
 // API Routes
 app.use('/api/auth', authRoutes);
