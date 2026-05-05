@@ -9,26 +9,45 @@ import { apiFetch } from '@/lib/api';
 export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newProject, setNewProject] = useState({ title: '', clientName: '', completion: 0, dueDate: '', status: 'PLANNING' });
+  const [newProject, setNewProject] = useState({ 
+    projectName: '', 
+    clientId: '', 
+    targetDate: '', 
+    status: 'Planning' 
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchProjects();
+    fetchClients();
   }, []);
 
   const fetchProjects = async () => {
     try {
       setLoading(true);
       const data = await apiFetch('/projects');
-      setProjects(data);
+      setProjects(Array.isArray(data) ? data : (data.projects || []));
       setError('');
     } catch (err: any) {
+      console.error('[FETCH_PROJECTS_ERROR]', err);
       setError('Failed to load projects: ' + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchClients = async () => {
+    try {
+      const data = await apiFetch('/clients');
+      // Handle both array and object response structures
+      const clientsList = Array.isArray(data) ? data : (data.clients || []);
+      setClients(clientsList);
+    } catch (err: any) {
+      console.error('[FETCH_CLIENTS_ERROR]', err);
     }
   };
 
@@ -36,19 +55,27 @@ export default function ProjectsPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      console.log('[INITIATING_PROJECT]', newProject);
+      
       const created = await apiFetch('/projects', {
         method: 'POST',
-        body: JSON.stringify({
-          title: newProject.title,
-          clientName: newProject.clientName,
-          status: newProject.status,
-          dueDate: newProject.dueDate
-        }),
+        body: JSON.stringify(newProject),
       });
-      setProjects([created, ...projects]);
+
+      console.log('[PROJECT_CREATED_SUCCESS]', created);
+      
+      setProjects(prev => [created, ...prev]);
       setIsModalOpen(false);
-      setNewProject({ title: '', clientName: '', completion: 0, dueDate: '', status: 'PLANNING' });
+      setNewProject({ 
+        projectName: '', 
+        clientId: '', 
+        targetDate: '', 
+        status: 'Planning' 
+      });
+      
+      alert('Project initiated successfully!');
     } catch (err: any) {
+      console.error('[CREATE_PROJECT_ERROR]', err);
       alert('Failed to create project: ' + err.message);
     } finally {
       setSaving(false);
@@ -59,7 +86,7 @@ export default function ProjectsPage() {
     <div className="flex min-h-screen bg-background text-text">
       <Sidebar />
       
-      <div className="flex-1 ml-64 min-h-screen bg-grid relative">
+      <div className="flex-1 ml-64 min-h-screen bg-grid relative text-white">
         <Header />
         
         <main className="p-8 max-w-[1400px] mx-auto animate-fade-in">
@@ -78,7 +105,10 @@ export default function ProjectsPage() {
               <p className="text-text-muted font-medium">Tracking the execution of high-impact marketing initiatives.</p>
             </div>
             <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setError('');
+                setIsModalOpen(true);
+              }}
               className="btn-primary !px-8 flex items-center gap-3 shadow-xl shadow-primary/20"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,15 +136,19 @@ export default function ProjectsPage() {
                 </div>
               )}
               {projects.map((project) => (
-                <div key={project.id} className="card group hover:scale-[1.02] transition-all duration-300 cursor-default">
+                <div key={project.id || Math.random()} className="card group hover:scale-[1.02] transition-all duration-300 cursor-default">
                   <div className="flex justify-between items-start mb-6">
                     <div>
-                      <h3 className="text-lg font-black group-hover:text-primary transition-colors tracking-tight">{project.title}</h3>
-                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">{project.clientName}</p>
+                      <h3 className="text-lg font-black group-hover:text-primary transition-colors tracking-tight">
+                        {project.name || project.projectName || project.title || 'Untitled Project'}
+                      </h3>
+                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">
+                        {project.clientName || project.clientId || 'Unknown Client'}
+                      </p>
                     </div>
                     <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
-                      project.status === 'COMPLETED' ? 'bg-green-400/10 text-green-400' : 
-                      project.status === 'IN PROGRESS' ? 'bg-primary/10 text-primary' : 'bg-white/5 text-text-muted'
+                      (project.status || '').toUpperCase() === 'COMPLETED' ? 'bg-green-400/10 text-green-400' : 
+                      (project.status || '').toUpperCase() === 'IN PROGRESS' ? 'bg-primary/10 text-primary' : 'bg-white/5 text-text-muted'
                     }`}>
                       {project.status?.replace('_', ' ')}
                     </span>
@@ -123,12 +157,12 @@ export default function ProjectsPage() {
                   <div className="space-y-3 mb-8">
                     <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
                       <span className="text-text-muted">Completion</span>
-                      <span className="text-white">{project.completion}%</span>
+                      <span className="text-white">{project.completion || 0}%</span>
                     </div>
                     <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
                       <div 
                         className="bg-primary h-full transition-all duration-1000 shadow-[0_0_10px_rgba(99,102,241,0.5)]" 
-                        style={{ width: `${project.completion}%` }}
+                        style={{ width: `${project.completion || 0}%` }}
                       ></div>
                     </div>
                   </div>
@@ -138,7 +172,7 @@ export default function ProjectsPage() {
                       <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      Due {project.dueDate}
+                      Due {project.targetDate || project.target_date || project.dueDate || 'N/A'}
                     </div>
                     <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Full Details</button>
                   </div>
@@ -154,7 +188,7 @@ export default function ProjectsPage() {
         <div className="fixed inset-0 bg-background/80 backdrop-blur-xl flex items-center justify-center z-50 p-6 animate-fade-in">
           <div className="glass-panel w-full max-w-md shadow-2xl overflow-hidden scale-in">
             <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
-              <h2 className="text-xl font-black uppercase tracking-tight">Project Initiation</h2>
+              <h2 className="text-xl font-black uppercase tracking-tight text-white">Project Initiation</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-text-muted hover:text-white transition-colors p-2">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -168,8 +202,8 @@ export default function ProjectsPage() {
                 <input 
                   type="text" 
                   required
-                  value={newProject.title}
-                  onChange={(e) => setNewProject({...newProject, title: e.target.value})}
+                  value={newProject.projectName}
+                  onChange={(e) => setNewProject({...newProject, projectName: e.target.value})}
                   placeholder="e.g. Q4 SEO Campaign"
                   className="input-field"
                 />
@@ -177,14 +211,20 @@ export default function ProjectsPage() {
               
               <div className="space-y-2">
                 <label className="block text-[10px] font-black text-text-muted uppercase tracking-[0.2em] ml-1">Associated Client</label>
-                <input 
-                  type="text" 
+                <select 
                   required
-                  value={newProject.clientName}
-                  onChange={(e) => setNewProject({...newProject, clientName: e.target.value})}
-                  placeholder="e.g. Acme Corp"
-                  className="input-field"
-                />
+                  value={newProject.clientId}
+                  onChange={(e) => setNewProject({...newProject, clientId: e.target.value})}
+                  className="input-field appearance-none cursor-pointer"
+                >
+                  <option value="" disabled>Select a client</option>
+                  {clients.map(client => (
+                    <option key={client.id} value={client.id}>
+                      {client.name} {client.companyName ? `(${client.companyName})` : ''}
+                    </option>
+                  ))}
+                  {clients.length === 0 && <option disabled>No clients found</option>}
+                </select>
               </div>
               
               <div className="grid grid-cols-2 gap-6">
@@ -193,8 +233,8 @@ export default function ProjectsPage() {
                   <input 
                     type="date" 
                     required
-                    value={newProject.dueDate}
-                    onChange={(e) => setNewProject({...newProject, dueDate: e.target.value})}
+                    value={newProject.targetDate}
+                    onChange={(e) => setNewProject({...newProject, targetDate: e.target.value})}
                     className="input-field"
                   />
                 </div>
@@ -205,9 +245,9 @@ export default function ProjectsPage() {
                      onChange={(e) => setNewProject({...newProject, status: e.target.value})}
                      className="input-field appearance-none cursor-pointer"
                    >
-                     <option value="PLANNING">Planning</option>
-                     <option value="IN PROGRESS">In Progress</option>
-                     <option value="COMPLETED">Completed</option>
+                     <option value="Planning">Planning</option>
+                     <option value="In Progress">In Progress</option>
+                     <option value="Completed">Completed</option>
                    </select>
                 </div>
               </div>
