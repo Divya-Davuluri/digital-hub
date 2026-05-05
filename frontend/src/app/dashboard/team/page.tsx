@@ -8,21 +8,29 @@ import { apiFetch } from "@/lib/api";
 
 export default function TeamDashboard() {
   const router = useRouter();
-  const [stats, setStats] = useState<any>(null);
+  const [clients, setClients] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
       try {
-        const data = await apiFetch("/agency/stats");
-        setStats(data);
+        const [clientsData, tasksData, projectsData] = await Promise.all([
+          apiFetch("/team/clients"),
+          apiFetch("/team/tasks"),
+          apiFetch("/projects")
+        ]);
+        setClients(clientsData);
+        setTasks(tasksData);
+        setProjects(projectsData);
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
-    fetchStats();
+    fetchData();
   }, []);
 
   if (loading) return (
@@ -30,6 +38,8 @@ export default function TeamDashboard() {
       <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
+
+  const pendingTasks = tasks.filter((t: any) => t.status === 'PENDING' || t.status === 'todo');
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -45,19 +55,19 @@ export default function TeamDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
             <StatCard 
               label="Assigned Clients" 
-              value={stats?.totalClients || 0} 
+              value={clients.length} 
               icon="👥" 
               onClick={() => router.push('/dashboard/team/clients')}
             />
             <StatCard 
               label="Project Pipeline" 
-              value={stats?.activeCampaigns || 0} 
+              value={projects.length > 0 ? projects.length : "No active projects"} 
               icon="📊" 
-              onClick={() => router.push('/projects')}
+              onClick={() => router.push('/dashboard/team/projects')}
             />
             <StatCard 
               label="Pending Tasks" 
-              value="8" 
+              value={pendingTasks.length} 
               icon="✅" 
               onClick={() => router.push('/dashboard/team/tasks')}
             />
@@ -79,12 +89,35 @@ export default function TeamDashboard() {
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
-                      <tr className="hover:bg-slate-50">
-                         <td className="px-6 py-4 font-semibold text-sm">Nike Marketing</td>
-                         <td className="px-6 py-4"><span className="px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-[10px] font-bold">Active</span></td>
-                         <td className="px-6 py-4 text-xs text-slate-500">2 mins ago</td>
-                         <td className="px-6 py-4 text-right"><button className="text-xs font-bold text-indigo-600 hover:underline">Manage</button></td>
-                      </tr>
+                      {clients.length > 0 ? clients.map((client: any) => (
+                        <tr key={client.id} className="hover:bg-slate-50">
+                           <td className="px-6 py-4 font-semibold text-sm">{client.name}</td>
+                           <td className="px-6 py-4">
+                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                               client.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-slate-50 text-slate-700'
+                             }`}>
+                               {client.status?.toUpperCase() || 'ACTIVE'}
+                             </span>
+                           </td>
+                           <td className="px-6 py-4 text-xs text-slate-500">
+                             {client.lastLoginAt ? new Date(client.lastLoginAt).toLocaleString() : 'Never'}
+                           </td>
+                           <td className="px-6 py-4 text-right">
+                             <button 
+                               onClick={() => router.push(`/dashboard/team/clients/${client.id}`)}
+                               className="text-xs font-bold text-indigo-600 hover:underline"
+                             >
+                               Manage
+                             </button>
+                           </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-10 text-center text-slate-500 text-sm">
+                            No clients assigned to you yet.
+                          </td>
+                        </tr>
+                      )}
                    </tbody>
                 </table>
              </div>

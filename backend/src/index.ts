@@ -81,12 +81,15 @@ import projectRoutes from './routes/projectRoutes';
 
 import onboardingRoutes from './routes/onboarding';
 
+import teamRoutes from './routes/teamRoutes';
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/agency', agencyRoutes);
 app.use('/api/admin/branding', adminBrandingRoutes);
 app.use('/api/admin', onboardingRoutes); // Mounts /api/admin/onboarding and /api/admin/team-members
+app.use('/api/team', teamRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/clients', clientRoutes);

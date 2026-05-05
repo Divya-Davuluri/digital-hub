@@ -4,18 +4,20 @@ import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { apiFetch } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 export default function TeamClientsPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', email: '' });
+  const [newClient, setNewClient] = useState({ name: '', email: '', companyName: '', password: 'Password123!' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchClients = async () => {
     try {
-      const data = await apiFetch("/agency/clients");
+      const data = await apiFetch("/team/clients");
       setClients(data);
     } catch (err) {
       console.error(err);
@@ -33,23 +35,26 @@ export default function TeamClientsPage() {
     setSubmitting(true);
     setError(null);
     
-    console.log('[CLIENT_ADD] Sending payload:', newClient);
-
     try {
       await apiFetch("/agency/clients", {
         method: 'POST',
         body: JSON.stringify(newClient),
       });
       setShowModal(false);
-      setNewClient({ name: '', email: '' });
+      setNewClient({ name: '', email: '', companyName: '', password: 'Password123!' });
       fetchClients();
     } catch (err: any) {
-      console.error('[CLIENT_ADD_ERROR]', err);
-      setError(err.message || 'An unexpected error occurred while adding the client.');
+      setError(err.message || 'An unexpected error occurred.');
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (loading) return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -80,14 +85,13 @@ export default function TeamClientsPage() {
                 </div>
              </div>
              
-             {loading ? (
-               <div className="p-12 text-center text-slate-400">Loading your clients...</div>
-             ) : clients.length > 0 ? (
+             {clients.length > 0 ? (
                <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                      <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">
                         <tr>
                            <th className="px-8 py-4">Client Name</th>
+                           <th className="px-8 py-4">Company</th>
                            <th className="px-8 py-4">Email</th>
                            <th className="px-8 py-4">Status</th>
                            <th className="px-8 py-4 text-right">Actions</th>
@@ -97,14 +101,22 @@ export default function TeamClientsPage() {
                         {clients.map((client) => (
                            <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
                               <td className="px-8 py-5 font-semibold text-sm text-slate-900">{client.name}</td>
+                              <td className="px-8 py-5 text-sm text-slate-500">{client.companyName || '-'}</td>
                               <td className="px-8 py-5 text-sm text-slate-500">{client.email}</td>
                               <td className="px-8 py-5">
-                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-100 uppercase tracking-tighter">
+                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-tighter ${
+                                    client.status === 'active' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-slate-50 text-slate-700 border-slate-200'
+                                 }`}>
                                     {client.status || 'Active'}
                                  </span>
                               </td>
                               <td className="px-8 py-5 text-right">
-                                 <button className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Manage</button>
+                                 <button 
+                                   onClick={() => router.push(`/dashboard/team/clients/${client.id}`)}
+                                   className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                                 >
+                                    Manage
+                                 </button>
                               </td>
                            </tr>
                         ))}
@@ -133,20 +145,31 @@ export default function TeamClientsPage() {
             </div>
             <form className="p-6 space-y-4" onSubmit={handleAddClient}>
               {error && (
-                <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-xl animate-shake">
+                <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-xl">
                    ⚠️ {error}
                 </div>
               )}
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Client Name</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Contact Person</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. John Doe" 
+                  className="input-field" 
+                  required 
+                  value={newClient.name}
+                  onChange={(e) => setNewClient({...newClient, name: e.target.value})}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Company Name</label>
                 <input 
                   type="text" 
                   placeholder="e.g. Nike Marketing" 
                   className="input-field" 
                   required 
-                  value={newClient.name}
-                  onChange={(e) => setNewClient({...newClient, name: e.target.value})}
+                  value={newClient.companyName}
+                  onChange={(e) => setNewClient({...newClient, companyName: e.target.value})}
                 />
               </div>
               <div className="space-y-1">
@@ -165,12 +188,7 @@ export default function TeamClientsPage() {
                 disabled={submitting}
                 className="w-full btn-primary py-3 mt-4 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {submitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Adding...
-                  </>
-                ) : "Create Client Workspace"}
+                {submitting ? "Adding..." : "Create Client Workspace"}
               </button>
             </form>
           </div>

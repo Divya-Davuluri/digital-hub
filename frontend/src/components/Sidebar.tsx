@@ -49,7 +49,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
         ...common,
         { name: 'Clients', href: '/dashboard/team/clients', icon: '💼' },
         { name: 'Tasks', href: '/dashboard/team/tasks', icon: '✅' },
-        { name: 'Campaigns', href: '/projects', icon: '🚀' },
+        { name: 'Campaigns', href: '/dashboard/team/campaigns', icon: '🚀' },
       ];
     }
 

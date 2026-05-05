@@ -24,6 +24,7 @@ export const users = sqliteTable('users', {
   twoFactorSecret: text('two_factor_secret'),
   twoFactorTempSecret: text('two_factor_temp_secret'),
   clientId: text('client_id').references((): AnySQLiteColumn => clients.id, { onDelete: 'set null' }), // For 'client' role users
+  lastLoginAt: text('last_login_at'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -109,10 +110,12 @@ export const tasks = sqliteTable('tasks', {
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   description: text('description'),
-  status: text('status', { enum: ['todo', 'in_progress', 'completed'] }).default('todo').notNull(),
-  priority: text('priority', { enum: ['low', 'medium', 'high'] }).default('medium').notNull(),
+  clientName: text('client_name'),
+  status: text('status', { enum: ['todo', 'in_progress', 'completed', 'PENDING', 'COMPLETED'] }).default('PENDING').notNull(),
+  priority: text('priority', { enum: ['low', 'medium', 'high', 'LOW', 'MEDIUM', 'HIGH'] }).default('MEDIUM').notNull(),
+  dueDate: text('due_date'),
   assignedTo: text('assigned_to').references(() => users.id, { onDelete: 'set null' }),
-  createdBy: text('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdBy: text('created_by').references(() => users.id, { onDelete: 'cascade' }),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

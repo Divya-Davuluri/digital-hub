@@ -152,6 +152,8 @@ export const login = async (req: Request, res: Response) => {
     res.cookie('token', token, cookieOptions);
     res.cookie('refreshToken', refreshToken, cookieOptions);
 
+    await db.update(users).set({ lastLoginAt: new Date().toISOString() }).where(eq(users.id, user.id));
+
     res.json({ 
       token, 
       refreshToken, 
@@ -219,6 +221,8 @@ export const validate2FA = async (req: Request, res: Response) => {
     const cookieOptions = getCookieOptions(7);
     res.cookie('token', accessToken, cookieOptions);
     res.cookie('refreshToken', refreshToken, cookieOptions);
+
+    await db.update(users).set({ lastLoginAt: new Date().toISOString() }).where(eq(users.id, user.id));
 
     res.json({ 
       token: accessToken, 
