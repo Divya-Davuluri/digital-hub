@@ -15,10 +15,12 @@ router.get('/:id', authMiddleware, async (req: any, res) => {
     const { id } = req.params;
     const tenantId = req.user?.tenantId || req.user?.tenant_id;
 
-    const project = await db.run(sql`
+    console.log('[GET_PROJECT_DETAIL] Fetching project:', id, 'for tenant:', tenantId);
+
+    const projectResult = await db.run(sql`
       SELECT 
         p.*,
-        COALESCE(p.client_name, c.name, 'No Client') as client_name
+        COALESCE(p.client_name, c.name, 'No Client Assigned') as client_name
       FROM projects p
       LEFT JOIN clients c ON c.id = p.client_id
       WHERE p.id = ${id}
@@ -26,9 +28,11 @@ router.get('/:id', authMiddleware, async (req: any, res) => {
       LIMIT 1
     `);
 
-    const rows = project.rows || project;
+    const rows = projectResult.rows || projectResult;
+    console.log('[GET_PROJECT_DETAIL] Results count:', rows?.length || 0);
 
     if (!rows || rows.length === 0) {
+      console.warn('[GET_PROJECT_DETAIL] Project not found or tenant mismatch:', id);
       return res.status(404).json({
         success: false,
         error: 'Project not found'
@@ -41,10 +45,11 @@ router.get('/:id', authMiddleware, async (req: any, res) => {
     });
 
   } catch (error: any) {
-    console.error('Fetch project error:', error);
+    console.error('[GET_PROJECT_DETAIL_ERROR]', error.message);
     return res.status(500).json({
       success: false,
-      error: 'Failed to fetch project'
+      error: 'Failed to fetch project',
+      details: error.message
     });
   }
 });
