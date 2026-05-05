@@ -128,4 +128,9 @@ app.use((err: any, req: Request, res: Response, next: any) => {
 // Start server
 app.listen(config.port, '0.0.0.0', () => {
   console.log(`🚀 BACKEND READY: Server running on port ${config.port} in ${config.nodeEnv} mode`);
+  console.log('=== REGISTERED ROUTES ===');
+  console.log('POST /api/team/tasks - Tasks');
+  console.log('GET /api/team/tasks - Tasks');
+  console.log('GET /api/team/clients - Clients');
+  console.log('========================');
 });

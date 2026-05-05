@@ -75,100 +75,128 @@ router.post('/clients', authMiddleware, authorize('team', 'admin'), async (req: 
   }
 });
 
-// --- TASKS ---
+// --- TASKS (USER REQUESTED EXACT LOGIC) ---
 
-// GET /api/team/tasks
-router.get('/tasks', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
+router.post('/tasks', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user.id || req.user.userId;
-    const tenantId = req.user.tenantId || req.user.tenant_id;
-
-    console.log('Fetching tasks for:', { userId, tenantId });
-
-    const results = await db.run(sql`
-      SELECT 
-        id, title, client_name as clientName,
-        priority, status, due_date as dueDate,
-        created_at as createdAt, completed_at as completedAt
-      FROM tasks
-      WHERE tenant_id = ${tenantId}
-      AND (assigned_to = ${userId} OR created_by = ${userId})
-      AND (status IS NULL OR status != 'COMPLETED')
-      ORDER BY created_at DESC
-    `);
-
-    const tasksList = results.rows || results;
-    console.log('Tasks found:', tasksList.length);
-    res.json({ success: true, tasks: tasksList || [] });
-  } catch (err: any) {
-    console.error('Get team tasks error:', err);
-    res.status(500).json({ success: false, error: 'Failed to fetch tasks' });
-  }
-});
-
-// POST /api/team/tasks
-router.post('/tasks', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
-  try {
-    const { title, clientName, priority, dueDate } = req.body;
-    const userId = req.user.id || req.user.userId;
-    const tenantId = req.user.tenantId || req.user.tenant_id;
-
-    console.log('Create task request:', { body: req.body, userId, tenantId });
+    const { title, clientName, priority } = req.body;
+    const userId = req.user?.id || req.user?.userId;
+    const tenantId = req.user?.tenantId || req.user?.tenant_id;
 
     if (!title) {
-      return res.status(400).json({ success: false, error: 'Task title is required' });
+      return res.status(400).json({
+        success: false,
+        error: 'Task title is required'
+      });
     }
 
-    const taskId = uuidv4();
-    const createdAt = new Date().toISOString();
+    const { randomUUID } = await import('crypto');
+    const taskId = randomUUID();
 
     await db.run(sql`
       INSERT INTO tasks (
-        id, tenant_id, title, client_name, priority,
-        status, due_date, assigned_to, created_by, created_at
+        id, tenant_id, title,
+        client_name, priority,
+        status, assigned_to,
+        created_by, created_at
       ) VALUES (
-        ${taskId}, ${tenantId}, ${title}, ${clientName || null}, ${priority || 'MEDIUM'},
-        'PENDING', ${dueDate || null}, ${userId}, ${userId}, ${createdAt}
+        ${taskId},
+        ${tenantId},
+        ${title},
+        ${clientName || null},
+        ${priority || 'MEDIUM'},
+        'PENDING',
+        ${userId},
+        ${userId},
+        ${new Date().toISOString()}
       )
     `);
 
-    console.log('Task created:', taskId);
-
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       task: {
         id: taskId,
-        title: title,
+        title,
         clientName: clientName || '',
         priority: priority || 'MEDIUM',
         status: 'PENDING',
-        dueDate: dueDate || null,
-        assignedTo: userId,
-        createdAt: createdAt
+        createdAt: new Date().toISOString()
       }
     });
+
   } catch (error: any) {
-    console.error('Create team task error:', error);
-    res.status(500).json({ success: false, error: 'Failed to create task' });
+    console.error('Create task error:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to create task',
+      details: error.message
+    });
   }
 });
 
-// PATCH /api/team/tasks/:taskId/complete
-router.patch('/tasks/:taskId/complete', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
+router.get('/tasks', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { taskId } = req.params;
-    const userId = req.user.id || req.user.userId;
+    const userId = req.user?.id || req.user?.userId;
+    const tenantId = req.user?.tenantId || req.user?.tenant_id;
+
+    const tasks = await db.all(sql`
+      SELECT id, title, client_name,
+        priority, status, due_date,
+        created_at
+      FROM tasks
+      WHERE tenant_id = ${tenantId}
+      AND (
+        assigned_to = ${userId}
+        OR created_by = ${userId}
+      )
+      AND (
+        status IS NULL 
+        OR status != 'COMPLETED'
+      )
+      ORDER BY created_at DESC
+    `);
+
+    return res.json({
+      success: true,
+      tasks: tasks || []
+    });
+
+  } catch (error: any) {
+    console.error('Get tasks error:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch tasks'
+    });
+  }
+});
+
+router.patch('/tasks/:id/complete', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id || req.user?.userId;
 
     await db.run(sql`
       UPDATE tasks 
-      SET status = 'COMPLETED', completed_at = ${new Date().toISOString()}
-      WHERE id = ${taskId}
-      AND assigned_to = ${userId}
+      SET 
+        status = 'COMPLETED',
+        completed_at = ${new Date().toISOString()}
+      WHERE id = ${id}
+      AND (
+        assigned_to = ${userId}
+        OR created_by = ${userId}
+      )
     `);
 
-    res.json({ success: true, message: 'Task completed!' });
+    return res.json({ 
+      success: true,
+      message: 'Task completed'
+    });
+
   } catch (error: any) {
-    res.status(500).json({ success: false, error: 'Failed to complete task' });
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to complete task'
+    });
   }
 });
 
