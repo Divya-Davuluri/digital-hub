@@ -116,6 +116,7 @@ export const tasks = sqliteTable('tasks', {
   dueDate: text('due_date'),
   assignedTo: text('assigned_to').references(() => users.id, { onDelete: 'set null' }),
   createdBy: text('created_by').references(() => users.id, { onDelete: 'cascade' }),
+  completedAt: text('completed_at'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
