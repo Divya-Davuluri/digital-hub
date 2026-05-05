@@ -139,10 +139,10 @@ router.get('/tasks', authMiddleware, async (req: AuthRequest, res) => {
     const userId = req.user?.id || req.user?.userId;
     const tenantId = req.user?.tenantId || req.user?.tenant_id;
 
-    const tasks = await db.all(sql`
-      SELECT id, title, client_name,
-        priority, status, due_date,
-        created_at
+    const results = await db.run(sql`
+      SELECT id, title, client_name as clientName,
+        priority, status, due_date as dueDate,
+        created_at as createdAt
       FROM tasks
       WHERE tenant_id = ${tenantId}
       AND (
@@ -156,9 +156,11 @@ router.get('/tasks', authMiddleware, async (req: AuthRequest, res) => {
       ORDER BY created_at DESC
     `);
 
+    const tasksList = results.rows || results;
+
     return res.json({
       success: true,
-      tasks: tasks || []
+      tasks: tasksList || []
     });
 
   } catch (error: any) {
