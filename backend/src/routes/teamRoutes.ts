@@ -216,7 +216,7 @@ router.get('/campaigns', authMiddleware, authorize('team', 'admin'), async (req:
 
     // Show ALL campaigns in the same tenant as requested
     const results = await db.run(sql`
-      SELECT 
+      SELECT DISTINCT
         id, name, client_name as clientName,
         client_id as clientId, status, budget,
         spend as spent, impressions, clicks,

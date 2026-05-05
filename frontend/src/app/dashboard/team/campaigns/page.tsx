@@ -14,7 +14,15 @@ export default function TeamCampaignsPage() {
       setLoading(true);
       const data = await apiFetch("/team/campaigns");
       console.log('Campaigns response:', data);
-      setCampaigns(data.campaigns || data || []);
+      
+      const rawCampaigns = data.campaigns || data || [];
+      const uniqueCampaigns = Array.isArray(rawCampaigns) 
+        ? rawCampaigns.filter((campaign: any, index: number, self: any[]) =>
+            index === self.findIndex((c) => c.name === campaign.name && c.clientName === campaign.clientName)
+          )
+        : [];
+
+      setCampaigns(uniqueCampaigns);
     } catch (err) {
       console.error(err);
     } finally {

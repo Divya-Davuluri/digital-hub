@@ -43,7 +43,6 @@ export default function ProjectsPage() {
   const fetchClients = async () => {
     try {
       const data = await apiFetch('/clients');
-      // Handle both array and object response structures
       const clientsList = Array.isArray(data) ? data : (data.clients || []);
       setClients(clientsList);
     } catch (err: any) {
@@ -61,6 +60,8 @@ export default function ProjectsPage() {
         clientName: selectedClient?.name || 'General'
       };
 
+      console.log('[INITIATING_PROJECT]', payload);
+      
       const data = await apiFetch('/projects', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -68,8 +69,9 @@ export default function ProjectsPage() {
 
       console.log('[PROJECT_CREATED_SUCCESS]', data);
       
-      const projectToAdd = data.project || data;
-      setProjects(prev => [projectToAdd, ...prev]);
+      // Refresh list to ensure everything is synced
+      await fetchProjects();
+      
       setIsModalOpen(false);
       setNewProject({ 
         projectName: '', 
@@ -181,7 +183,10 @@ export default function ProjectsPage() {
                       <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      Due {project.targetDate || project.target_date || project.dueDate || 'N/A'}
+                      {project.due_date || project.target_date || project.targetDate || project.dueDate
+                        ? new Date(project.due_date || project.target_date || project.targetDate || project.dueDate).toLocaleDateString()
+                        : 'No due date set'
+                      }
                     </div>
                     <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Full Details</button>
                   </div>

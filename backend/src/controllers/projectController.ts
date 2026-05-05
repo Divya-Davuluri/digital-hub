@@ -9,11 +9,16 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.user.tenantId || req.user.tenant_id;
     
-    // Fetch all columns for the project pipeline
+    // Fetch all projects in the tenant with client details
     const results = await db.run(sql`
-      SELECT * FROM projects 
-      WHERE tenant_id = ${tenantId}
-      ORDER BY created_at DESC
+      SELECT 
+        p.*,
+        COALESCE(p.client_name, c.name, 'No Client') as client_name,
+        COALESCE(p.client_name, c.name, 'No Client') as clientName
+      FROM projects p
+      LEFT JOIN clients c ON c.id = p.client_id
+      WHERE p.tenant_id = ${tenantId}
+      ORDER BY p.created_at DESC
     `);
 
     const allProjects = results.rows || results;
