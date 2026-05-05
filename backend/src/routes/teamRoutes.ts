@@ -83,6 +83,8 @@ router.get('/tasks', authMiddleware, authorize('team', 'admin'), async (req: Aut
     const userId = req.user.id || req.user.userId;
     const tenantId = req.user.tenantId || req.user.tenant_id;
 
+    console.log('Fetching tasks for:', { userId, tenantId });
+
     const results = await db.run(sql`
       SELECT 
         id, title, client_name as clientName,
@@ -90,12 +92,13 @@ router.get('/tasks', authMiddleware, authorize('team', 'admin'), async (req: Aut
         created_at as createdAt, completed_at as completedAt
       FROM tasks
       WHERE tenant_id = ${tenantId}
-      AND assigned_to = ${userId}
-      AND status != 'COMPLETED'
+      AND (assigned_to = ${userId} OR created_by = ${userId})
+      AND (status IS NULL OR status != 'COMPLETED')
       ORDER BY created_at DESC
     `);
 
     const tasksList = results.rows || results;
+    console.log('Tasks found:', tasksList.length);
     res.json({ success: true, tasks: tasksList || [] });
   } catch (err: any) {
     console.error('Get team tasks error:', err);
@@ -109,6 +112,8 @@ router.post('/tasks', authMiddleware, authorize('team', 'admin'), async (req: Au
     const { title, clientName, priority, dueDate } = req.body;
     const userId = req.user.id || req.user.userId;
     const tenantId = req.user.tenantId || req.user.tenant_id;
+
+    console.log('Create task request:', { body: req.body, userId, tenantId });
 
     if (!title) {
       return res.status(400).json({ success: false, error: 'Task title is required' });
@@ -126,6 +131,8 @@ router.post('/tasks', authMiddleware, authorize('team', 'admin'), async (req: Au
         'PENDING', ${dueDate || null}, ${userId}, ${userId}, ${createdAt}
       )
     `);
+
+    console.log('Task created:', taskId);
 
     res.status(201).json({
       success: true,

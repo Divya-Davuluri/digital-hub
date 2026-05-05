@@ -16,7 +16,7 @@ export default function TeamTasksPage() {
   const [dueDate, setDueDate] = useState('');
   const [creating, setCreating] = useState(false);
   const [modalError, setModalError] = useState('');
-  const [error, setError] = useState('');
+  const [taskError, setTaskError] = useState('');
 
   useEffect(() => {
     fetchTasks();
@@ -26,12 +26,13 @@ export default function TeamTasksPage() {
   const fetchTasks = async () => {
     try {
       setLoading(true);
+      setTaskError('');
       const data = await apiFetch('/team/tasks');
       // Handle { success, tasks }
       setTasks(data.tasks || data || []);
     } catch (err: any) {
       console.error("Failed to load tasks:", err);
-      setError('Failed to load clients'); // Following user's requested error string
+      setTaskError('Failed to load tasks');
       setTasks([]);
     } finally {
       setLoading(false);
@@ -113,9 +114,9 @@ export default function TeamTasksPage() {
       <div className="flex-1 ml-[260px] flex flex-col">
         <Header />
         <main className="p-8 max-w-7xl mx-auto w-full">
-          {error && (
+          {taskError && (
             <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm font-bold rounded-xl">
-               ⚠️ {error}. <button onClick={() => window.location.reload()} className="underline">Retry</button>
+               ⚠️ {taskError}. <button onClick={() => fetchTasks()} className="underline">Retry</button>
             </div>
           )}
 
@@ -140,63 +141,63 @@ export default function TeamTasksPage() {
                 </div>
              </div>
              
-             <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                   <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                      <tr>
-                         <th className="px-8 py-4">TASK</th>
-                         <th className="px-8 py-4">CLIENT</th>
-                         <th className="px-8 py-4">DUE DATE</th>
-                         <th className="px-8 py-4">PRIORITY</th>
-                         <th className="px-8 py-4">STATUS</th>
-                         <th className="px-8 py-4 text-right">ACTION</th>
-                      </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-100">
-                      {(tasks || []).map((task) => (
-                         <tr key={task.id} className="hover:bg-slate-50 transition-colors group">
-                            <td className="px-8 py-5">
-                               <span className="font-semibold text-sm text-slate-900">{task.title}</span>
-                            </td>
-                            <td className="px-8 py-5 text-sm text-slate-600">
-                               {task.clientName || 'N/A'}
-                            </td>
-                            <td className="px-8 py-5 text-xs text-slate-500 font-medium">
-                               {task.dueDate || 'N/A'}
-                            </td>
-                            <td className="px-8 py-5">
-                                <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                                  task.priority?.toUpperCase() === 'HIGH' ? 'bg-red-100 text-red-700' : 
-                                  task.priority?.toUpperCase() === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' : 
-                                  'bg-green-100 text-green-700'
-                                }`}>
-                                   {task.priority?.toUpperCase()}
-                                </span>
-                             </td>
-                             <td className="px-8 py-5">
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-slate-50 text-slate-700 border-slate-200">
-                                   {task.status?.toUpperCase() || 'PENDING'}
-                                </span>
-                             </td>
-                            <td className="px-8 py-5 text-right">
-                               <button 
-                                 onClick={() => markComplete(task.id)}
-                                 className="text-xs font-bold text-indigo-600 hover:underline transition-colors"
-                               >
-                                 Mark Complete
-                               </button>
-                            </td>
-                         </tr>
-                      ))}
-                   </tbody>
-                </table>
-             </div>
-
-             {(tasks || []).length === 0 && (
+             {tasks.length > 0 ? (
+               <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                     <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">
+                        <tr>
+                           <th className="px-8 py-4">TASK</th>
+                           <th className="px-8 py-4">CLIENT</th>
+                           <th className="px-8 py-4">DUE DATE</th>
+                           <th className="px-8 py-4">PRIORITY</th>
+                           <th className="px-8 py-4">STATUS</th>
+                           <th className="px-8 py-4 text-right">ACTION</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-100">
+                        {tasks.map((task) => (
+                           <tr key={task.id} className="hover:bg-slate-50 transition-colors group">
+                              <td className="px-8 py-5">
+                                 <span className="font-semibold text-sm text-slate-900">{task.title}</span>
+                              </td>
+                              <td className="px-8 py-5 text-sm text-slate-600">
+                                 {task.clientName || 'N/A'}
+                              </td>
+                              <td className="px-8 py-5 text-xs text-slate-500 font-medium">
+                                 {task.dueDate || 'N/A'}
+                              </td>
+                              <td className="px-8 py-5">
+                                  <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                                    task.priority?.toUpperCase() === 'HIGH' ? 'bg-red-100 text-red-700' : 
+                                    task.priority?.toUpperCase() === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' : 
+                                    'bg-green-100 text-green-700'
+                                  }`}>
+                                     {task.priority?.toUpperCase()}
+                                  </span>
+                               </td>
+                               <td className="px-8 py-5">
+                                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-slate-50 text-slate-700 border-slate-200">
+                                     {task.status?.toUpperCase() || 'PENDING'}
+                                  </span>
+                               </td>
+                              <td className="px-8 py-5 text-right">
+                                 <button 
+                                   onClick={() => markComplete(task.id)}
+                                   className="text-xs font-bold text-indigo-600 hover:underline transition-colors"
+                                 >
+                                   Mark Complete
+                                 </button>
+                              </td>
+                           </tr>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
+             ) : (
                <div className="p-20 text-center">
-                  <div className="text-4xl mb-4">✅</div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-1">All Tasks Completed</h3>
-                  <p className="text-sm text-slate-500">You&apos;re all caught up for the day!</p>
+                  <div className="text-4xl mb-4">📋</div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">No Active Tasks</h3>
+                  <p className="text-sm text-slate-500">Click &quot;+ Create New Task&quot; to add your first task</p>
                </div>
              )}
           </div>
