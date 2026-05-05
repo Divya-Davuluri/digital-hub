@@ -65,6 +65,19 @@ export default function ClientDashboard() {
     }
   };
 
+  const totals = campaigns.reduce((acc, c) => ({
+    spend: acc.spend + (Number(c.spend) || Number(c.budget) * 0.8 || 0),
+    impressions: acc.impressions + (Number(c.impressions) || 0),
+    clicks: acc.clicks + (Number(c.clicks) || 0),
+    conversions: acc.conversions + (Number(c.conversions) || 0)
+  }), { spend: 0, impressions: 0, clicks: 0, conversions: 0 });
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar role="client" />
@@ -86,10 +99,10 @@ export default function ClientDashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-            <StatCard label="Total Spend" value="$4,500" icon="💸" />
-            <StatCard label="Impressions" value="1.2M" icon="👀" />
-            <StatCard label="Clicks" value="24.5K" icon="🖱️" />
-            <StatCard label="Conversions" value="482" icon="🎯" />
+            <StatCard label="Total Spend" value={`$${totals.spend.toLocaleString()}`} icon="💸" />
+            <StatCard label="Impressions" value={formatNumber(totals.impressions)} icon="👀" />
+            <StatCard label="Clicks" value={formatNumber(totals.clicks)} icon="🖱️" />
+            <StatCard label="Conversions" value={formatNumber(totals.conversions)} icon="🎯" />
           </div>
 
           <div className="card">

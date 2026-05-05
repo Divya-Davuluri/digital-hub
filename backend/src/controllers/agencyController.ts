@@ -104,11 +104,22 @@ export const createClient = async (req: AuthRequest, res: Response) => {
 // --- Campaign Management ---
 export const getCampaigns = async (req: AuthRequest, res: Response) => {
   try {
-    const tenantId = req.user.tenantId;
+    const tenantId = req.user.tenantId || req.user.tenant_id;
+    const userRole = req.user.role;
+    const userClientId = req.user.clientId || req.user.client_id;
+    
     const { clientId } = req.query;
 
+    console.log('[GET_CAMPAIGNS] Context:', { tenantId, userRole, userClientId, queryClientId: clientId });
+
     let condition = eq(campaigns.tenantId, tenantId);
-    if (clientId) {
+    
+    // If client role, force filter by their own clientId
+    if (userRole === 'client' && userClientId) {
+      console.log('[GET_CAMPAIGNS] Filtering by User Client ID:', userClientId);
+      condition = and(condition, eq(campaigns.clientId, userClientId)) as any;
+    } else if (clientId) {
+      // If admin/team, allow filtering by specific client via query
       condition = and(condition, eq(campaigns.clientId, clientId as string)) as any;
     }
 
@@ -117,8 +128,10 @@ export const getCampaigns = async (req: AuthRequest, res: Response) => {
       .where(condition)
       .orderBy(sql`${campaigns.createdAt} DESC`);
 
+    console.log('[GET_CAMPAIGNS] Found:', allCampaigns.length);
     res.json(allCampaigns);
   } catch (err: any) {
+    console.error('[GET_CAMPAIGNS_ERROR]', err);
     res.status(500).json({ message: err.message });
   }
 };
