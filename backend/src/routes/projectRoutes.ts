@@ -10,6 +10,32 @@ import { db } from '../db';
 router.get('/', authMiddleware, getProjects);
 router.post('/', authMiddleware, createProject);
 
+// GET /api/projects/clients
+router.get('/clients', authMiddleware, async (req: any, res) => {
+  try {
+    const tenantId = req.user?.tenantId || req.user?.tenant_id;
+    console.log('[PROJECT_CLIENTS] Fetching for tenant:', tenantId);
+
+    const clients = await db.all(sql`
+      SELECT id, name, email, company_name, status
+      FROM clients
+      WHERE tenant_id = ${tenantId}
+      ORDER BY name ASC
+    `);
+
+    return res.json({
+      success: true,
+      clients: clients || []
+    });
+  } catch (error: any) {
+    console.error('[PROJECT_CLIENTS_ERROR]', error.message);
+    return res.status(500).json({
+      success: false,
+      clients: []
+    });
+  }
+});
+
 router.get('/:id', authMiddleware, async (req: any, res) => {
   try {
     let { id } = req.params;

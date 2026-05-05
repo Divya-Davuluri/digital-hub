@@ -42,11 +42,45 @@ export default function ProjectsPage() {
 
   const fetchClients = async () => {
     try {
-      const data = await apiFetch('/clients');
-      const clientsList = Array.isArray(data) ? data : (data.clients || []);
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+      
+      // Try projects/clients first as it's dedicated for this flow
+      let response = await fetch('/api/projects/clients', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Fallback to admin/clients
+      if (!response.ok) {
+        response = await fetch('/api/admin/clients', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+
+      // Final fallback to general clients
+      if (!response.ok) {
+        response = await fetch('/api/clients', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+
+      if (!response.ok) throw new Error('Failed to fetch clients');
+      
+      const data = await response.json();
+      const clientsList = data.clients || data.data || data || [];
+      console.log('[CLIENTS_LOADED]', clientsList.length);
       setClients(clientsList);
     } catch (err: any) {
       console.error('[FETCH_CLIENTS_ERROR]', err);
+      setClients([]);
     }
   };
 
@@ -56,8 +90,11 @@ export default function ProjectsPage() {
     try {
       const selectedClient = clients.find(c => c.id === newProject.clientId);
       const payload = {
-        ...newProject,
-        clientName: selectedClient?.name || 'General'
+        name: newProject.projectName,
+        clientId: newProject.clientId || null,
+        clientName: selectedClient?.name || selectedClient?.companyName || 'General',
+        targetDate: newProject.targetDate,
+        status: newProject.status || 'PLANNING'
       };
 
       console.log('[INITIATING_PROJECT]', payload);
@@ -69,9 +106,7 @@ export default function ProjectsPage() {
 
       console.log('[PROJECT_CREATED_SUCCESS]', data);
       
-      // Refresh list to ensure everything is synced
       await fetchProjects();
-      
       setIsModalOpen(false);
       setNewProject({ 
         projectName: '', 
@@ -87,6 +122,12 @@ export default function ProjectsPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleOpenModal = () => {
+    setError('');
+    setIsModalOpen(true);
+    fetchClients(); // Refresh clients every time modal opens
   };
 
   return (
@@ -112,10 +153,7 @@ export default function ProjectsPage() {
               <p className="text-text-muted font-medium">Tracking the execution of high-impact marketing initiatives.</p>
             </div>
             <button 
-              onClick={() => {
-                setError('');
-                setIsModalOpen(true);
-              }}
+              onClick={handleOpenModal}
               className="btn-primary !px-8 flex items-center gap-3 shadow-xl shadow-primary/20"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -232,12 +270,15 @@ export default function ProjectsPage() {
                   className="input-field appearance-none cursor-pointer"
                 >
                   <option value="" disabled>Select a client</option>
-                  {clients.map(client => (
-                    <option key={client.id} value={client.id}>
-                      {client.name} {client.companyName ? `(${client.companyName})` : ''}
-                    </option>
-                  ))}
-                  {clients.length === 0 && <option disabled>No clients found</option>}
+                  {clients.length === 0 ? (
+                    <option disabled>Loading clients...</option>
+                  ) : (
+                    clients.map(client => (
+                      <option key={client.id} value={client.id}>
+                        {client.name || client.companyName || client.company_name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
               

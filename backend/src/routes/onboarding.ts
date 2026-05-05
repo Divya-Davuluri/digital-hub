@@ -154,4 +154,36 @@ router.post('/onboarding/client', authMiddleware, authorize('admin'), async (req
   }
 });
 
+// GET /api/admin/clients
+router.get('/clients', authMiddleware, authorize('admin'), async (req: AuthRequest, res) => {
+  try {
+    const tenantId = req.user.tenantId;
+
+    console.log('=== ADMIN CLIENT FETCH DEBUG ===');
+    console.log('User:', req.user?.id);
+    console.log('TenantId:', tenantId);
+
+    const results = await db.all(sql`
+      SELECT id, name, email, company_name, status
+      FROM clients
+      WHERE tenant_id = ${tenantId}
+      ORDER BY name ASC
+    `);
+
+    console.log('Clients count:', results.length);
+    console.log('First client:', results[0]);
+    console.log('==========================');
+
+    return res.json({
+      success: true,
+      clients: results || []
+    });
+  } catch (err: any) {
+    console.error('Get clients error:', err.message);
+    res.status(500).json({ success: false, error: err.message, clients: [] });
+  }
+});
+
+import { sql } from 'drizzle-orm';
+
 export default router;
