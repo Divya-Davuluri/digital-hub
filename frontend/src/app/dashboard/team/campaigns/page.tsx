@@ -9,23 +9,28 @@ export default function TeamCampaignsPage() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchCampaigns = async () => {
+    try {
+      setLoading(true);
+      const data = await apiFetch("/team/campaigns");
+      setCampaigns(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchCampaigns = async () => {
-      try {
-        const data = await apiFetch("/team/campaigns");
-        setCampaigns(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchCampaigns();
   }, []);
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      <div className="flex flex-col items-center gap-4">
+         <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+         <p className="text-slate-500 text-sm font-medium">Loading sync data...</p>
+      </div>
     </div>
   );
 
@@ -35,9 +40,17 @@ export default function TeamCampaignsPage() {
       <div className="flex-1 ml-[260px] flex flex-col">
         <Header />
         <main className="p-8 max-w-7xl mx-auto w-full">
-          <div className="mb-10">
-            <h1 className="text-2xl font-bold text-slate-900">Campaign Management</h1>
-            <p className="text-sm text-slate-500 mt-1">Monitor performance and budget for all your assigned client campaigns.</p>
+          <div className="mb-10 flex justify-between items-end">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Campaign Management</h1>
+              <p className="text-sm text-slate-500 mt-1">Monitor performance and budget for all your assigned client campaigns.</p>
+            </div>
+            <button 
+              onClick={() => fetchCampaigns()}
+              className="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              ↻ Refresh Data
+            </button>
           </div>
 
           <div className="card !p-0 overflow-hidden bg-white shadow-sm border border-slate-200 rounded-2xl">
@@ -59,24 +72,38 @@ export default function TeamCampaignsPage() {
                               <span className="font-semibold text-sm text-slate-900">{campaign.name}</span>
                            </td>
                            <td className="px-8 py-5 text-sm text-slate-600">
-                              {campaign.clientName}
+                              {campaign.clientName || 'N/A'}
                            </td>
                            <td className="px-8 py-5">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${
-                                campaign.status === 'active' ? 'bg-green-50 text-green-700 border-green-100' : 
-                                campaign.status === 'paused' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                'bg-slate-50 text-slate-700 border-slate-200'
-                              }`}>
-                                 {campaign.status}
+                              <span className="px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-tight" style={{
+                                background: 
+                                  campaign.status?.toUpperCase() === 'ACTIVE' ? '#d1fae5' 
+                                  : campaign.status?.toUpperCase() === 'PAUSED' ? '#fef3c7'
+                                  : campaign.status?.toUpperCase() === 'COMPLETED' ? '#f3f4f6'
+                                  : '#dbeafe',
+                                color:
+                                  campaign.status?.toUpperCase() === 'ACTIVE' ? '#065f46'
+                                  : campaign.status?.toUpperCase() === 'PAUSED' ? '#92400e'
+                                  : campaign.status?.toUpperCase() === 'COMPLETED' ? '#6b7280'
+                                  : '#1e40af'
+                              }}>
+                                 {campaign.status || 'DRAFT'}
                               </span>
                            </td>
                            <td className="px-8 py-5 font-bold text-sm text-slate-900">
-                              ${campaign.budget?.toLocaleString()}
+                              ${(campaign.budget || 0).toLocaleString()}
                            </td>
                            <td className="px-8 py-5 text-right">
                               <div className="flex flex-col items-end">
-                                 <span className="text-xs font-bold text-slate-900">{campaign.clicks?.toLocaleString() || 0} clicks</span>
-                                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">{campaign.conversions || 0} conversions</span>
+                                 <span className="text-xs font-bold text-slate-900">
+                                   {campaign.clicks && campaign.impressions
+                                     ? ((campaign.clicks / campaign.impressions) * 100).toFixed(2) + '%'
+                                     : '0.00%'
+                                   } CTR
+                                 </span>
+                                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
+                                   {campaign.conversions || 0} conversions
+                                 </span>
                               </div>
                            </td>
                         </tr>

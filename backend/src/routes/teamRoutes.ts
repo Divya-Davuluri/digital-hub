@@ -210,38 +210,51 @@ router.get('/campaigns', authMiddleware, authorize('team', 'admin'), async (req:
     const userId = req.user.id || req.user.userId;
     const tenantId = req.user.tenantId || req.user.tenant_id;
 
-    const assignedClients = await db.query.clients.findMany({
-      where: and(
-        eq(clients.tenantId, tenantId),
-        eq(clients.assignedTeamMemberId, userId)
-      ),
-      columns: { id: true }
+    console.log('Fetching team campaigns for:', { userId, tenantId });
+
+    // Using raw SQL for the complex inclusive query as requested
+    const results = await db.run(sql`
+      SELECT 
+        c.id,
+        c.name,
+        c.client_name as clientName,
+        c.client_id as clientId,
+        c.status,
+        c.budget,
+        c.spend as spent,
+        c.impressions,
+        c.clicks,
+        c.conversions,
+        COALESCE(c.platform, c.channel) as platform,
+        c.start_date as startDate,
+        c.end_date as endDate,
+        c.created_at as createdAt
+      FROM campaigns c
+      WHERE c.tenant_id = ${tenantId}
+      AND (
+        c.assigned_team_member_id = ${userId}
+        OR c.assigned_team_member_id IS NULL
+        OR c.assigned_team_member_id = ''
+        OR c.client_id IN (
+          SELECT id FROM clients
+          WHERE (assigned_team_member_id = ${userId} OR assigned_to = ${userId})
+          AND tenant_id = ${tenantId}
+        )
+      )
+      ORDER BY c.created_at DESC
+    `);
+
+    const campaignsList = results.rows || results;
+    
+    console.log('Team campaigns query:', {
+      tenantId,
+      userId,
+      campaignsFound: campaignsList.length
     });
 
-    const clientIds = assignedClients.map(c => c.id);
-    if (clientIds.length === 0) return res.json([]);
-
-    const teamCampaigns = await db.select({
-      id: campaigns.id,
-      name: campaigns.name,
-      status: campaigns.status,
-      budget: campaigns.budget,
-      clientName: clients.name,
-      impressions: campaigns.impressions,
-      clicks: campaigns.clicks,
-      conversions: campaigns.conversions,
-      spend: campaigns.spend
-    })
-    .from(campaigns)
-    .innerJoin(clients, eq(campaigns.clientId, clients.id))
-    .where(and(
-      eq(campaigns.tenantId, tenantId),
-      inArray(campaigns.clientId, clientIds)
-    ))
-    .orderBy(desc(campaigns.createdAt));
-
-    res.json(teamCampaigns);
+    res.json(campaignsList || []);
   } catch (err: any) {
+    console.error('Get team campaigns error:', err);
     res.status(500).json({ error: err.message });
   }
 });

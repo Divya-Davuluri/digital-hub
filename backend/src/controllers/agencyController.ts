@@ -125,12 +125,17 @@ export const getCampaigns = async (req: AuthRequest, res: Response) => {
 
 export const createCampaign = async (req: AuthRequest, res: Response) => {
   try {
-    const { name, budget, clientId } = req.body;
-    const tenantId = req.user.tenantId;
+    const { name, budget, clientId, platform, startDate, endDate } = req.body;
+    const tenantId = req.user.tenantId || req.user.tenant_id;
+    const userId = req.user.id || req.user.userId;
 
-    console.log('[CREATE_CAMPAIGN] Payload:', { name, budget, clientId });
+    console.log('[CREATE_CAMPAIGN] Payload:', { name, budget, clientId, tenantId });
 
-    // Verify client belongs to this tenant
+    if (!tenantId) {
+      return res.status(400).json({ message: 'Missing tenant context' });
+    }
+
+    // Verify client belongs to this tenant and get client name
     const client = await db.query.clients.findFirst({
       where: and(eq(clients.id, clientId), eq(clients.tenantId, tenantId))
     });
@@ -140,16 +145,31 @@ export const createCampaign = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: 'Unauthorized: Client does not belong to your agency.' });
     }
 
-    const newCampaign = await db.insert(campaigns).values({
-      id: uuidv4(),
-      tenantId,
-      clientId,
-      name,
-      budget,
-      status: 'active'
-    }).returning() as any;
+    const campaignId = uuidv4();
+    const createdAt = new Date().toISOString();
 
-    res.status(201).json(newCampaign[0]);
+    // Use raw SQL to ensure all custom columns are populated
+    await db.run(sql`
+      INSERT INTO campaigns (
+        id, tenant_id, client_id, client_name, name, budget, 
+        status, platform, start_date, end_date, created_by, created_at
+      ) VALUES (
+        ${campaignId}, ${tenantId}, ${clientId}, ${client.name}, ${name}, ${budget}, 
+        'ACTIVE', ${platform || 'google'}, ${startDate || null}, ${endDate || null}, ${userId}, ${createdAt}
+      )
+    `);
+
+    console.log('[CREATE_CAMPAIGN_SUCCESS]', campaignId);
+
+    res.status(201).json({
+      id: campaignId,
+      name,
+      clientId,
+      clientName: client.name,
+      budget,
+      status: 'ACTIVE',
+      createdAt
+    });
   } catch (err: any) {
     console.error('[CREATE_CAMPAIGN_ERROR]', err);
     res.status(500).json({ message: 'Failed to create campaign: ' + err.message });
