@@ -44,38 +44,16 @@ export default function ProjectsPage() {
     try {
       const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
       
-      // Try projects/clients first as it's dedicated for this flow
-      let response = await fetch('/api/projects/clients', {
+      const res = await fetch('/api/projects/clients', {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
 
-      // Fallback to admin/clients
-      if (!response.ok) {
-        response = await fetch('/api/admin/clients', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-      }
-
-      // Final fallback to general clients
-      if (!response.ok) {
-        response = await fetch('/api/clients', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-      }
-
-      if (!response.ok) throw new Error('Failed to fetch clients');
+      if (!res.ok) throw new Error('Failed to fetch clients');
       
-      const data = await response.json();
-      const clientsList = data.clients || data.data || data || [];
+      const data = await res.json();
+      const clientsList = data.clients || [];
       console.log('[CLIENTS_LOADED]', clientsList.length);
       setClients(clientsList);
     } catch (err: any) {
@@ -92,7 +70,7 @@ export default function ProjectsPage() {
       const payload = {
         name: newProject.projectName,
         clientId: newProject.clientId || null,
-        clientName: selectedClient?.name || selectedClient?.companyName || 'General',
+        clientName: selectedClient?.name || 'General',
         targetDate: newProject.targetDate,
         status: newProject.status || 'PLANNING'
       };
@@ -127,7 +105,7 @@ export default function ProjectsPage() {
   const handleOpenModal = () => {
     setError('');
     setIsModalOpen(true);
-    fetchClients(); // Refresh clients every time modal opens
+    fetchClients(); 
   };
 
   return (
@@ -219,7 +197,7 @@ export default function ProjectsPage() {
                   <div className="flex justify-between items-center pt-6 border-t border-white/5">
                     <div className="flex items-center gap-2 text-[10px] font-black text-text-muted uppercase tracking-widest">
                       <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       {project.due_date || project.target_date || project.targetDate || project.dueDate
                         ? new Date(project.due_date || project.target_date || project.targetDate || project.dueDate).toLocaleDateString()
@@ -269,15 +247,14 @@ export default function ProjectsPage() {
                   onChange={(e) => setNewProject({...newProject, clientId: e.target.value})}
                   className="input-field appearance-none cursor-pointer"
                 >
-                  <option value="" disabled>Select a client</option>
-                  {clients.length === 0 ? (
-                    <option disabled>Loading clients...</option>
-                  ) : (
-                    clients.map(client => (
-                      <option key={client.id} value={client.id}>
-                        {client.name || client.companyName || client.company_name}
-                      </option>
-                    ))
+                  <option value="">Select a client</option>
+                  {clients.map(client => (
+                    <option key={client.id} value={client.id}>
+                      {client.name || client.company_name}
+                    </option>
+                  ))}
+                  {clients.length === 0 && (
+                    <option value="general">General</option>
                   )}
                 </select>
               </div>

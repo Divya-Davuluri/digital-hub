@@ -1,16 +1,12 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { getProjects, createProject } from '../controllers/projectController';
-
-const router = Router();
-
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../db';
 
-router.get('/', authMiddleware, getProjects);
-router.post('/', authMiddleware, createProject);
+const router = Router();
 
-// GET /api/projects/clients
+// 1. GET /api/projects/clients - MUST BE FIRST to avoid conflict with /:id
 router.get('/clients', authMiddleware, async (req: any, res) => {
   try {
     const tenantId = req.user?.tenantId || req.user?.tenant_id;
@@ -23,6 +19,8 @@ router.get('/clients', authMiddleware, async (req: any, res) => {
       ORDER BY name ASC
     `);
 
+    console.log('[PROJECT_CLIENTS] Found:', clients?.length || 0);
+
     return res.json({
       success: true,
       clients: clients || []
@@ -31,15 +29,23 @@ router.get('/clients', authMiddleware, async (req: any, res) => {
     console.error('[PROJECT_CLIENTS_ERROR]', error.message);
     return res.status(500).json({
       success: false,
-      clients: []
+      clients: [],
+      error: error.message
     });
   }
 });
 
+// 2. GET /api/projects - List
+router.get('/', authMiddleware, getProjects);
+
+// 3. POST /api/projects - Create
+router.post('/', authMiddleware, createProject);
+
+// 4. GET /api/projects/:id - Detail (MUST BE AFTER /clients)
 router.get('/:id', authMiddleware, async (req: any, res) => {
   try {
     let { id } = req.params;
-    // Sanitize ID: remove trailing slashes if any
+    // Sanitize ID
     if (id && id.endsWith('/')) {
       id = id.slice(0, -1);
     }
@@ -61,18 +67,9 @@ router.get('/:id', authMiddleware, async (req: any, res) => {
     `);
 
     const rows = projectResult.rows || projectResult;
-    console.log('[GET_PROJECT_DETAIL] Results count:', rows?.length || 0);
 
     if (!rows || rows.length === 0) {
       console.warn('[GET_PROJECT_DETAIL] Project not found or tenant mismatch:', id);
-      
-      // Secondary check: does it exist AT ALL?
-      const exists = await db.run(sql`SELECT id, tenant_id FROM projects WHERE id = ${id} LIMIT 1`);
-      const existsRows = exists.rows || exists;
-      if (existsRows.length > 0) {
-        console.error('[GET_PROJECT_DETAIL] Project exists but belongs to tenant:', existsRows[0].tenant_id);
-      }
-
       return res.status(404).json({
         success: false,
         error: 'Project not found'
