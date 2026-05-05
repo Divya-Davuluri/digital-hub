@@ -9,7 +9,7 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
   try {
     const tenantId = req.user.tenantId || req.user.tenant_id;
     
-    // Use raw SQL to handle potential schema mismatches during transition
+    // Fetch all columns for the project pipeline
     const results = await db.run(sql`
       SELECT * FROM projects 
       WHERE tenant_id = ${tenantId}
@@ -26,47 +26,95 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
 
 export const createProject = async (req: AuthRequest, res: Response) => {
   try {
-    const { name, title, projectName, clientId, clientName, status, targetDate, dueDate } = req.body;
+    const { 
+      name, 
+      projectName, 
+      title, 
+      clientId, 
+      clientName, 
+      status, 
+      targetDate, 
+      dueDate,
+      description
+    } = req.body;
+
     const tenantId = req.user.tenantId || req.user.tenant_id;
     const userId = req.user.id || req.user.userId;
 
-    // Support both old and new naming conventions during migration
-    const finalName = name || projectName || title;
-    const finalClientId = clientId || clientName;
-    const finalDate = targetDate || dueDate;
+    // Field Mapping & Normalization
+    const finalName = projectName || name || title;
+    const finalStatus = (status || 'Planning').toUpperCase();
+    const finalClientId = clientId || null;
+    const finalClientName = clientName || 'General';
+    const finalDate = targetDate || dueDate || null;
 
-    console.log('[CREATE_PROJECT_REQUEST]', { body: req.body, tenantId, userId });
+    console.log('[CREATE_PROJECT_REQUEST]', { 
+      body: req.body, 
+      mapped: { finalName, finalClientId, finalDate, finalStatus },
+      tenantId, 
+      userId 
+    });
 
-    if (!finalName || !finalClientId || !finalDate) {
-      return res.status(400).json({ 
-        message: 'Missing required fields: projectName, clientId, targetDate' 
-      });
+    if (!finalName) {
+      return res.status(400).json({ success: false, message: 'Project name is required' });
     }
 
     const projectId = randomUUID();
     const createdAt = new Date().toISOString();
 
-    // Use raw SQL to ensure compatibility with the updated table
+    // EXHAUSTIVE INSERT - Handles all schema variations for stability
     await db.run(sql`
       INSERT INTO projects (
-        id, tenant_id, name, client_id, target_date, status, created_at
+        id,
+        tenant_id,
+        name,
+        title,
+        client_id,
+        client_name,
+        target_date,
+        due_date,
+        status,
+        completion,
+        description,
+        created_by,
+        created_at
       ) VALUES (
-        ${projectId}, ${tenantId}, ${finalName}, ${finalClientId}, ${finalDate}, ${status || 'Planning'}, ${createdAt}
+        ${projectId},
+        ${tenantId},
+        ${finalName},
+        ${finalName},
+        ${finalClientId},
+        ${finalClientName},
+        ${finalDate},
+        ${finalDate},
+        ${finalStatus},
+        0,
+        ${description || null},
+        ${userId},
+        ${createdAt}
       )
     `);
 
-    console.log('[PROJECT_CREATED]', projectId);
+    console.log('[PROJECT_CREATED_SUCCESS]', projectId);
 
     res.status(201).json({
-      id: projectId,
-      name: finalName,
-      clientId: finalClientId,
-      targetDate: finalDate,
-      status: status || 'Planning',
-      createdAt
+      success: true,
+      project: {
+        id: projectId,
+        name: finalName,
+        clientName: finalClientName,
+        targetDate: finalDate,
+        status: finalStatus,
+        completion: 0,
+        createdAt: createdAt
+      }
     });
   } catch (err: any) {
-    console.error('[CREATE_PROJECT_ERROR]', err);
-    res.status(500).json({ message: 'Failed to create project: ' + err.message });
+    console.error('[CREATE_PROJECT_ERROR]', err.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to create project: ' + err.message,
+      details: err.message 
+    });
   }
 };

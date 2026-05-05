@@ -57,14 +57,15 @@ export default function ProjectsPage() {
     try {
       console.log('[INITIATING_PROJECT]', newProject);
       
-      const created = await apiFetch('/projects', {
+      const data = await apiFetch('/projects', {
         method: 'POST',
         body: JSON.stringify(newProject),
       });
 
-      console.log('[PROJECT_CREATED_SUCCESS]', created);
+      console.log('[PROJECT_CREATED_SUCCESS]', data);
       
-      setProjects(prev => [created, ...prev]);
+      const projectToAdd = data.project || data;
+      setProjects(prev => [projectToAdd, ...prev]);
       setIsModalOpen(false);
       setNewProject({ 
         projectName: '', 
