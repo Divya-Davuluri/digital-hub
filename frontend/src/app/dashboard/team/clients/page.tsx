@@ -11,16 +11,19 @@ export default function TeamClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', email: '', companyName: '', password: 'Password123!' });
+  const [newClient, setNewClient] = useState({ name: '', email: '', companyName: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchClients = async () => {
+    setFetchError(null);
     try {
       const data = await apiFetch("/team/clients");
       setClients(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setFetchError(err.message || "Failed to load clients. Please refresh.");
     } finally {
       setLoading(false);
     }
@@ -36,7 +39,7 @@ export default function TeamClientsPage() {
     setError(null);
     
     try {
-      const savedClient = await apiFetch("/team/clients", {
+      const result = await apiFetch("/team/clients", {
         method: 'POST',
         body: JSON.stringify({
           contactPerson: newClient.name,
@@ -45,12 +48,16 @@ export default function TeamClientsPage() {
         }),
       });
       
-      setClients(prev => [savedClient, ...prev]);
-      setShowModal(false);
-      setNewClient({ name: '', email: '', companyName: '', password: 'Password123!' });
-      alert("Client workspace created successfully!");
+      if (result.success) {
+        setClients(prev => [result.client, ...prev]);
+        setShowModal(false);
+        setNewClient({ name: '', email: '', companyName: '' });
+        alert("Client workspace created!");
+      } else {
+        throw new Error(result.error || "Failed to create client.");
+      }
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+      setError(err.message || 'Failed to create client. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -68,6 +75,12 @@ export default function TeamClientsPage() {
       <div className="flex-1 ml-[260px] flex flex-col">
         <Header />
         <main className="p-8 max-w-7xl mx-auto w-full">
+          {fetchError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm font-bold rounded-xl animate-shake">
+               ⚠️ {fetchError}
+            </div>
+          )}
+
           <div className="mb-10 flex justify-between items-end">
             <div>
               <h1 className="text-2xl font-bold text-slate-900">Assigned Clients</h1>
@@ -81,13 +94,13 @@ export default function TeamClientsPage() {
             </button>
           </div>
 
-          <div className="card !p-0 overflow-hidden">
-             <div className="p-6 border-b border-border flex justify-between items-center bg-white">
+          <div className="card !p-0 overflow-hidden bg-white shadow-sm border border-slate-200 rounded-2xl">
+             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
                 <div className="flex items-center gap-3">
                    <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 font-bold">
                       {clients.length}
                    </div>
-                   <h3 className="text-base font-bold text-slate-900">Portfolio Overview</h3>
+                   <h3 className="text-base font-bold text-slate-900">{clients.length} Portfolio Overview</h3>
                 </div>
              </div>
              
@@ -111,7 +124,7 @@ export default function TeamClientsPage() {
                               <td className="px-8 py-5 text-sm text-slate-500">{client.email}</td>
                               <td className="px-8 py-5">
                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-tighter ${
-                                    client.status === 'active' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-slate-50 text-slate-700 border-slate-200'
+                                    client.status?.toLowerCase() === 'active' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-slate-50 text-slate-700 border-slate-200'
                                  }`}>
                                     {client.status || 'Active'}
                                  </span>
