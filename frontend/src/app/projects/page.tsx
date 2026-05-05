@@ -55,11 +55,15 @@ export default function ProjectsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      console.log('[INITIATING_PROJECT]', newProject);
-      
+      const selectedClient = clients.find(c => c.id === newProject.clientId);
+      const payload = {
+        ...newProject,
+        clientName: selectedClient?.name || 'General'
+      };
+
       const data = await apiFetch('/projects', {
         method: 'POST',
-        body: JSON.stringify(newProject),
+        body: JSON.stringify(payload),
       });
 
       console.log('[PROJECT_CREATED_SUCCESS]', data);
@@ -137,14 +141,18 @@ export default function ProjectsPage() {
                 </div>
               )}
               {projects.map((project) => (
-                <div key={project.id || Math.random()} className="card group hover:scale-[1.02] transition-all duration-300 cursor-default">
+                <div 
+                  key={project.id || Math.random()} 
+                  className="card group hover:scale-[1.02] transition-all duration-300 cursor-pointer"
+                  onClick={() => router.push(`/projects/${project.id}`)}
+                >
                   <div className="flex justify-between items-start mb-6">
                     <div>
                       <h3 className="text-lg font-black group-hover:text-primary transition-colors tracking-tight">
                         {project.name || project.projectName || project.title || 'Untitled Project'}
                       </h3>
                       <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">
-                        {project.clientName || project.clientId || 'Unknown Client'}
+                        {project.client_name || project.clientName || project.clientId || 'No Client Assigned'}
                       </p>
                     </div>
                     <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${

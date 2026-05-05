@@ -210,49 +210,35 @@ router.get('/campaigns', authMiddleware, authorize('team', 'admin'), async (req:
     const userId = req.user.id || req.user.userId;
     const tenantId = req.user.tenantId || req.user.tenant_id;
 
-    console.log('Fetching team campaigns for:', { userId, tenantId });
+    console.log('=== TEAM CAMPAIGNS DEBUG ===');
+    console.log('Team tenant_id:', tenantId);
+    console.log('Team userId:', userId);
 
-    // Using raw SQL for the complex inclusive query as requested
+    // Show ALL campaigns in the same tenant as requested
     const results = await db.run(sql`
       SELECT 
-        c.id,
-        c.name,
-        c.client_name as clientName,
-        c.client_id as clientId,
-        c.status,
-        c.budget,
-        c.spend as spent,
-        c.impressions,
-        c.clicks,
-        c.conversions,
-        COALESCE(c.platform, c.channel) as platform,
-        c.start_date as startDate,
-        c.end_date as endDate,
-        c.created_at as createdAt
-      FROM campaigns c
-      WHERE c.tenant_id = ${tenantId}
-      AND (
-        c.assigned_team_member_id = ${userId}
-        OR c.assigned_team_member_id IS NULL
-        OR c.assigned_team_member_id = ''
-        OR c.client_id IN (
-          SELECT id FROM clients
-          WHERE (assigned_team_member_id = ${userId} OR assigned_to = ${userId})
-          AND tenant_id = ${tenantId}
-        )
-      )
-      ORDER BY c.created_at DESC
+        id, name, client_name as clientName,
+        client_id as clientId, status, budget,
+        spend as spent, impressions, clicks,
+        conversions, COALESCE(platform, channel) as platform,
+        start_date as startDate, end_date as endDate, created_at as createdAt
+      FROM campaigns
+      WHERE tenant_id = ${tenantId}
+      ORDER BY created_at DESC
     `);
 
     const campaignsList = results.rows || results;
     
-    console.log('Team campaigns query:', {
-      tenantId,
-      userId,
-      campaignsFound: campaignsList.length
-    });
+    console.log('Campaigns found:', campaignsList.length);
+    if (campaignsList.length > 0) {
+      console.log('First campaign:', campaignsList[0]);
+    }
+    console.log('============================');
 
-    res.json(campaignsList || []);
+    res.json({
+      success: true,
+      campaigns: campaignsList || []
+    });
   } catch (err: any) {
     console.error('Get team campaigns error:', err);
     res.status(500).json({ error: err.message });

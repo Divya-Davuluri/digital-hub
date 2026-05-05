@@ -13,7 +13,8 @@ export default function TeamCampaignsPage() {
     try {
       setLoading(true);
       const data = await apiFetch("/team/campaigns");
-      setCampaigns(data);
+      console.log('Campaigns response:', data);
+      setCampaigns(data.campaigns || data || []);
     } catch (err) {
       console.error(err);
     } finally {
