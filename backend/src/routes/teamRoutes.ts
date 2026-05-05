@@ -1,7 +1,7 @@
 import express from 'express';
 import { db } from '../db';
 import { clients, tasks, campaigns } from '../db/schema';
-import { eq, and, inArray, desc } from 'drizzle-orm';
+import { eq, and, inArray, desc, or, isNull } from 'drizzle-orm';
 import { authMiddleware, authorize, AuthRequest } from '../middleware/authMiddleware';
 
 const router = express.Router();
@@ -15,7 +15,10 @@ router.get('/clients', authMiddleware, authorize('team', 'admin'), async (req: A
     const assignedClients = await db.query.clients.findMany({
       where: and(
         eq(clients.tenantId, tenantId),
-        eq(clients.assignedTeamMemberId, userId)
+        or(
+          eq(clients.assignedTeamMemberId, userId),
+          isNull(clients.assignedTeamMemberId)
+        )
       ),
       orderBy: (clients, { desc }) => [desc(clients.createdAt)]
     });
@@ -116,6 +119,38 @@ router.get('/campaigns', authMiddleware, authorize('team', 'admin'), async (req:
     .orderBy(desc(campaigns.createdAt));
 
     res.json(teamCampaigns);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+import { v4 as uuidv4 } from 'uuid';
+
+// POST /api/team/clients
+router.post('/clients', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
+  try {
+    const { contactPerson, companyName, contactEmail } = req.body;
+    const userId = req.user.userId;
+    const tenantId = req.user.tenantId;
+
+    if (!contactPerson || !contactEmail) {
+      return res.status(400).json({ error: 'Contact person and email are required' });
+    }
+
+    const clientId = uuidv4();
+    
+    const newClient = await db.insert(clients).values({
+      id: clientId,
+      tenantId,
+      name: contactPerson,
+      companyName: companyName || contactPerson,
+      email: contactEmail,
+      assignedTeamMemberId: userId,
+      status: 'active',
+      createdAt: new Date().toISOString()
+    }).returning();
+
+    res.status(201).json(newClient[0]);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

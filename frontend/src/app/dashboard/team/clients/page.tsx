@@ -36,13 +36,19 @@ export default function TeamClientsPage() {
     setError(null);
     
     try {
-      await apiFetch("/agency/clients", {
+      const savedClient = await apiFetch("/team/clients", {
         method: 'POST',
-        body: JSON.stringify(newClient),
+        body: JSON.stringify({
+          contactPerson: newClient.name,
+          companyName: newClient.companyName,
+          contactEmail: newClient.email
+        }),
       });
+      
+      setClients(prev => [savedClient, ...prev]);
       setShowModal(false);
       setNewClient({ name: '', email: '', companyName: '', password: 'Password123!' });
-      fetchClients();
+      alert("Client workspace created successfully!");
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
     } finally {
@@ -126,9 +132,8 @@ export default function TeamClientsPage() {
              ) : (
                <div className="p-20 text-center bg-white">
                   <div className="text-4xl mb-4">👥</div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-1">No Assigned Clients</h3>
-                  <p className="text-sm text-slate-500">You haven&apos;t been assigned any clients yet.</p>
-                  <button onClick={() => setShowModal(true)} className="text-sm font-bold text-indigo-600 hover:underline mt-4">Add Your First Client →</button>
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">No clients assigned yet.</h3>
+                  <p className="text-sm text-slate-500">Click &apos;Add New Client&apos; to get started.</p>
                </div>
              )}
           </div>
