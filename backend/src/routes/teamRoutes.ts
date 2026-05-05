@@ -1,89 +1,177 @@
 import express from 'express';
 import { db } from '../db';
 import { clients, tasks, campaigns } from '../db/schema';
-import { eq, and, inArray, desc, or, isNull } from 'drizzle-orm';
+import { eq, and, inArray, desc, or, isNull, sql } from 'drizzle-orm';
 import { authMiddleware, authorize, AuthRequest } from '../middleware/authMiddleware';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
+
+// --- CLIENTS ---
 
 // GET /api/team/clients
 router.get('/clients', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
   try {
-    const userId = req.user.userId;
-    const tenantId = req.user.tenantId;
+    const userId = req.user.id || req.user.userId;
+    const tenantId = req.user.tenantId || req.user.tenant_id;
 
-    const assignedClients = await db.query.clients.findMany({
-      where: and(
-        eq(clients.tenantId, tenantId),
-        or(
-          eq(clients.assignedTeamMemberId, userId),
-          isNull(clients.assignedTeamMemberId)
-        )
-      ),
-      orderBy: (clients, { desc }) => [desc(clients.createdAt)]
-    });
+    const results = await db.run(sql`
+      SELECT 
+        id, name, email, 
+        company_name as companyName, status, created_at as createdAt
+      FROM clients
+      WHERE tenant_id = ${tenantId}
+      AND assigned_team_member_id = ${userId}
+      ORDER BY created_at DESC
+    `);
 
-    res.json(assignedClients);
+    const clientsList = results.rows || results;
+    res.json({ success: true, clients: clientsList });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('Get team clients error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch clients' });
   }
 });
+
+// POST /api/team/clients
+router.post('/clients', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
+  try {
+    const { contactPerson, companyName, contactEmail } = req.body;
+    const userId = req.user.id || req.user.userId;
+    const tenantId = req.user.tenantId || req.user.tenant_id;
+
+    if (!contactPerson || !contactEmail) {
+      return res.status(400).json({ success: false, error: 'Contact person and email are required' });
+    }
+
+    const clientId = uuidv4();
+    const createdAt = new Date().toISOString();
+
+    await db.run(sql`
+      INSERT INTO clients (
+        id, tenant_id, name, email, company_name,
+        status, assigned_team_member_id, created_at
+      ) VALUES (
+        ${clientId}, ${tenantId}, ${contactPerson}, ${contactEmail}, ${companyName || null},
+        'active', ${userId}, ${createdAt}
+      )
+    `);
+
+    res.status(201).json({
+      success: true,
+      client: {
+        id: clientId,
+        name: contactPerson,
+        email: contactEmail,
+        companyName: companyName || '',
+        status: 'active',
+        assignedTeamMemberId: userId,
+        createdAt: createdAt
+      }
+    });
+  } catch (err: any) {
+    console.error('Create team client error:', err);
+    res.status(500).json({ success: false, error: 'Failed to create client' });
+  }
+});
+
+// --- TASKS ---
 
 // GET /api/team/tasks
 router.get('/tasks', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
   try {
-    const userId = req.user.userId;
-    const tenantId = req.user.tenantId;
+    const userId = req.user.id || req.user.userId;
+    const tenantId = req.user.tenantId || req.user.tenant_id;
 
-    let teamTasks = await db.query.tasks.findMany({
-      where: and(
-        eq(tasks.tenantId, tenantId),
-        eq(tasks.assignedTo, userId)
-      ),
-      orderBy: (tasks, { desc }) => [desc(tasks.createdAt)]
-    });
+    const results = await db.run(sql`
+      SELECT 
+        id, title, client_name as clientName,
+        priority, status, due_date as dueDate,
+        created_at as createdAt, completed_at as completedAt
+      FROM tasks
+      WHERE tenant_id = ${tenantId}
+      AND assigned_to = ${userId}
+      AND status != 'COMPLETED'
+      ORDER BY created_at DESC
+    `);
 
-    if (teamTasks.length === 0) {
-      // Seed data if empty
-      const seedData = [
-        { id: 'task-1', tenantId, title: 'Review Q2 Campaign Report', clientName: 'Nike Marketing', dueDate: '2026-05-10', priority: 'HIGH', status: 'PENDING', assignedTo: userId, createdAt: new Date().toISOString() },
-        { id: 'task-2', tenantId, title: 'Update Ad Creative Assets', clientName: 'Nike Marketing', dueDate: '2026-05-12', priority: 'MEDIUM', status: 'PENDING', assignedTo: userId, createdAt: new Date().toISOString() },
-        { id: 'task-3', tenantId, title: 'Client Monthly Call Prep', clientName: 'Nike Marketing', dueDate: '2026-05-08', priority: 'HIGH', status: 'PENDING', assignedTo: userId, createdAt: new Date().toISOString() },
-        { id: 'task-4', tenantId, title: 'Budget Reallocation Request', clientName: 'Nike Marketing', dueDate: '2026-05-15', priority: 'LOW', status: 'PENDING', assignedTo: userId, createdAt: new Date().toISOString() },
-        { id: 'task-5', tenantId, title: 'Social Media Content Plan', clientName: 'Nike Marketing', dueDate: '2026-05-11', priority: 'MEDIUM', status: 'PENDING', assignedTo: userId, createdAt: new Date().toISOString() },
-        { id: 'task-6', tenantId, title: 'Analytics Dashboard Review', clientName: 'Nike Marketing', dueDate: '2026-05-09', priority: 'HIGH', status: 'PENDING', assignedTo: userId, createdAt: new Date().toISOString() },
-        { id: 'task-7', tenantId, title: 'Competitor Analysis Report', clientName: 'Nike Marketing', dueDate: '2026-05-14', priority: 'MEDIUM', status: 'PENDING', assignedTo: userId, createdAt: new Date().toISOString() },
-        { id: 'task-8', tenantId, title: 'Campaign Performance Summary', clientName: 'Nike Marketing', dueDate: '2026-05-13', priority: 'LOW', status: 'PENDING', assignedTo: userId, createdAt: new Date().toISOString() },
-      ];
-      
-      for (const taskData of seedData) {
-        try {
-           await db.insert(tasks).values(taskData as any);
-        } catch (e) {
-            console.error('Error seeding task:', e);
-        }
-      }
-
-      teamTasks = await db.query.tasks.findMany({
-        where: and(
-          eq(tasks.tenantId, tenantId),
-          eq(tasks.assignedTo, userId)
-        ),
-        orderBy: (tasks, { desc }) => [desc(tasks.createdAt)]
-      });
-    }
-
-    res.json(teamTasks);
+    const tasksList = results.rows || results;
+    res.json({ success: true, tasks: tasksList || [] });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('Get team tasks error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch tasks' });
   }
 });
+
+// POST /api/team/tasks
+router.post('/tasks', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
+  try {
+    const { title, clientName, priority, dueDate } = req.body;
+    const userId = req.user.id || req.user.userId;
+    const tenantId = req.user.tenantId || req.user.tenant_id;
+
+    if (!title) {
+      return res.status(400).json({ success: false, error: 'Task title is required' });
+    }
+
+    const taskId = uuidv4();
+    const createdAt = new Date().toISOString();
+
+    await db.run(sql`
+      INSERT INTO tasks (
+        id, tenant_id, title, client_name, priority,
+        status, due_date, assigned_to, created_by, created_at
+      ) VALUES (
+        ${taskId}, ${tenantId}, ${title}, ${clientName || null}, ${priority || 'MEDIUM'},
+        'PENDING', ${dueDate || null}, ${userId}, ${userId}, ${createdAt}
+      )
+    `);
+
+    res.status(201).json({
+      success: true,
+      task: {
+        id: taskId,
+        title: title,
+        clientName: clientName || '',
+        priority: priority || 'MEDIUM',
+        status: 'PENDING',
+        dueDate: dueDate || null,
+        assignedTo: userId,
+        createdAt: createdAt
+      }
+    });
+  } catch (error: any) {
+    console.error('Create team task error:', error);
+    res.status(500).json({ success: false, error: 'Failed to create task' });
+  }
+});
+
+// PATCH /api/team/tasks/:taskId/complete
+router.patch('/tasks/:taskId/complete', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user.id || req.user.userId;
+
+    await db.run(sql`
+      UPDATE tasks 
+      SET status = 'COMPLETED', completed_at = ${new Date().toISOString()}
+      WHERE id = ${taskId}
+      AND assigned_to = ${userId}
+    `);
+
+    res.json({ success: true, message: 'Task completed!' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: 'Failed to complete task' });
+  }
+});
+
+// --- CAMPAIGNS ---
 
 // GET /api/team/campaigns
 router.get('/campaigns', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
   try {
-    const userId = req.user.userId;
-    const tenantId = req.user.tenantId;
+    const userId = req.user.id || req.user.userId;
+    const tenantId = req.user.tenantId || req.user.tenant_id;
 
     const assignedClients = await db.query.clients.findMany({
       where: and(
@@ -94,10 +182,7 @@ router.get('/campaigns', authMiddleware, authorize('team', 'admin'), async (req:
     });
 
     const clientIds = assignedClients.map(c => c.id);
-
-    if (clientIds.length === 0) {
-      return res.json([]);
-    }
+    if (clientIds.length === 0) return res.json([]);
 
     const teamCampaigns = await db.select({
       id: campaigns.id,
@@ -119,38 +204,6 @@ router.get('/campaigns', authMiddleware, authorize('team', 'admin'), async (req:
     .orderBy(desc(campaigns.createdAt));
 
     res.json(teamCampaigns);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-import { v4 as uuidv4 } from 'uuid';
-
-// POST /api/team/clients
-router.post('/clients', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
-  try {
-    const { contactPerson, companyName, contactEmail } = req.body;
-    const userId = req.user.userId;
-    const tenantId = req.user.tenantId;
-
-    if (!contactPerson || !contactEmail) {
-      return res.status(400).json({ error: 'Contact person and email are required' });
-    }
-
-    const clientId = uuidv4();
-    
-    const newClient = await db.insert(clients).values({
-      id: clientId,
-      tenantId,
-      name: contactPerson,
-      companyName: companyName || contactPerson,
-      email: contactEmail,
-      assignedTeamMemberId: userId,
-      status: 'active',
-      createdAt: new Date().toISOString()
-    }).returning();
-
-    res.status(201).json(newClient[0]);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
