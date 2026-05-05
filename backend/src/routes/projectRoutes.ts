@@ -12,10 +12,16 @@ router.post('/', authMiddleware, createProject);
 
 router.get('/:id', authMiddleware, async (req: any, res) => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    // Sanitize ID: remove trailing slashes if any
+    if (id && id.endsWith('/')) {
+      id = id.slice(0, -1);
+    }
+
     const tenantId = req.user?.tenantId || req.user?.tenant_id;
 
-    console.log('[GET_PROJECT_DETAIL] Fetching project:', id, 'for tenant:', tenantId);
+    console.log('[GET_PROJECT_DETAIL] Sanitized ID:', id);
+    console.log('[GET_PROJECT_DETAIL] User Tenant ID:', tenantId);
 
     const projectResult = await db.run(sql`
       SELECT 
@@ -33,6 +39,14 @@ router.get('/:id', authMiddleware, async (req: any, res) => {
 
     if (!rows || rows.length === 0) {
       console.warn('[GET_PROJECT_DETAIL] Project not found or tenant mismatch:', id);
+      
+      // Secondary check: does it exist AT ALL?
+      const exists = await db.run(sql`SELECT id, tenant_id FROM projects WHERE id = ${id} LIMIT 1`);
+      const existsRows = exists.rows || exists;
+      if (existsRows.length > 0) {
+        console.error('[GET_PROJECT_DETAIL] Project exists but belongs to tenant:', existsRows[0].tenant_id);
+      }
+
       return res.status(404).json({
         success: false,
         error: 'Project not found'
