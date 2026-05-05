@@ -6,12 +6,12 @@ import Header from "@/components/Header";
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 
+import ClientOnboardingWizard from '@/components/ClientOnboardingWizard';
+
 export default function AdminClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', email: '', companyName: '', password: '', status: 'ACTIVE' });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
 
   const fetchClients = async () => {
     try {
@@ -28,25 +28,6 @@ export default function AdminClientsPage() {
     fetchClients();
   }, []);
 
-  const handleAddClient = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setIsSubmitting(true);
-      await apiFetch("/agency/clients", {
-        method: 'POST',
-        body: JSON.stringify(newClient),
-      });
-      alert("Client added successfully!");
-      setShowAddModal(false);
-      setNewClient({ name: '', email: '', companyName: '', password: '', status: 'ACTIVE' });
-      fetchClients();
-    } catch (err) {
-      alert("Failed to add client");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className="flex min-h-screen bg-slate-50 relative">
       <Sidebar role="admin" />
@@ -59,7 +40,7 @@ export default function AdminClientsPage() {
               <p className="text-sm text-slate-500 mt-1">Add, edit, and manage all client workspaces from this central console.</p>
             </div>
             <button 
-               onClick={() => setShowAddModal(true)}
+               onClick={() => setShowWizard(true)}
                className="btn-primary !py-2.5 !px-6 text-xs font-bold shadow-lg shadow-indigo-100"
             >
                + Add New Client
@@ -112,83 +93,22 @@ export default function AdminClientsPage() {
                   <div className="text-4xl mb-4">🏢</div>
                   <h3 className="text-lg font-bold text-slate-900 mb-1">No Clients Found</h3>
                   <p className="text-sm text-slate-500 mb-6">Start by adding your first agency client workspace.</p>
-                  <button onClick={() => setShowAddModal(true)} className="text-sm font-bold text-indigo-600 hover:underline">Add First Client →</button>
+                  <button onClick={() => setShowWizard(true)} className="text-sm font-bold text-indigo-600 hover:underline">Add First Client →</button>
                </div>
              )}
           </div>
         </main>
       </div>
 
-      {showAddModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl relative z-10 animate-subtle-fade max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-border flex justify-between items-center sticky top-0 bg-white z-20">
-              <h2 className="text-xl font-bold text-slate-900">Add New Client</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
-            </div>
-            <form className="p-6 space-y-4" onSubmit={handleAddClient}>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Full Name *</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. John Doe" 
-                  className="input-field" 
-                  required 
-                  value={newClient.name}
-                  onChange={(e) => setNewClient({...newClient, name: e.target.value})}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Contact Email *</label>
-                <input 
-                  type="email" 
-                  placeholder="contact@client.com" 
-                  className="input-field" 
-                  required 
-                  value={newClient.email}
-                  onChange={(e) => setNewClient({...newClient, email: e.target.value})}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Company Name (Optional)</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Nike Marketing" 
-                  className="input-field" 
-                  value={newClient.companyName}
-                  onChange={(e) => setNewClient({...newClient, companyName: e.target.value})}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Initial Password *</label>
-                <input 
-                  type="password" 
-                  placeholder="Create a strong password" 
-                  className="input-field" 
-                  required 
-                  value={newClient.password}
-                  onChange={(e) => setNewClient({...newClient, password: e.target.value})}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</label>
-                <select 
-                  className="input-field" 
-                  value={newClient.status}
-                  onChange={(e) => setNewClient({...newClient, status: e.target.value})}
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                </select>
-              </div>
-              <button type="submit" disabled={isSubmitting} className="w-full btn-primary py-3 mt-4 text-sm font-bold disabled:opacity-50">
-                {isSubmitting ? 'Creating...' : 'Create Client Workspace'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      <ClientOnboardingWizard
+        isOpen={showWizard}
+        onClose={() => setShowWizard(false)}
+        onSuccess={(newClient) => {
+          setShowWizard(false);
+          fetchClients();
+          alert(`Client ${newClient.name} added successfully!`);
+        }}
+      />
     </div>
   );
 }

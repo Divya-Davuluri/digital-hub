@@ -36,7 +36,24 @@ export const clients = sqliteTable('clients', {
   logo: text('logo'),
   status: text('status', { enum: ['active', 'inactive', 'pending'] }).default('active'),
   assignedTo: text('assigned_to').references((): AnySQLiteColumn => users.id, { onDelete: 'set null' }), // Assigned Team Member
+  companyName: text('company_name'),
+  phone: text('phone'),
+  plan: text('plan').default('STARTER'),
+  assignedTeamMemberId: text('assigned_team_member_id'),
+  workspaceCreatedAt: text('workspace_created_at'),
+  onboardingStatus: text('onboarding_status').default('PENDING'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const workspaces = sqliteTable('workspaces', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  clientName: text('client_name').notNull(),
+  plan: text('plan').default('STARTER'),
+  status: text('status').default('ACTIVE'),
+  settings: text('settings').default('{}'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const campaigns = sqliteTable('campaigns', {
