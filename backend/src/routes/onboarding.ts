@@ -4,7 +4,7 @@ import { users, clients, workspaces } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { authMiddleware, authorize, AuthRequest } from '../middleware/authMiddleware';
 import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 const router = express.Router();
 
@@ -68,70 +68,85 @@ router.post('/onboarding/client', authMiddleware, authorize('admin'), async (req
     const temporaryPassword = Math.random().toString(36).slice(-8) + 'A1!'; // 8 chars min
 
     // 3. Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(temporaryPassword, salt);
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
 
-    const userId = uuidv4();
-    const clientId = uuidv4();
-    const workspaceId = uuidv4();
+    const userId = randomUUID();
+    const newClientId = randomUUID();
+    const newWorkspaceId = randomUUID();
 
-    // 4. Create user
-    await db.insert(users).values({
-      id: userId,
-      tenantId,
-      name: fullName,
-      email: email.toLowerCase(),
-      password: hashedPassword,
-      role: 'client',
-      clientId,
-      provider: 'local'
-    });
-
-    // 5. Create client
-    await db.insert(clients).values({
-      id: clientId,
-      tenantId,
-      name: companyName || fullName,
-      email: email.toLowerCase(),
-      companyName,
-      phone,
-      plan: plan || 'STARTER',
-      assignedTeamMemberId: assignedTeamMemberId || null,
-      onboardingStatus: 'COMPLETED',
-      status: 'active'
-    });
-
-    // 6. Create workspace
-    await db.insert(workspaces).values({
-      id: workspaceId,
-      tenantId,
-      clientId,
-      clientName: fullName,
-      plan: plan || 'STARTER',
-      status: 'ACTIVE'
-    });
-
-    // 7. If sendWelcomeEmail is true
-    if (sendWelcomeEmail) {
-      console.log('📧 Welcome Email Details:');
-      console.log(`To: ${email}`);
-      console.log(`Subject: Welcome to your Workspace!`);
-      console.log(`Password: ${temporaryPassword}`);
-    }
-
-    // 8. Return response
-    return res.json({
-      success: true,
-      client: {
-        id: clientId,
+    try {
+      // 4. Create user
+      await db.insert(users).values({
+        id: userId,
+        tenantId,
         name: fullName,
-        email: email,
-        plan: plan,
-        temporaryPassword,
-        workspaceId,
-        loginUrl: '/login'
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        role: 'client',
+        provider: 'local',
+        providerId: null,
+        twoFactorEnabled: 0,
+        twoFactorSecret: null,
+        twoFactorTempSecret: null,
+        clientId: null,
+        createdAt: new Date().toISOString()
+      });
+
+      // 5. Create client
+      await db.insert(clients).values({
+        id: newClientId,
+        tenantId,
+        name: companyName || fullName,
+        email: email.toLowerCase(),
+        companyName: companyName || null,
+        phone: phone || null,
+        plan: plan || 'STARTER',
+        assignedTeamMemberId: assignedTeamMemberId || null,
+        onboardingStatus: 'COMPLETED',
+        status: 'active',
+        createdAt: new Date().toISOString()
+      });
+
+      // 6. Create workspace
+      await db.insert(workspaces).values({
+        id: newWorkspaceId,
+        tenantId,
+        clientId: newClientId,
+        clientName: fullName,
+        plan: plan || 'STARTER',
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString()
+      });
+
+      // 7. If sendWelcomeEmail is true
+      if (sendWelcomeEmail) {
+        console.log('📧 Welcome Email Details:');
+        console.log(`To: ${email}`);
+        console.log(`Subject: Welcome to your Workspace!`);
+        console.log(`Password: ${temporaryPassword}`);
       }
-    });
+
+      // 8. Return response
+      return res.json({
+        success: true,
+        client: {
+          id: newClientId,
+          name: fullName,
+          email: email,
+          plan: plan || 'STARTER',
+          temporaryPassword: temporaryPassword,
+          workspaceId: newWorkspaceId,
+          loginUrl: '/login'
+        }
+      });
+    } catch (error: any) {
+      console.error('Onboarding error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to create client workspace',
+        details: error.message
+      });
+    }
 
   } catch (err: any) {
     console.error('[ONBOARDING_CLIENT_ERROR]', err);
