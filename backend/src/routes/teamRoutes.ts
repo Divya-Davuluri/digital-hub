@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { Request } from 'express';
 
+
 interface AuthUser {
   id?: string;
   userId?: string;
@@ -351,5 +352,7 @@ router.post('/clients', authMiddleware,
     });
   }
 });
+
+console.log('Team routes loaded: tasks, campaigns, clients');
 
 export default router;

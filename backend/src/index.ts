@@ -89,8 +89,16 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/agency', agencyRoutes);
 app.use('/api/admin/branding', adminBrandingRoutes);
 app.use('/api/admin', onboardingRoutes); // Mounts /api/admin/onboarding and /api/admin/team-members
+
+app.post('/api/team/tasks-test', (req: Request, res: Response) => {
+  res.json({ 
+    success: true, 
+    message: 'Route works!',
+    body: req.body
+  });
+});
+
 app.use('/api/team', teamRoutes);
-app.use('/api/tasks', teamRoutes); // Keep /api/tasks pointing to teamRoutes for backward compatibility if needed
 app.use('/api/projects', projectRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/branding', brandingRoutes);
