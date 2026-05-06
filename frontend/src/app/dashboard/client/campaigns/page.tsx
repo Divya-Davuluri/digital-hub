@@ -22,6 +22,35 @@ export default function ClientCampaignsPage() {
     };
     fetchCampaigns();
   }, []);
+  
+  const handleDownloadPDF = async (campaignId: string, campaignName: string) => {
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-3h88.onrender.com';
+      const base = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`;
+      
+      const response = await fetch(`${base}/client/campaigns/${campaignId}/pdf`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to download PDF');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${campaignName.replace(/\s+/g, '-')}-report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Download error:', err);
+      alert('Failed to download PDF report. Please try again.');
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -68,9 +97,14 @@ export default function ClientCampaignsPage() {
                                     {c.status}
                                  </span>
                               </td>
-                              <td className="px-8 py-5 text-right">
-                                 <button className="text-xs font-bold text-indigo-600 hover:underline">Download PDF</button>
-                              </td>
+                               <td className="px-8 py-5 text-right">
+                                 <button 
+                                   onClick={() => handleDownloadPDF(c.id, c.name)}
+                                   className="text-xs font-bold text-indigo-600 hover:underline"
+                                 >
+                                   Download PDF
+                                 </button>
+                               </td>
                            </tr>
                         ))}
                      </tbody>
