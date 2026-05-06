@@ -146,13 +146,55 @@ export default function BrandingPage() {
             <h3 className="text-lg font-bold mb-4">Live Preview</h3>
             <div className="bg-slate-200 p-8 rounded-2xl border-4 border-dashed border-slate-300 flex items-center justify-center">
                <div className="bg-white w-full max-w-sm rounded-xl shadow-lg overflow-hidden">
-                  <div className="h-12 border-b border-slate-100 flex items-center px-4 justify-between">
-                    <div className="w-24 h-6 bg-slate-100 rounded flex items-center justify-center text-[10px] text-slate-400">
-                      {settings.logoUrl ? <img src={settings.logoUrl} alt="Logo" className="max-h-full" /> : 'Your Logo'}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 14px',
+                    background: '#1e1e2e'
+                  }}>
+                    {/* Left - Logo */}
+                    <div>
+                      {settings.logoUrl ? (
+                        <img src={settings.logoUrl} alt="logo" 
+                          style={{ height: '24px', maxWidth: '90px', 
+                            objectFit: 'contain' }} />
+                      ) : (
+                        <div style={{ 
+                          background: settings.primaryColor, 
+                          color: 'white', 
+                          fontSize: '11px',
+                          fontWeight: '500',
+                          padding: '3px 10px', 
+                          borderRadius: '4px' 
+                        }}>YourLogo</div>
+                      )}
                     </div>
-                    <div className="flex gap-2">
-                      <div className="w-2 h-2 rounded-full bg-slate-200"></div>
-                      <div className="w-2 h-2 rounded-full bg-slate-200"></div>
+
+                    {/* Right - 3 colored dots */}
+                    <div style={{ 
+                      display: 'flex', 
+                      gap: '6px', 
+                      alignItems: 'center' 
+                    }}>
+                      <div style={{ 
+                        width: '10px', 
+                        height: '10px', 
+                        borderRadius: '50%', 
+                        background: '#ff5f57' 
+                      }}></div>
+                      <div style={{ 
+                        width: '10px', 
+                        height: '10px', 
+                        borderRadius: '50%', 
+                        background: '#febc2e' 
+                      }}></div>
+                      <div style={{ 
+                        width: '10px', 
+                        height: '10px', 
+                        borderRadius: '50%', 
+                        background: '#28c840' 
+                      }}></div>
                     </div>
                   </div>
                   <div className="p-6">
