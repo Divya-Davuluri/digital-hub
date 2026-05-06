@@ -44,7 +44,16 @@ router.post('/tasks', authMiddleware, async (req: any, res) => {
     const priorityRaw = body.priority || 'MEDIUM';
     
     const userId = req.user?.id || req.user?.userId || 'unknown';
-    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
+    let tenantId = req.user?.tenantId || req.user?.tenant_id || req.user?.tenant || req.tenantId || '';
+
+    if (!tenantId && userId !== 'unknown') {
+      try {
+        const userRecord = await db.all(sql`SELECT tenant_id FROM users WHERE id = ${userId} LIMIT 1`);
+        tenantId = userRecord[0]?.tenant_id || '';
+      } catch (e) {}
+    }
+
+    console.log('Creating task for tenant:', tenantId);
 
     if (!title || !title.trim()) {
       return res.status(400).json({ success: false, error: 'Task title is required' });
@@ -123,7 +132,15 @@ router.post('/tasks', authMiddleware, async (req: any, res) => {
 
 router.get('/tasks', authMiddleware, async (req: any, res) => {
   try {
-    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
+    const userId = req.user?.id || req.user?.userId;
+    let tenantId = req.user?.tenantId || req.user?.tenant_id || req.user?.tenant || req.tenantId || '';
+
+    if (!tenantId && userId) {
+      try {
+        const userRecord = await db.all(sql`SELECT tenant_id FROM users WHERE id = ${userId} LIMIT 1`);
+        tenantId = userRecord[0]?.tenant_id || '';
+      } catch (e) {}
+    }
 
     if (!tenantId) return res.status(400).json({ success: false, error: 'Tenant context missing' });
 
@@ -165,7 +182,15 @@ router.get('/tasks', authMiddleware, async (req: any, res) => {
 router.patch('/tasks/:id/complete', authMiddleware, async (req: any, res) => {
   try {
     const { id } = req.params;
-    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
+    const userId = req.user?.id || req.user?.userId;
+    let tenantId = req.user?.tenantId || req.user?.tenant_id || req.user?.tenant || req.tenantId || '';
+
+    if (!tenantId && userId) {
+      try {
+        const userRecord = await db.all(sql`SELECT tenant_id FROM users WHERE id = ${userId} LIMIT 1`);
+        tenantId = userRecord[0]?.tenant_id || '';
+      } catch (e) {}
+    }
 
     await db.run(sql`
       UPDATE tasks
