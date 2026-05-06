@@ -3,20 +3,20 @@
 import { useState, useEffect } from 'react';
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [showModal, setShowModal] = 
-    useState(false);
+    useState<boolean>(false);
   const [taskTitle, setTaskTitle] = 
-    useState('');
+    useState<string>('');
   const [clientName, setClientName] = 
-    useState('');
+    useState<string>('');
   const [priority, setPriority] = 
-    useState('MEDIUM');
+    useState<string>('MEDIUM');
   const [creating, setCreating] = 
-    useState(false);
+    useState<boolean>(false);
   const [modalError, setModalError] = 
-    useState('');
+    useState<string>('');
 
   useEffect(() => {
     fetchTasks();
@@ -83,8 +83,8 @@ export default function TasksPage() {
         );
       }
 
-      setTasks((prev: any) => 
-        [data.task, ...prev]);
+      setTasks((prev: any[]) => 
+        [data.task, ...prev] as any[]);
       setShowModal(false);
       setTaskTitle('');
       setClientName('');
@@ -109,15 +109,14 @@ export default function TasksPage() {
           }
         }
       );
-      setTasks((prev: any) =>
-        prev.filter((t: any) => t.id !== id)
-      );
+      setTasks((prev: any[]) =>
+        prev.filter((t: any) => t.id !== id));
     } catch (err) {
       console.error('Complete error:', err);
     }
   };
 
-  const getPriorityStyle = (p: string) => {
+  const getPriorityStyle = (p: string): { bg: string; color: string } => {
     if (p === 'HIGH') return {
       bg: '#fee2e2', color: '#991b1b'
     };
