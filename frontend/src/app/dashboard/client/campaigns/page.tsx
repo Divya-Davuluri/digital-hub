@@ -23,39 +23,6 @@ export default function ClientCampaignsPage() {
     fetchCampaigns();
   }, []);
 
-  const handleCampaignPDF = async (campaignId: string, campaignName: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-3h88.onrender.com';
-      const base = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`;
-
-      const response = await fetch(
-        `${base}/client/campaigns/${campaignId}/pdf`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed');
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${campaignName}-report.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-    } catch (error) {
-      alert('PDF download failed. Please try again.');
-    }
-  };
-
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar role="client" />
@@ -102,12 +69,7 @@ export default function ClientCampaignsPage() {
                                  </span>
                               </td>
                               <td className="px-8 py-5 text-right">
-                                 <button 
-                                   onClick={() => handleCampaignPDF(c.id, c.name)}
-                                   className="text-xs font-bold text-indigo-600 hover:underline"
-                                 >
-                                   Download PDF
-                                 </button>
+                                 <button className="text-xs font-bold text-indigo-600 hover:underline">Download PDF</button>
                               </td>
                            </tr>
                         ))}

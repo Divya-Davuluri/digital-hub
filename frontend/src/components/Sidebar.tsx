@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useBranding } from '@/context/BrandingContext';
-import Image from 'next/image';
 
 interface SidebarProps {
   role?: 'admin' | 'team' | 'client';
@@ -49,7 +48,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
         ...common,
         { name: 'Clients', href: '/dashboard/team/clients', icon: '💼' },
         { name: 'Tasks', href: '/dashboard/team/tasks', icon: '✅' },
-        { name: 'Campaigns', href: '/dashboard/team/campaigns', icon: '🚀' },
+        { name: 'Campaigns', href: '/projects', icon: '🚀' },
       ];
     }
 
@@ -67,98 +66,49 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
   const { branding } = useBranding();
 
   return (
-    <aside style={{
-      width: '260px',
-      height: '100vh',
-      background: 'white',
-      borderRight: '1px solid #e5e7eb',
-      display: 'flex',
-      flexDirection: 'column',
-      position: 'fixed',
-      left: 0,
-      top: 0,
-      zIndex: 50
-    }}>
-      <div style={{ padding: '24px' }}>
+    <aside className="w-[260px] h-screen bg-slate-900 border-r border-white/5 flex flex-col fixed left-0 top-0 z-50">
+      <div className="p-6 flex items-center gap-3">
         {branding?.logoUrl ? (
-          <Image 
-            src={branding.logoUrl} 
-            alt="Logo" 
-            width={140}
-            height={40}
-            style={{ height: '40px', width: 'auto', objectFit: 'contain' }}
-            unoptimized
-          />
+          <img src={branding.logoUrl} alt="Logo" className="h-10 w-auto object-contain" />
         ) : (
-          <div style={{
-            fontSize: '24px',
-            fontWeight: 'bold',
-            color: '#111827',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              background: '#4f46e5',
-              borderRadius: '8px'
-            }} />
-            HubSaaS
-          </div>
+          <>
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20" style={{ backgroundColor: branding?.primaryColor }}>
+              <div className="w-5 h-5 bg-white rounded-sm rotate-45" />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-white">Hub<span style={{ color: branding?.primaryColor || '#6366f1' }}>SaaS</span></span>
+          </>
         )}
       </div>
 
-      <nav style={{
-        flex: 1,
-        padding: '24px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px'
-      }}>
+      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+        <div className="px-3 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">{role} Portal</div>
         {menuItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
               key={item.name}
               href={item.href}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                color: isActive ? '#4f46e5' : '#4b5563',
-                background: isActive ? '#eef2ff' : 'transparent',
-                textDecoration: 'none',
-                fontWeight: isActive ? '600' : '500',
-                fontSize: '15px'
-              }}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
+                isActive 
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
             >
-              <span style={{ fontSize: '20px' }}>{item.icon}</span>
+              <span className="text-lg">{item.icon}</span>
               {item.name}
             </Link>
           );
         })}
       </nav>
 
-      <div style={{
-        padding: '24px',
-        borderTop: '1px solid #e5e7eb',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        fontSize: '13px',
-        color: '#6b7280',
-        fontWeight: '500'
-      }}>
-        <div style={{
-          width: '8px',
-          height: '8px',
-          background: '#10b981',
-          borderRadius: '50%'
-        }} />
-        STATUS - System Online
+      <div className="p-6 border-t border-white/5">
+        <div className="bg-white/5 rounded-2xl p-5 border border-white/5">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Status</div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <div className="text-xs font-bold text-white">System Online</div>
+          </div>
+        </div>
       </div>
     </aside>
   );
