@@ -66,11 +66,10 @@ export default function ProjectsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const selectedClient = clients.find(c => c.id === newProject.clientId);
       const payload = {
         name: newProject.projectName,
         clientId: newProject.clientId || null,
-        clientName: selectedClient?.name || 'General',
+        clientName: clients.find(c => c.id === newProject.clientId)?.name || 'General',
         targetDate: newProject.targetDate,
         status: newProject.status || 'PLANNING'
       };
@@ -254,7 +253,9 @@ export default function ProjectsPage() {
                     </option>
                   ))}
                   {clients.length === 0 && (
-                    <option value="general">General</option>
+                    <option value="general">
+                      General
+                    </option>
                   )}
                 </select>
               </div>
