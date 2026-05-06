@@ -2,6 +2,7 @@ import express from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { authMiddleware, authorize, AuthRequest } from '../middleware/authMiddleware';
+import { randomUUID } from 'crypto';
 
 const router = express.Router();
 
@@ -31,73 +32,80 @@ router.get('/clients', authMiddleware, authorize('team', 'admin'), async (req: A
   }
 });
 
-// --- TASKS (STEP 4 & 7 - REFINED LOGIC) ---
+// --- TASKS (STEP 4 - BULLETPROOF HANDLERS) ---
 
-// GET tasks
-router.get('/tasks', authMiddleware,
-  async (req: any, res) => {
-  try {
-    const userId = req.user?.id;
-    const tenantId = req.user?.tenantId
-      || req.user?.tenant_id;
-
-    const tasks = await db.all(sql`
-      SELECT id, title, client_name,
-        priority, status, due_date,
-        created_at
-      FROM tasks
-      WHERE tenant_id = ${tenantId}
-      AND status != 'COMPLETED'
-      ORDER BY created_at DESC
-    `);
-
-    return res.json({
-      success: true,
-      tasks: tasks || []
-    });
-
-  } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      tasks: [],
-      error: error.message
-    });
-  }
-});
-
-// POST create task
 router.post('/tasks', authMiddleware,
   async (req: any, res) => {
+  console.log('POST /tasks called');
+  
   try {
-    // STEP 6 - ADD TEST LOG
-    console.log('POST /api/team/tasks HIT');
-    console.log('Body:', req.body);
-    console.log('User:', req.user?.id);
+    const body = req.body || {};
+    const title = body.title || 
+      body.taskTitle || '';
+    const clientName = body.clientName || 
+      body.client_name || '';
+    const priorityRaw = body.priority || 
+      'MEDIUM';
+    
+    const userId = req.user?.id || 
+      req.user?.userId || 'unknown';
+    const tenantId = req.user?.tenantId || 
+      req.user?.tenant_id || 
+      req.user?.id || '';
 
-    const { title, clientName, priority } = req.body;
-    const userId = req.user?.id;
-    const tenantId = req.user?.tenantId || req.user?.tenant_id;
+    console.log('Creating task:', {
+      title, clientName, priorityRaw,
+      userId, tenantId
+    });
 
-    if (!title) {
+    if (!title || !title.trim()) {
       return res.status(400).json({
         success: false,
         error: 'Task title is required'
       });
     }
 
-    // STEP 7 - NORMALIZE PRIORITY
-    const priorityMap: {[key: string]: string} = {
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        error: 'No tenant found'
+      });
+    }
+
+    const priorityMap: Record<string, string> 
+      = {
       'High Priority': 'HIGH',
       'Medium Priority': 'MEDIUM',
       'Low Priority': 'LOW',
       'HIGH': 'HIGH',
-      'MEDIUM': 'MEDIUM',
+      'MEDIUM': 'MEDIUM', 
       'LOW': 'LOW'
     };
-    const normalizedPriority = priorityMap[priority] || 'MEDIUM';
+    const priority = 
+      priorityMap[priorityRaw] || 'MEDIUM';
 
-    const { randomUUID } = await import('crypto');
     const taskId = randomUUID();
+    const now = new Date().toISOString();
+
+    try {
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS tasks (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT,
+          title TEXT NOT NULL,
+          client_name TEXT,
+          priority TEXT DEFAULT 'MEDIUM',
+          status TEXT DEFAULT 'PENDING',
+          due_date TEXT,
+          assigned_to TEXT,
+          created_by TEXT,
+          created_at TEXT,
+          completed_at TEXT
+        )
+      `);
+    } catch (tableErr) {
+      console.log('Table already exists');
+    }
 
     await db.run(sql`
       INSERT INTO tasks (
@@ -108,32 +116,101 @@ router.post('/tasks', authMiddleware,
       ) VALUES (
         ${taskId},
         ${tenantId},
-        ${title},
+        ${title.trim()},
         ${clientName || null},
-        ${normalizedPriority},
+        ${priority},
         'PENDING',
         ${userId},
         ${userId},
-        ${new Date().toISOString()}
+        ${now}
       )
     `);
+
+    console.log('Task created:', taskId);
 
     return res.status(201).json({
       success: true,
       task: {
         id: taskId,
-        title,
+        title: title.trim(),
         client_name: clientName || '',
-        priority: normalizedPriority,
+        priority: priority,
         status: 'PENDING',
-        created_at: new Date().toISOString()
+        created_at: now
       }
     });
 
   } catch (error: any) {
-    console.error('Create task error:', error.message);
+    console.error('POST /tasks ERROR:', 
+      error.message);
+    console.error('Stack:', error.stack);
     return res.status(500).json({
       success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+router.get('/tasks', authMiddleware,
+  async (req: any, res) => {
+  console.log('GET /tasks called');
+  
+  try {
+    const tenantId = req.user?.tenantId || 
+      req.user?.tenant_id || 
+      req.user?.id || '';
+
+    console.log('Getting tasks for tenant:', 
+      tenantId);
+
+    try {
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS tasks (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT,
+          title TEXT NOT NULL,
+          client_name TEXT,
+          priority TEXT DEFAULT 'MEDIUM',
+          status TEXT DEFAULT 'PENDING',
+          due_date TEXT,
+          assigned_to TEXT,
+          created_by TEXT,
+          created_at TEXT,
+          completed_at TEXT
+        )
+      `);
+    } catch (e) {
+      console.log('Table exists');
+    }
+
+    const tasks = await db.all(sql`
+      SELECT id, title, client_name,
+        priority, status, due_date,
+        created_at
+      FROM tasks
+      WHERE tenant_id = ${tenantId}
+      AND (
+        status IS NULL 
+        OR status != 'COMPLETED'
+      )
+      ORDER BY created_at DESC
+    `);
+
+    console.log('Tasks found:', 
+      tasks?.length || 0);
+
+    return res.json({
+      success: true,
+      tasks: tasks || []
+    });
+
+  } catch (error: any) {
+    console.error('GET /tasks ERROR:', 
+      error.message);
+    return res.status(500).json({
+      success: false,
+      tasks: [],
       error: error.message
     });
   }
