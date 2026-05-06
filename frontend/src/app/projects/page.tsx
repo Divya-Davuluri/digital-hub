@@ -42,17 +42,7 @@ export default function ProjectsPage() {
 
   const fetchClients = async () => {
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
-      
-      const res = await fetch('/api/projects/clients', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!res.ok) throw new Error('Failed to fetch clients');
-      
-      const data = await res.json();
+      const data = await apiFetch('/projects/clients');
       const clientsList = data.clients || [];
       console.log('[CLIENTS_LOADED]', clientsList.length);
       setClients(clientsList);

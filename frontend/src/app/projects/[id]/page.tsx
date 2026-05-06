@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { apiFetch } from '@/lib/api';
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -21,25 +22,8 @@ export default function ProjectDetailPage() {
   const fetchProject = async () => {
     try {
       setLoading(true);
-      const token = 
-        localStorage.getItem('token') ||
-        sessionStorage.getItem('token') || '';
-
-      const response = await fetch(
-        `/api/projects/${projectId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Project not found');
-      }
-
-      const data = await response.json();
+      const data = await apiFetch(`/projects/${projectId}`);
+      setProject(data.project);
       setProject(data.project);
 
     } catch (err: any) {
