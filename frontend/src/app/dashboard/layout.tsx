@@ -7,7 +7,7 @@ export default function DashboardLayout({
 }) {
   return (
     <BrandingProvider>
-      <div className="min-h-screen bg-slate-50">
+      <div style={{ background: '#f9fafb', minHeight: '100vh' }}>
         {children}
       </div>
     </BrandingProvider>
