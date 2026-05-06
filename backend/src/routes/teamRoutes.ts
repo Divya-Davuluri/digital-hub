@@ -11,8 +11,10 @@ const router = express.Router();
 // GET /api/team/clients
 router.get('/clients', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
   try {
-    const userId = req.user.id || req.user.userId;
-    const tenantId = req.user.tenantId || req.user.tenant_id;
+    const userId = req.user?.id || req.user?.userId;
+    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
+
+    if (!tenantId) return res.status(400).json({ success: false, error: 'Tenant context missing' });
 
     const results = await db.run(sql`
       SELECT 
@@ -32,48 +34,27 @@ router.get('/clients', authMiddleware, authorize('team', 'admin'), async (req: A
   }
 });
 
-// --- TASKS (STEP 4 - BULLETPROOF HANDLERS) ---
+// --- TASKS ---
 
-router.post('/tasks', authMiddleware,
-  async (req: any, res) => {
-  console.log('POST /tasks called');
-  
+router.post('/tasks', authMiddleware, async (req: any, res) => {
   try {
     const body = req.body || {};
-    const title = body.title || 
-      body.taskTitle || '';
-    const clientName = body.clientName || 
-      body.client_name || '';
-    const priorityRaw = body.priority || 
-      'MEDIUM';
+    const title = body.title || body.taskTitle || '';
+    const clientName = body.clientName || body.client_name || '';
+    const priorityRaw = body.priority || 'MEDIUM';
     
-    const userId = req.user?.id || 
-      req.user?.userId || 'unknown';
-    const tenantId = req.user?.tenantId || 
-      req.user?.tenant_id || 
-      req.user?.id || '';
-
-    console.log('Creating task:', {
-      title, clientName, priorityRaw,
-      userId, tenantId
-    });
+    const userId = req.user?.id || req.user?.userId || 'unknown';
+    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
 
     if (!title || !title.trim()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Task title is required'
-      });
+      return res.status(400).json({ success: false, error: 'Task title is required' });
     }
 
     if (!tenantId) {
-      return res.status(400).json({
-        success: false,
-        error: 'No tenant found'
-      });
+      return res.status(400).json({ success: false, error: 'No tenant context found' });
     }
 
-    const priorityMap: Record<string, string> 
-      = {
+    const priorityMap: Record<string, string> = {
       'High Priority': 'HIGH',
       'Medium Priority': 'MEDIUM',
       'Low Priority': 'LOW',
@@ -81,31 +62,27 @@ router.post('/tasks', authMiddleware,
       'MEDIUM': 'MEDIUM', 
       'LOW': 'LOW'
     };
-    const priority = 
-      priorityMap[priorityRaw] || 'MEDIUM';
+    const priority = priorityMap[priorityRaw] || 'MEDIUM';
 
     const taskId = randomUUID();
     const now = new Date().toISOString();
 
-    try {
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS tasks (
-          id TEXT PRIMARY KEY,
-          tenant_id TEXT,
-          title TEXT NOT NULL,
-          client_name TEXT,
-          priority TEXT DEFAULT 'MEDIUM',
-          status TEXT DEFAULT 'PENDING',
-          due_date TEXT,
-          assigned_to TEXT,
-          created_by TEXT,
-          created_at TEXT,
-          completed_at TEXT
-        )
-      `);
-    } catch (tableErr) {
-      console.log('Table already exists');
-    }
+    // Ensure table exists
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT,
+        title TEXT NOT NULL,
+        client_name TEXT,
+        priority TEXT DEFAULT 'MEDIUM',
+        status TEXT DEFAULT 'PENDING',
+        due_date TEXT,
+        assigned_to TEXT,
+        created_by TEXT,
+        created_at TEXT,
+        completed_at TEXT
+      )
+    `).catch(() => {});
 
     await db.run(sql`
       INSERT INTO tasks (
@@ -126,9 +103,7 @@ router.post('/tasks', authMiddleware,
       )
     `);
 
-    console.log('Task created:', taskId);
-
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       task: {
         id: taskId,
@@ -141,48 +116,33 @@ router.post('/tasks', authMiddleware,
     });
 
   } catch (error: any) {
-    console.error('POST /tasks ERROR:', 
-      error.message);
-    console.error('Stack:', error.stack);
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-      stack: error.stack
-    });
+    console.error('POST /tasks ERROR:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-router.get('/tasks', authMiddleware,
-  async (req: any, res) => {
-  console.log('GET /tasks called');
-  
+router.get('/tasks', authMiddleware, async (req: any, res) => {
   try {
-    const tenantId = req.user?.tenantId || 
-      req.user?.tenant_id || 
-      req.user?.id || '';
+    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
 
-    console.log('Getting tasks for tenant:', 
-      tenantId);
+    if (!tenantId) return res.status(400).json({ success: false, error: 'Tenant context missing' });
 
-    try {
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS tasks (
-          id TEXT PRIMARY KEY,
-          tenant_id TEXT,
-          title TEXT NOT NULL,
-          client_name TEXT,
-          priority TEXT DEFAULT 'MEDIUM',
-          status TEXT DEFAULT 'PENDING',
-          due_date TEXT,
-          assigned_to TEXT,
-          created_by TEXT,
-          created_at TEXT,
-          completed_at TEXT
-        )
-      `);
-    } catch (e) {
-      console.log('Table exists');
-    }
+    // Ensure table exists
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT,
+        title TEXT NOT NULL,
+        client_name TEXT,
+        priority TEXT DEFAULT 'MEDIUM',
+        status TEXT DEFAULT 'PENDING',
+        due_date TEXT,
+        assigned_to TEXT,
+        created_by TEXT,
+        created_at TEXT,
+        completed_at TEXT
+      )
+    `).catch(() => {});
 
     const tasks = await db.all(sql`
       SELECT id, title, client_name,
@@ -190,67 +150,44 @@ router.get('/tasks', authMiddleware,
         created_at
       FROM tasks
       WHERE tenant_id = ${tenantId}
-      AND (
-        status IS NULL 
-        OR status != 'COMPLETED'
-      )
+      AND (status IS NULL OR status != 'COMPLETED')
       ORDER BY created_at DESC
     `);
 
-    console.log('Tasks found:', 
-      tasks?.length || 0);
-
-    return res.json({
-      success: true,
-      tasks: tasks || []
-    });
-
+    res.json({ success: true, tasks: tasks || [] });
   } catch (error: any) {
-    console.error('GET /tasks ERROR:', 
-      error.message);
-    return res.status(500).json({
-      success: false,
-      tasks: [],
-      error: error.message
-    });
+    console.error('GET /tasks ERROR:', error.message);
+    res.status(500).json({ success: false, tasks: [], error: error.message });
   }
 });
 
 // PATCH complete task
-router.patch('/tasks/:id/complete',
-  authMiddleware,
-  async (req: any, res) => {
+router.patch('/tasks/:id/complete', authMiddleware, async (req: any, res) => {
   try {
     const { id } = req.params;
-    const tenantId = req.user?.tenantId
-      || req.user?.tenant_id;
+    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
 
     await db.run(sql`
       UPDATE tasks
       SET status = 'COMPLETED',
-        completed_at = ${new Date()
-          .toISOString()}
+          completed_at = ${new Date().toISOString()}
       WHERE id = ${id}
       AND tenant_id = ${tenantId}
     `);
 
-    return res.json({ success: true });
-
+    res.json({ success: true });
   } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // --- CAMPAIGNS ---
 
-router.get('/campaigns', authMiddleware,
-  async (req: any, res) => {
+router.get('/campaigns', authMiddleware, async (req: any, res) => {
   try {
-    const tenantId = req.user?.tenantId
-      || req.user?.tenant_id;
+    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
+
+    if (!tenantId) return res.status(400).json({ success: false, error: 'Tenant context missing' });
 
     const campaigns = await db.all(sql`
       SELECT DISTINCT
@@ -265,17 +202,9 @@ router.get('/campaigns', authMiddleware,
       ORDER BY created_at DESC
     `);
 
-    return res.json({
-      success: true,
-      campaigns: campaigns || []
-    });
-
+    res.json({ success: true, campaigns: campaigns || [] });
   } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      campaigns: [],
-      error: error.message
-    });
+    res.status(500).json({ success: false, campaigns: [], error: error.message });
   }
 });
 

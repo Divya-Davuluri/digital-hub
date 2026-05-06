@@ -7,9 +7,16 @@ import { randomUUID } from 'crypto';
 
 export const getProjects = async (req: AuthRequest, res: Response) => {
   try {
-    const tenantId = req.user.tenantId || req.user.tenant_id;
+    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
     
-    // Fetch all projects in the tenant with client details
+    if (!tenantId) {
+      console.error('❌ GET_PROJECTS ERROR - No Tenant ID');
+      return res.status(400).json({ message: 'Tenant context missing' });
+    }
+
+    console.log(`📂 FETCHING PROJECTS - Tenant: ${tenantId}`);
+
+    // Fetch all projects in the tenant with client details using unified tenant ID
     const results = await db.run(sql`
       SELECT 
         p.*,
@@ -43,8 +50,12 @@ export const createProject = async (req: AuthRequest, res: Response) => {
       description
     } = req.body;
 
-    const tenantId = req.user.tenantId || req.user.tenant_id;
-    const userId = req.user.id || req.user.userId;
+    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
+    const userId = req.user?.id || req.user?.userId;
+
+    if (!tenantId) {
+      return res.status(400).json({ success: false, message: 'Tenant context missing' });
+    }
 
     // Field Mapping & Normalization
     const finalName = projectName || name || title;
@@ -54,8 +65,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
     const finalDate = targetDate || dueDate || null;
 
     console.log('[CREATE_PROJECT_REQUEST]', { 
-      body: req.body, 
-      mapped: { finalName, finalClientId, finalDate, finalStatus },
+      name: finalName, 
       tenantId, 
       userId 
     });
@@ -100,7 +110,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
       )
     `);
 
-    console.log('[PROJECT_CREATED_SUCCESS]', projectId);
+    console.log('✅ PROJECT_CREATED_SUCCESS:', projectId);
 
     res.status(201).json({
       success: true,
@@ -118,8 +128,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
     console.error('[CREATE_PROJECT_ERROR]', err.message);
     res.status(500).json({ 
       success: false, 
-      message: 'Failed to create project: ' + err.message,
-      details: err.message 
+      message: 'Failed to create project: ' + err.message
     });
   }
 };

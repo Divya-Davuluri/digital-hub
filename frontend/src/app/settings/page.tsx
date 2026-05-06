@@ -99,7 +99,7 @@ export default function SettingsPage() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
                     activeTab === tab.id 
-                      ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-[1.02]' 
+                      ? 'bg-primary text-white shadow-xl scale-[1.02]' 
                       : 'text-text-muted hover:text-text hover:bg-white/5'
                   }`}
                 >
@@ -156,7 +156,7 @@ export default function SettingsPage() {
                     <button 
                       onClick={handleSaveProfile}
                       disabled={loading}
-                      className="btn-primary w-full md:w-auto px-12 shadow-xl shadow-primary/20"
+                      className="btn-primary w-full md:w-auto px-12 shadow-xl"
                     >
                       {loading ? 'Processing...' : 'Save Changes'}
                     </button>
@@ -185,7 +185,7 @@ export default function SettingsPage() {
                     </div>
                     <button 
                       onClick={() => router.push('/2fa-setup')}
-                      className="btn-primary !px-8 text-xs !py-3 shadow-lg shadow-primary/20"
+                      className="btn-primary !px-8 text-xs !py-3 shadow-lg"
                     >
                       Setup 2FA Now
                     </button>

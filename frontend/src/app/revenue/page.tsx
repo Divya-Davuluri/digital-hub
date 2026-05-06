@@ -92,7 +92,7 @@ export default function RevenuePage() {
 
           {/* Hero Revenue Section */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-            <div className="lg:col-span-2 relative overflow-hidden p-10 bg-gradient-to-br from-primary via-primary/80 to-secondary rounded-[2.5rem] shadow-2xl shadow-primary/20 group">
+            <div className="lg:col-span-2 relative overflow-hidden p-10 bg-gradient-to-br from-primary via-primary/80 to-secondary rounded-[2.5rem] shadow-2xl group">
               <div className="relative z-10">
                 <p className="text-white/80 font-bold uppercase tracking-[0.2em] text-[10px] mb-4">Total Revenue (MTD)</p>
                 <h2 className="text-7xl font-black mb-8 tracking-tighter text-white">{REVENUE_DATA.total}</h2>

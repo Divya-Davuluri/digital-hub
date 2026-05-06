@@ -116,7 +116,7 @@ export default function TasksPage() {
             </div>
             <button
               onClick={() => setShowModal(true)}
-              className="btn-primary !px-8 !py-4 shadow-2xl shadow-primary/20 group"
+              className="btn-primary !px-8 !py-4 shadow-2xl group"
             >
               <span className="text-lg group-hover:rotate-90 transition-transform duration-500">+</span>
               <span className="uppercase text-xs tracking-[0.2em] font-black">Initialize Task</span>
@@ -260,7 +260,7 @@ export default function TasksPage() {
                       onClick={() => setPriority(p)}
                       className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
                         priority === p 
-                          ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' 
+                          ? 'bg-primary text-white border-primary shadow-lg' 
                           : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'
                       }`}
                     >
@@ -273,7 +273,7 @@ export default function TasksPage() {
               <button
                 onClick={handleCreate}
                 disabled={creating}
-                className="btn-primary w-full !py-4 shadow-2xl shadow-primary/20 mt-4"
+                className="btn-primary w-full !py-4 shadow-2xl mt-4"
               >
                 <span className="uppercase text-xs tracking-[0.3em] font-black">
                   {creating ? 'Syncing...' : 'Deploy Task'}
