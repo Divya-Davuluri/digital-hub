@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/api';
 
 interface Task {
   id: string;
@@ -45,21 +46,8 @@ export default function TasksPage() {
     Promise<void> => {
     try {
       setLoading(true);
-      const res = await fetch(
-        '/api/team/tasks',
-        {
-          headers: {
-            'Authorization': 
-              `Bearer ${getToken()}`,
-            'Content-Type': 
-              'application/json'
-          }
-        }
-      );
-      if (!res.ok) throw new Error(
-        'Failed to fetch'
-      );
-      const data = await res.json();
+      const data = await apiFetch('/team/tasks');
+      setTasks(data.tasks || []);
       setTasks(data.tasks || []);
     } catch (err) {
       console.error('Fetch tasks:', err);
@@ -90,30 +78,18 @@ export default function TasksPage() {
         'LOW': 'LOW'
       };
 
-      const res = await fetch(
-        '/api/team/tasks',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': 
-              `Bearer ${getToken()}`,
-            'Content-Type': 
-              'application/json'
-          },
-          body: JSON.stringify({
-            title: taskTitle.trim(),
-            clientName: clientName.trim(),
-            priority: priorityMap[priority] 
-              || 'MEDIUM'
-          })
-        }
-      );
+      const data = await apiFetch('/team/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: taskTitle.trim(),
+          clientName: clientName.trim(),
+          priority: priorityMap[priority] || 'MEDIUM'
+        })
+      });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
+      if (!data || !data.success) {
         throw new Error(
-          data.error || 
+          data?.error || 
           'Failed to create task'
         );
       }
@@ -140,16 +116,9 @@ export default function TasksPage() {
     id: string
   ): Promise<void> => {
     try {
-      await fetch(
-        `/api/team/tasks/${id}/complete`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Authorization': 
-              `Bearer ${getToken()}`
-          }
-        }
-      );
+      await apiFetch(`/team/tasks/${id}/complete`, {
+        method: 'PATCH'
+      });
       setTasks((prev: Task[]) =>
         prev.filter(
           (t: Task) => t.id !== id
