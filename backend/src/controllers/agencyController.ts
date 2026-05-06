@@ -53,15 +53,20 @@ export const getClients = async (req: AuthRequest, res: Response) => {
 export const createClient = async (req: AuthRequest, res: Response) => {
   try {
     console.log('[CREATE_CLIENT] Incoming payload:', req.body);
-    const { name, email, companyName, password, status } = req.body;
+    const { name, email, companyName, status } = req.body;
+    let { password } = req.body;
     const tenantId = req.user.tenantId;
 
     if (!tenantId) {
       return res.status(400).json({ message: 'Tenant context missing.' });
     }
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Name, email, and password are required fields.' });
+    if (!name || !email) {
+      return res.status(400).json({ message: 'Name and email are required fields.' });
+    }
+
+    if (!password) {
+      password = 'Client123!'; // Default temporary password
     }
 
     const clientId = uuidv4();
