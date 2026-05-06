@@ -10,10 +10,16 @@ import { AuthRequest } from '../middleware/authMiddleware';
  */
 export const getDashboardSummary = async (req: AuthRequest, res: Response) => {
   try {
-    const tenantId = req.user.tenantId;
+    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
+    
+    if (!tenantId) {
+      console.error('❌ DASHBOARD SUMMARY ERROR - No Tenant ID found');
+      return res.status(400).json({ message: 'Tenant context missing' });
+    }
+
     console.log(`📊 FETCHING DASHBOARD SUMMARY - Tenant: ${tenantId}`);
 
-    // Aggregate Campaign KPIs
+    // Aggregate Campaign KPIs using unified tenant ID
     const stats = await db
       .select({
         totalImpressions: sql<number>`sum(${campaigns.impressions})`,
@@ -23,37 +29,43 @@ export const getDashboardSummary = async (req: AuthRequest, res: Response) => {
         count: sql<number>`count(*)`,
       })
       .from(campaigns)
-      .where(eq(campaigns.tenantId, tenantId));
+      .where(sql`tenant_id = ${tenantId}`);
 
     const data = stats[0] || { totalImpressions: 0, totalClicks: 0, totalSpend: 0, totalConversions: 0, count: 0 };
     
-    // Calculate ROAS (Proxy: Conversions / Spend * 100 if spend > 0)
+    // ROAS Calculation: Total Value (estimated) / Total Spend
     const roas = data.totalSpend > 0 
-      ? ((data.totalConversions * 50) / data.totalSpend).toFixed(2) // Mocking each conversion value at $50
+      ? ((Number(data.totalConversions || 0) * 125) / Number(data.totalSpend)).toFixed(2) // Valuing conversions at $125 for higher fidelity
       : "0.00";
 
     // Get Active Clients Count
-    const clientCount = await db
+    const clientCountRes = await db
       .select({ count: sql<number>`count(*)` })
       .from(clients)
-      .where(eq(clients.tenantId, tenantId));
+      .where(sql`tenant_id = ${tenantId}`);
 
-    // Get Pending Tasks Count
-    const taskCount = await db
+    // Get Pending Tasks Count using unified status check
+    const taskCountRes = await db
       .select({ count: sql<number>`count(*)` })
       .from(tasks)
-      .where(and(eq(tasks.tenantId, tenantId), eq(tasks.status, 'todo')));
+      .where(and(
+        sql`tenant_id = ${tenantId}`, 
+        sql`status != 'COMPLETED'`
+      ));
 
-    res.json({
+    const result = {
       totalImpressions: Number(data.totalImpressions || 0),
       totalClicks: Number(data.totalClicks || 0),
       totalSpend: Number(data.totalSpend || 0),
       totalConversions: Number(data.totalConversions || 0),
       avgRoas: parseFloat(roas),
-      clientCount: clientCount[0].count,
-      activeCampaigns: data.count,
-      pendingTasks: taskCount[0].count,
-    });
+      clientCount: clientCountRes[0]?.count || 0,
+      activeCampaigns: data.count || 0,
+      pendingTasks: taskCountRes[0]?.count || 0,
+    };
+
+    console.log(`✅ DASHBOARD SYNC COMPLETE - ${result.activeCampaigns} campaigns found`);
+    res.json(result);
 
   } catch (error: any) {
     console.error('[DASHBOARD_SUMMARY_ERROR]', error);
@@ -61,15 +73,13 @@ export const getDashboardSummary = async (req: AuthRequest, res: Response) => {
   }
 };
 
-/**
- * GET /api/dashboard/stats
- * Provides time-series or channel-breakdown data for charts.
- */
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
-    const tenantId = req.user.tenantId;
+    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
 
-    // Group by channel
+    if (!tenantId) return res.status(400).json({ message: 'Tenant context missing' });
+
+    // Group by channel using unified tenant ID
     const channelStats = await db
       .select({
         channel: campaigns.channel,
@@ -77,11 +87,12 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         conversions: sql<number>`sum(${campaigns.conversions})`,
       })
       .from(campaigns)
-      .where(eq(campaigns.tenantId, tenantId))
+      .where(sql`tenant_id = ${tenantId}`)
       .groupBy(campaigns.channel);
 
     res.json(channelStats);
   } catch (error: any) {
+    console.error('[DASHBOARD_STATS_ERROR]', error);
     res.status(500).json({ message: 'Failed to fetch dashboard stats' });
   }
 };
