@@ -19,9 +19,9 @@ jobs:
         node-version: '20'
 
     - name: Frontend - Install & Build
+      working-directory: ./frontend
       run: |
-        cd frontend
-        npm install
+        npm ci
         npm run build
 
     - name: Backend - Install & Compile
