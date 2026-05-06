@@ -1,9 +1,7 @@
 import express from 'express';
 import { db } from '../db';
-import { clients, tasks, campaigns } from '../db/schema';
-import { eq, and, inArray, desc, or, isNull, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { authMiddleware, authorize, AuthRequest } from '../middleware/authMiddleware';
-import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
@@ -44,6 +42,7 @@ router.post('/clients', authMiddleware, authorize('team', 'admin'), async (req: 
       return res.status(400).json({ success: false, error: 'Contact person and email are required' });
     }
 
+    const { v4: uuidv4 } = await import('uuid');
     const clientId = uuidv4();
     const createdAt = new Date().toISOString();
 
@@ -75,13 +74,59 @@ router.post('/clients', authMiddleware, authorize('team', 'admin'), async (req: 
   }
 });
 
-// --- TASKS (USER REQUESTED EXACT LOGIC) ---
+// --- TASKS (PART 2 - USER REQUESTED LOGIC) ---
 
-router.post('/tasks', authMiddleware, async (req: AuthRequest, res) => {
+router.get('/tasks', authMiddleware,
+  async (req: any, res) => {
   try {
-    const { title, clientName, priority } = req.body;
-    const userId = req.user?.id || req.user?.userId;
-    const tenantId = req.user?.tenantId || req.user?.tenant_id;
+    const userId = req.user?.id;
+    const tenantId = req.user?.tenantId
+      || req.user?.tenant_id;
+
+    console.log('GET /tasks - userId:', userId,
+      'tenantId:', tenantId);
+
+    const tasks = await db.all(sql`
+      SELECT id, title, client_name,
+        priority, status, due_date,
+        created_at
+      FROM tasks
+      WHERE tenant_id = ${tenantId}
+      AND (
+        assigned_to = ${userId}
+        OR created_by = ${userId}
+        OR tenant_id = ${tenantId}
+      )
+      AND status != 'COMPLETED'
+      ORDER BY created_at DESC
+    `);
+
+    console.log('Tasks found:', tasks.length);
+
+    return res.json({
+      success: true,
+      tasks: tasks || []
+    });
+
+  } catch (error: any) {
+    console.error('GET tasks error:', 
+      error.message);
+    return res.status(500).json({
+      success: false,
+      tasks: [],
+      error: error.message
+    });
+  }
+});
+
+router.post('/tasks', authMiddleware,
+  async (req: any, res) => {
+  try {
+    const { title, clientName, priority } =
+      req.body;
+    const userId = req.user?.id;
+    const tenantId = req.user?.tenantId
+      || req.user?.tenant_id;
 
     if (!title) {
       return res.status(400).json({
@@ -90,7 +135,8 @@ router.post('/tasks', authMiddleware, async (req: AuthRequest, res) => {
       });
     }
 
-    const { randomUUID } = await import('crypto');
+    const { randomUUID } = await 
+      import('crypto');
     const taskId = randomUUID();
 
     await db.run(sql`
@@ -125,123 +171,82 @@ router.post('/tasks', authMiddleware, async (req: AuthRequest, res) => {
     });
 
   } catch (error: any) {
-    console.error('Create task error:', error.message);
+    console.error('POST tasks error:',
+      error.message);
     return res.status(500).json({
       success: false,
-      error: 'Failed to create task',
-      details: error.message
+      error: error.message
     });
   }
 });
 
-router.get('/tasks', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const userId = req.user?.id || req.user?.userId;
-    const tenantId = req.user?.tenantId || req.user?.tenant_id;
-
-    const results = await db.run(sql`
-      SELECT id, title, client_name as clientName,
-        priority, status, due_date as dueDate,
-        created_at as createdAt
-      FROM tasks
-      WHERE tenant_id = ${tenantId}
-      AND (
-        assigned_to = ${userId}
-        OR created_by = ${userId}
-      )
-      AND (
-        status IS NULL 
-        OR status != 'COMPLETED'
-      )
-      ORDER BY created_at DESC
-    `);
-
-    const tasksList = results.rows || results;
-
-    return res.json({
-      success: true,
-      tasks: tasksList || []
-    });
-
-  } catch (error: any) {
-    console.error('Get tasks error:', error.message);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to fetch tasks'
-    });
-  }
-});
-
-router.patch('/tasks/:id/complete', authMiddleware, async (req: AuthRequest, res) => {
+router.patch('/tasks/:id/complete',
+  authMiddleware,
+  async (req: any, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id || req.user?.userId;
+    const tenantId = req.user?.tenantId
+      || req.user?.tenant_id;
 
     await db.run(sql`
-      UPDATE tasks 
-      SET 
-        status = 'COMPLETED',
-        completed_at = ${new Date().toISOString()}
+      UPDATE tasks
+      SET status = 'COMPLETED',
+        completed_at = ${new Date()
+          .toISOString()}
       WHERE id = ${id}
-      AND (
-        assigned_to = ${userId}
-        OR created_by = ${userId}
-      )
+      AND tenant_id = ${tenantId}
     `);
 
-    return res.json({ 
-      success: true,
-      message: 'Task completed'
-    });
+    return res.json({ success: true });
 
   } catch (error: any) {
     return res.status(500).json({
       success: false,
-      error: 'Failed to complete task'
+      error: error.message
     });
   }
 });
 
-// --- CAMPAIGNS ---
+// --- CAMPAIGNS (PART 3 - USER REQUESTED LOGIC) ---
 
-// GET /api/team/campaigns
-router.get('/campaigns', authMiddleware, authorize('team', 'admin'), async (req: AuthRequest, res) => {
+router.get('/campaigns', authMiddleware,
+  async (req: any, res) => {
   try {
-    const userId = req.user.id || req.user.userId;
-    const tenantId = req.user.tenantId || req.user.tenant_id;
+    const tenantId = req.user?.tenantId
+      || req.user?.tenant_id;
 
-    console.log('=== TEAM CAMPAIGNS DEBUG ===');
-    console.log('Team tenant_id:', tenantId);
-    console.log('Team userId:', userId);
+    console.log('GET /campaigns tenantId:',
+      tenantId);
 
-    // Show ALL campaigns in the same tenant as requested
-    const results = await db.run(sql`
+    const campaigns = await db.all(sql`
       SELECT DISTINCT
-        id, name, client_name as clientName,
-        client_id as clientId, status, budget,
-        spend as spent, impressions, clicks,
-        conversions, COALESCE(platform, channel) as platform,
-        start_date as startDate, end_date as endDate, created_at as createdAt
+        id, name, client_name,
+        status, budget, spent,
+        impressions, clicks,
+        conversions, platform,
+        start_date, end_date,
+        created_at
       FROM campaigns
       WHERE tenant_id = ${tenantId}
       ORDER BY created_at DESC
     `);
 
-    const campaignsList = results.rows || results;
-    
-    console.log('Campaigns found:', campaignsList.length);
-    if (campaignsList.length > 0) {
-      console.log('First campaign:', campaignsList[0]);
-    }
-    console.log('============================');
+    console.log('Campaigns found:', 
+      campaigns.length);
 
-    res.json({
+    return res.json({
       success: true,
-      campaigns: campaignsList || []
+      campaigns: campaigns || []
     });
-  } catch (err: any) {
-    console.error('Get team campaigns error:', err);
-    res.status(500).json({ error: err.message });
+
+  } catch (error: any) {
+    console.error('GET campaigns error:',
+      error.message);
+    return res.status(500).json({
+      success: false,
+      campaigns: [],
+      error: error.message
+    });
   }
 });
 

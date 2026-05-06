@@ -1,267 +1,522 @@
 'use client';
 
-import { useState, useEffect } from "react";
-import Sidebar from "@/components/Sidebar";
-import Header from "@/components/Header";
-import { apiFetch } from "@/lib/api";
+import { useState, useEffect } from 'react';
 
-export default function TeamTasksPage() {
-  // ALL HOOKS AT TOP
-  const [tasks, setTasks] = useState<any[]>([]);
+export default function TasksPage() {
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [taskTitle, setTaskTitle] = useState('');
-  const [clientName, setClientName] = useState('');
-  const [priority, setPriority] = useState('Medium Priority');
-  const [dueDate, setDueDate] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [modalError, setModalError] = useState('');
-  const [taskError, setTaskError] = useState('');
+  const [showModal, setShowModal] = 
+    useState(false);
+  const [taskTitle, setTaskTitle] = 
+    useState('');
+  const [clientName, setClientName] = 
+    useState('');
+  const [priority, setPriority] = 
+    useState('MEDIUM');
+  const [creating, setCreating] = 
+    useState(false);
+  const [modalError, setModalError] = 
+    useState('');
 
   useEffect(() => {
     fetchTasks();
   }, []);
 
-  // FUNCTIONS AFTER HOOKS
+  const getToken = () =>
+    localStorage.getItem('token') ||
+    sessionStorage.getItem('token') || '';
+
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      setTaskError('');
-      const data = await apiFetch('/team/tasks');
-      // Handle { success, tasks }
-      setTasks(data.tasks || data || []);
-    } catch (err: any) {
-      console.error("Failed to load tasks:", err);
-      setTaskError('Failed to load tasks');
+      const res = await fetch(
+        '/api/team/tasks',
+        {
+          headers: {
+            'Authorization': 
+              `Bearer ${getToken()}`
+          }
+        }
+      );
+      const data = await res.json();
+      setTasks(data.tasks || []);
+    } catch (err) {
+      console.error('Fetch tasks error:', err);
       setTasks([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async () => {
     try {
       setCreating(true);
       setModalError('');
 
-      if (!taskTitle) {
-        setModalError('Task title is required');
-        setCreating(false);
+      if (!taskTitle.trim()) {
+        setModalError('Task title required');
         return;
       }
 
-      // Priority mapping logic from user instructions
-      const priorityMap: {[key: string]: string} = {
-        'High Priority': 'HIGH',
-        'Medium Priority': 'MEDIUM', 
-        'Low Priority': 'LOW'
-      };
-      const priorityValue = priorityMap[priority] || 'MEDIUM';
+      const res = await fetch(
+        '/api/team/tasks',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': 
+              `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title: taskTitle,
+            clientName: clientName,
+            priority: priority
+          })
+        }
+      );
 
-      const data = await apiFetch('/team/tasks', {
-        method: 'POST',
-        body: JSON.stringify({
-          title: taskTitle,
-          clientName: clientName,
-          priority: priorityValue,
-          dueDate: dueDate || null
-        }),
-      });
+      const data = await res.json();
 
-      if (data.success) {
-        setTasks(prev => [data.task, ...(prev || [])]);
-        setShowModal(false);
-        setTaskTitle('');
-        setClientName('');
-        setPriority('Medium Priority');
-        setDueDate('');
-      } else {
-        throw new Error(data.error || 'Failed to create task');
+      if (!res.ok || !data.success) {
+        throw new Error(
+          data.error || 'Failed to create task'
+        );
       }
+
+      setTasks((prev: any) => 
+        [data.task, ...prev]);
+      setShowModal(false);
+      setTaskTitle('');
+      setClientName('');
+      setPriority('MEDIUM');
+
     } catch (err: any) {
-      setModalError(err.message || 'Failed to create task');
+      setModalError(err.message);
     } finally {
       setCreating(false);
     }
   };
 
-  const markComplete = async (taskId: string) => {
+  const handleComplete = async (id: string) => {
     try {
-      const data = await apiFetch(`/team/tasks/${taskId}/complete`, {
-        method: 'PATCH',
-      });
-      if (data.success) {
-        setTasks(prev => prev.filter(t => t.id !== taskId));
-      }
+      await fetch(
+        `/api/team/tasks/${id}/complete`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': 
+              `Bearer ${getToken()}`
+          }
+        }
+      );
+      setTasks((prev: any) =>
+        prev.filter((t: any) => t.id !== id)
+      );
     } catch (err) {
-      console.error("Failed to update task:", err);
+      console.error('Complete error:', err);
     }
   };
 
-  if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-         <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-         <p className="text-slate-500 text-sm font-medium">Loading tasks...</p>
-      </div>
-    </div>
-  );
+  const getPriorityStyle = (p: string) => {
+    if (p === 'HIGH') return {
+      bg: '#fee2e2', color: '#991b1b'
+    };
+    if (p === 'LOW') return {
+      bg: '#d1fae5', color: '#065f46'
+    };
+    return { bg: '#fef3c7', color: '#92400e' };
+  };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar role="team" />
-      <div className="flex-1 ml-[260px] flex flex-col">
-        <Header />
-        <main className="p-8 max-w-7xl mx-auto w-full">
-          {taskError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm font-bold rounded-xl">
-               ⚠️ {taskError}. <button onClick={() => fetchTasks()} className="underline">Retry</button>
-            </div>
-          )}
+    <div style={{ padding: '32px' }}>
+      
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '24px'
+      }}>
+        <div>
+          <h1 style={{ 
+            fontSize: '24px', 
+            fontWeight: '700',
+            margin: '0 0 4px'
+          }}>
+            Task Management
+          </h1>
+          <p style={{ 
+            color: '#6b7280', 
+            margin: 0,
+            fontSize: '14px'
+          }}>
+            Track approvals, report generation,
+            and campaign status updates.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowModal(true)}
+          style={{
+            padding: '10px 20px',
+            background: '#4f46e5',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500'
+          }}
+        >
+          + Create New Task
+        </button>
+      </div>
 
-          <div className="mb-10 flex justify-between items-end">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Task Management</h1>
-              <p className="text-sm text-slate-500 mt-1">Track approvals, report generation, and campaign status updates.</p>
-            </div>
-            <button 
-              onClick={() => { setModalError(''); setShowModal(true); }}
-              className="btn-primary !py-2.5 !px-6 text-xs font-bold shadow-lg shadow-indigo-100"
-            >
-               + Create New Task
-            </button>
-          </div>
+      {/* Tasks Table */}
+      <div style={{
+        background: 'white',
+        borderRadius: '12px',
+        border: '1px solid #e5e7eb',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px 24px',
+          borderBottom: '1px solid #e5e7eb'
+        }}>
+          <h2 style={{ 
+            margin: 0, 
+            fontSize: '16px',
+            fontWeight: '600'
+          }}>
+            Active Tasks
+          </h2>
+          <span style={{
+            padding: '4px 12px',
+            background: '#f3f4f6',
+            borderRadius: '20px',
+            fontSize: '13px',
+            color: '#6b7280'
+          }}>
+            Status: Pending
+          </span>
+        </div>
 
-          <div className="card !p-0 overflow-hidden bg-white shadow-sm border border-slate-200 rounded-2xl">
-             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="text-base font-bold text-slate-900">Active Tasks</h3>
-                <div className="flex gap-2">
-                   <button className="px-3 py-1.5 text-[11px] font-bold bg-indigo-50 text-indigo-600 rounded-lg">Status: Pending</button>
-                </div>
-             </div>
-             
-             {tasks.length > 0 ? (
-               <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                     <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                        <tr>
-                           <th className="px-8 py-4">TASK</th>
-                           <th className="px-8 py-4">CLIENT</th>
-                           <th className="px-8 py-4">DUE DATE</th>
-                           <th className="px-8 py-4">PRIORITY</th>
-                           <th className="px-8 py-4">STATUS</th>
-                           <th className="px-8 py-4 text-right">ACTION</th>
-                        </tr>
-                     </thead>
-                     <tbody className="divide-y divide-slate-100">
-                        {tasks.map((task) => (
-                           <tr key={task.id} className="hover:bg-slate-50 transition-colors group">
-                              <td className="px-8 py-5">
-                                 <span className="font-semibold text-sm text-slate-900">{task.title}</span>
-                              </td>
-                              <td className="px-8 py-5 text-sm text-slate-600">
-                                 {task.clientName || 'N/A'}
-                              </td>
-                              <td className="px-8 py-5 text-xs text-slate-500 font-medium">
-                                 {task.dueDate || 'N/A'}
-                              </td>
-                              <td className="px-8 py-5">
-                                  <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                                    task.priority?.toUpperCase() === 'HIGH' ? 'bg-red-100 text-red-700' : 
-                                    task.priority?.toUpperCase() === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' : 
-                                    'bg-green-100 text-green-700'
-                                  }`}>
-                                     {task.priority?.toUpperCase()}
-                                  </span>
-                               </td>
-                               <td className="px-8 py-5">
-                                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-slate-50 text-slate-700 border-slate-200">
-                                     {task.status?.toUpperCase() || 'PENDING'}
-                                  </span>
-                               </td>
-                              <td className="px-8 py-5 text-right">
-                                 <button 
-                                   onClick={() => markComplete(task.id)}
-                                   className="text-xs font-bold text-indigo-600 hover:underline transition-colors"
-                                 >
-                                   Mark Complete
-                                 </button>
-                              </td>
-                           </tr>
-                        ))}
-                     </tbody>
-                  </table>
-               </div>
-             ) : (
-               <div className="p-20 text-center">
-                  <div className="text-4xl mb-4">📋</div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-1">No Active Tasks</h3>
-                  <p className="text-sm text-slate-500">Click &quot;+ Create New Task&quot; to add your first task</p>
-               </div>
-             )}
+        {loading ? (
+          <div style={{ 
+            padding: '60px', 
+            textAlign: 'center',
+            color: '#6b7280' 
+          }}>
+            Loading tasks...
           </div>
-        </main>
+        ) : tasks.length === 0 ? (
+          <div style={{ 
+            padding: '60px', 
+            textAlign: 'center' 
+          }}>
+            <div style={{ 
+              fontSize: '40px',
+              marginBottom: '12px'
+            }}>📋</div>
+            <h3 style={{ 
+              margin: '0 0 8px',
+              color: '#111827'
+            }}>
+              No Active Tasks
+            </h3>
+            <p style={{ 
+              color: '#6b7280',
+              margin: 0,
+              fontSize: '14px'
+            }}>
+              Click "+ Create New Task" to 
+              add your first task
+            </p>
+          </div>
+        ) : (
+          <table style={{ 
+            width: '100%', 
+            borderCollapse: 'collapse' 
+          }}>
+            <thead>
+              <tr style={{ 
+                background: '#f9fafb' 
+              }}>
+                {['TASK', 'CLIENT', 
+                  'PRIORITY', 'STATUS', 
+                  'ACTION'].map(h => (
+                  <th key={h} style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: '#6b7280',
+                    letterSpacing: '0.05em'
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.map((task: any) => {
+                const ps = getPriorityStyle(
+                  task.priority
+                );
+                return (
+                  <tr key={task.id} style={{
+                    borderTop: 
+                      '1px solid #e5e7eb'
+                  }}>
+                    <td style={{ 
+                      padding: '14px 16px',
+                      fontWeight: '500',
+                      fontSize: '14px'
+                    }}>
+                      {task.title}
+                    </td>
+                    <td style={{ 
+                      padding: '14px 16px',
+                      color: '#6b7280',
+                      fontSize: '14px'
+                    }}>
+                      {task.client_name || 
+                       task.clientName || '-'}
+                    </td>
+                    <td style={{ 
+                      padding: '14px 16px' 
+                    }}>
+                      <span style={{
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        background: ps.bg,
+                        color: ps.color
+                      }}>
+                        {task.priority || 
+                         'MEDIUM'}
+                      </span>
+                    </td>
+                    <td style={{ 
+                      padding: '14px 16px' 
+                    }}>
+                      <span style={{
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        background: '#fef3c7',
+                        color: '#92400e'
+                      }}>
+                        {task.status || 
+                         'PENDING'}
+                      </span>
+                    </td>
+                    <td style={{ 
+                      padding: '14px 16px' 
+                    }}>
+                      <button
+                        onClick={() => 
+                          handleComplete(task.id)
+                        }
+                        style={{
+                          padding: '6px 14px',
+                          background: '#4f46e5',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '13px'
+                        }}
+                      >
+                        Complete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Create Task Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl relative z-10 animate-subtle-fade overflow-hidden">
-            <div className="p-6 border-b border-border flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-900">Create New Task</h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0,
+          right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={() => 
+          setShowModal(false)}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '28px',
+            width: '440px',
+            maxWidth: '90vw'
+          }} onClick={e => 
+            e.stopPropagation()}>
+            
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '24px'
+            }}>
+              <h2 style={{ 
+                margin: 0,
+                fontSize: '18px',
+                fontWeight: '600'
+              }}>
+                Create New Task
+              </h2>
+              <button
+                onClick={() => 
+                  setShowModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  color: '#6b7280'
+                }}
+              >×</button>
             </div>
-            <form className="p-6 space-y-4" onSubmit={handleCreateTask}>
-              {modalError && (
-                <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-xl">
-                   ⚠️ {modalError}
-                </div>
-              )}
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Task Title</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Update client ad copy" 
-                  className="input-field" 
-                  required 
-                  value={taskTitle}
-                  onChange={(e) => setTaskTitle(e.target.value)}
-                />
+            {modalError && (
+              <div style={{
+                padding: '10px 14px',
+                background: '#fee2e2',
+                color: '#991b1b',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                fontSize: '14px'
+              }}>
+                {modalError}
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Client Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Nike Marketing" 
-                  className="input-field" 
-                  required 
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Priority Level</label>
-                 <select 
-                  className="input-field"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                >
-                  <option value="High Priority">High Priority</option>
-                  <option value="Medium Priority">Medium Priority</option>
-                  <option value="Low Priority">Low Priority</option>
-                </select>
-              </div>
-              <button 
-                type="submit" 
-                disabled={creating}
-                className="w-full btn-primary py-3 mt-4 text-sm font-bold disabled:opacity-50"
+            )}
+
+            <div style={{ 
+              marginBottom: '16px' 
+            }}>
+              <label style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: '500',
+                color: '#374151',
+                marginBottom: '6px'
+              }}>
+                TASK TITLE *
+              </label>
+              <input
+                type="text"
+                placeholder="Enter task title"
+                value={taskTitle}
+                onChange={e => 
+                  setTaskTitle(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div style={{ 
+              marginBottom: '16px' 
+            }}>
+              <label style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: '500',
+                color: '#374151',
+                marginBottom: '6px'
+              }}>
+                CLIENT NAME
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Nike Marketing"
+                value={clientName}
+                onChange={e => 
+                  setClientName(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div style={{ 
+              marginBottom: '24px' 
+            }}>
+              <label style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: '500',
+                color: '#374151',
+                marginBottom: '6px'
+              }}>
+                PRIORITY LEVEL
+              </label>
+              <select
+                value={priority}
+                onChange={e => 
+                  setPriority(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  background: 'white'
+                }}
               >
-                {creating ? 'Creating...' : 'Create Task'}
-              </button>
-            </form>
+                <option value="HIGH">
+                  High Priority
+                </option>
+                <option value="MEDIUM">
+                  Medium Priority
+                </option>
+                <option value="LOW">
+                  Low Priority
+                </option>
+              </select>
+            </div>
+
+            <button
+              onClick={handleCreate}
+              disabled={creating}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: creating 
+                  ? '#9ca3af' : '#4f46e5',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: creating 
+                  ? 'not-allowed' : 'pointer',
+                fontSize: '15px',
+                fontWeight: '500'
+              }}
+            >
+              {creating 
+                ? 'Creating...' 
+                : 'Create Task'}
+            </button>
           </div>
         </div>
       )}
