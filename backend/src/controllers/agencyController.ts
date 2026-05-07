@@ -106,6 +106,59 @@ export const createClient = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const updateClient = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, email, status } = req.body;
+    const tenantId = req.user.tenantId;
+
+    if (!id || !tenantId) {
+      return res.status(400).json({ message: 'Missing parameters.' });
+    }
+
+    // 1. Update clients table
+    await db.update(clients)
+      .set({ name, email, status })
+      .where(and(eq(clients.id, id), eq(clients.tenantId, tenantId)));
+
+    // 2. Update users table if email changed or name changed
+    await db.update(users)
+      .set({ name, email })
+      .where(and(eq(users.clientId, id), eq(users.tenantId, tenantId)));
+
+    console.log('[UPDATE_CLIENT_SUCCESS]', id);
+    res.json({ success: true, message: 'Client updated successfully' });
+  } catch (err: any) {
+    console.error('[UPDATE_CLIENT_ERROR]', err);
+    res.status(500).json({ message: 'Failed to update client: ' + err.message });
+  }
+};
+
+export const deleteClient = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.user.tenantId;
+
+    if (!id || !tenantId) {
+      return res.status(400).json({ message: 'Missing parameters.' });
+    }
+
+    // 1. Delete associated users
+    await db.delete(users)
+      .where(and(eq(users.clientId, id), eq(users.tenantId, tenantId)));
+
+    // 2. Delete from clients table
+    await db.delete(clients)
+      .where(and(eq(clients.id, id), eq(clients.tenantId, tenantId)));
+
+    console.log('[DELETE_CLIENT_SUCCESS]', id);
+    res.json({ success: true, message: 'Client deleted successfully' });
+  } catch (err: any) {
+    console.error('[DELETE_CLIENT_ERROR]', err);
+    res.status(500).json({ message: 'Failed to delete client: ' + err.message });
+  }
+};
+
 // --- Campaign Management ---
 export const getCampaigns = async (req: AuthRequest, res: Response) => {
   try {
