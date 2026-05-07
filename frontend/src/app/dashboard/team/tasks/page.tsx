@@ -104,7 +104,7 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen" style={{ background: '#f9fafb', minHeight: '100vh' }}>
       <Sidebar role="team" />
       
       <div className="flex-1 ml-64 min-h-screen">

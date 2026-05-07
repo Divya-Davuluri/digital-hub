@@ -1,14 +1,12 @@
-import { Response } from 'express';
 import { db } from '../db';
 import { tasks, users, clients, campaigns } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { AuthRequest } from '../middleware/authMiddleware';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncHandler, AppError } from '../utils/errors';
 
 // --- Tasks ---
 
-export const getTasks = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const getTasks = asyncHandler(async (req: any, res: any) => {
   const tenantId = req.user.tenantId;
   
   const allTasks = await db.query.tasks.findMany({
@@ -19,7 +17,7 @@ export const getTasks = asyncHandler(async (req: AuthRequest, res: Response) => 
   res.json({ success: true, tasks: allTasks });
 });
 
-export const createTask = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const createTask = asyncHandler(async (req: any, res: any) => {
   const { title, client_name, priority, assigned_to } = req.body;
   const tenantId = req.user.tenantId;
   const userId = req.user.id;
@@ -55,11 +53,13 @@ export const createTask = asyncHandler(async (req: AuthRequest, res: Response) =
 
 // --- Campaigns ---
 
-export const getCampaigns = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const getCampaigns = asyncHandler(async (req: any, res: any) => {
   const tenantId = req.user.tenantId;
   
   const allCampaigns = await db.all(sql`
-    SELECT * FROM campaigns 
+    SELECT DISTINCT id, name, client_name,
+      status, budget, platform, created_at
+    FROM campaigns 
     WHERE tenant_id = ${tenantId} 
     ORDER BY created_at DESC
   `);
@@ -67,7 +67,7 @@ export const getCampaigns = asyncHandler(async (req: AuthRequest, res: Response)
   res.json({ success: true, campaigns: allCampaigns });
 });
 
-export const createCampaign = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const createCampaign = asyncHandler(async (req: any, res: any) => {
   const { name, client_name, budget, platform } = req.body;
   const tenantId = req.user.tenantId;
   const userId = req.user.id;
@@ -102,7 +102,7 @@ export const createCampaign = asyncHandler(async (req: AuthRequest, res: Respons
 
 // --- Clients ---
 
-export const getClients = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const getClients = asyncHandler(async (req: any, res: any) => {
   const tenantId = req.user.tenantId;
 
   const allClients = await db.all(sql`
@@ -114,7 +114,7 @@ export const getClients = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json({ success: true, clients: allClients });
 });
 
-export const createClient = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const createClient = asyncHandler(async (req: any, res: any) => {
   const { name, email, company_name } = req.body;
   const tenantId = req.user.tenantId;
 

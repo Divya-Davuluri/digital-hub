@@ -56,7 +56,7 @@ export default function AdminDashboard() {
   const primaryColor = branding?.primaryColor || '#4f46e5';
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen" style={{ background: '#f9fafb', minHeight: '100vh' }}>
       <Sidebar />
       <div className="flex-1 ml-[260px]">
         <Header />

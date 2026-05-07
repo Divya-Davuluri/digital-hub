@@ -55,7 +55,7 @@ export default function TeamCampaignsPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen" style={{ background: '#f9fafb', minHeight: '100vh' }}>
       <Sidebar role="team" />
       <div className="flex-1 ml-[260px] flex flex-col">
         <Header />

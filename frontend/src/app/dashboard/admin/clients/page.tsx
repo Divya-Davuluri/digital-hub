@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import apiCall from "@/lib/api";
 
 export default function AdminClientsPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -84,7 +86,7 @@ export default function AdminClientsPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen" style={{ background: '#f9fafb', minHeight: '100vh' }}>
       <Sidebar role="admin" />
       <div className="flex-1 ml-[260px] flex flex-col">
         <Header />
@@ -136,7 +138,7 @@ export default function AdminClientsPage() {
                               </td>
                               <td className="px-8 py-5 text-right">
                                  <button 
-                                  onClick={() => { setEditingClient(client); setShowEditModal(true); }}
+                                  onClick={() => router.push(`/dashboard/admin/clients/${client.id}/settings`)}
                                   className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors px-3 py-1 border border-slate-200 rounded-md hover:border-indigo-200 hover:bg-indigo-50"
                                  >
                                   Edit Settings
