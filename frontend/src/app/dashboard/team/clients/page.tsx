@@ -9,7 +9,7 @@ export default function TeamClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [newClient, setNewClient] = useState({ contactPerson: '', contactEmail: '', companyName: '' });
+  const [newClient, setNewClient] = useState({ clientName: '', contactEmail: '', companyName: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +36,11 @@ export default function TeamClientsPage() {
     try {
       const data = await apiCall("/api/team/clients", {
         method: 'POST',
-        body: JSON.stringify(newClient),
+        body: JSON.stringify({
+          name: newClient.clientName,
+          email: newClient.contactEmail,
+          companyName: newClient.companyName
+        }),
       });
 
       if (!data.success) {
@@ -44,7 +48,7 @@ export default function TeamClientsPage() {
       }
 
       setShowModal(false);
-      setNewClient({ contactPerson: '', contactEmail: '', companyName: '' });
+      setNewClient({ clientName: '', contactEmail: '', companyName: '' });
       fetchClients();
     } catch (err: any) {
       console.error('[CLIENT_ADD_ERROR]', err);
@@ -150,8 +154,8 @@ export default function TeamClientsPage() {
                   placeholder="e.g. Nike Marketing" 
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   required 
-                  value={newClient.contactPerson}
-                  onChange={(e) => setNewClient({...newClient, contactPerson: e.target.value})}
+                  value={newClient.clientName}
+                  onChange={(e) => setNewClient({...newClient, clientName: e.target.value})}
                 />
               </div>
               <div className="space-y-1">

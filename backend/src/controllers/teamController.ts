@@ -4,6 +4,7 @@ import { tasks, users, clients, campaigns, workspaces } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncHandler, AppError } from '../utils/errors';
+import bcrypt from 'bcryptjs';
 
 // --- Tasks ---
 
@@ -137,41 +138,49 @@ export const getClients = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const createClient = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, company_name } = req.body;
+  const { name, email, companyName } = req.body;
   const { tenantId } = req.user as any;
 
   if (!name || !email) throw new AppError('Name and Email are required', 400);
 
   // 1. Create Workspace Automatically
   const workspaceId = uuidv4();
-  const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+  const slug = (companyName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
   
   await db.insert(workspaces).values({
     id: workspaceId,
     tenantId,
-    name,
+    name: companyName || name,
     slug,
   });
 
   // 2. Create Client record linked to workspace
   const clientId = uuidv4();
-  const now = new Date().toISOString();
+  await db.insert(clients).values({
+    id: clientId,
+    tenantId,
+    workspaceId,
+    name,
+    email,
+    companyName: companyName || null,
+    status: 'active',
+  });
 
-  await db.run(sql`
-    INSERT INTO clients (
-      id, tenant_id, workspace_id, name, email,
-      company_name, status, created_at
-    ) VALUES (
-      ${clientId},
-      ${tenantId},
-      ${workspaceId},
-      ${name},
-      ${email},
-      ${company_name || null},
-      'active',
-      ${now}
-    )
-  `);
+  // 3. Create User record for the client
+  const userId = uuidv4();
+  const tempPassword = 'Client123!'; // Default password for new clients
+  const hashedPassword = await bcrypt.hash(tempPassword, 12);
 
-  res.status(201).json({ success: true, id: clientId, workspaceId });
+  await db.insert(users).values({
+    id: userId,
+    tenantId,
+    workspaceId,
+    name,
+    email,
+    password: hashedPassword,
+    role: 'client',
+    provider: 'local',
+  });
+
+  res.status(201).json({ success: true, clientId, workspaceId, userId });
 });

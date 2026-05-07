@@ -12,7 +12,7 @@ export default function AdminClientsPage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', email: '' });
+  const [newClient, setNewClient] = useState({ clientName: '', contactEmail: '', companyName: '' });
   const [editingClient, setEditingClient] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -39,10 +39,14 @@ export default function AdminClientsPage() {
     try {
       await apiCall("/api/agency/clients", {
         method: 'POST',
-        body: JSON.stringify(newClient),
+        body: JSON.stringify({
+          name: newClient.clientName,
+          email: newClient.contactEmail,
+          companyName: newClient.companyName
+        }),
       });
       setShowAddModal(false);
-      setNewClient({ name: '', email: '' });
+      setNewClient({ clientName: '', contactEmail: '', companyName: '' });
       fetchClients();
     } catch (err) {
       alert("Failed to add client");
@@ -118,6 +122,7 @@ export default function AdminClientsPage() {
                         <tr>
                            <th className="px-8 py-4">Client</th>
                            <th className="px-8 py-4">Email Address</th>
+                           <th className="px-8 py-4">Company</th>
                            <th className="px-8 py-4">Status</th>
                            <th className="px-8 py-4 text-right">Settings</th>
                         </tr>
@@ -127,6 +132,7 @@ export default function AdminClientsPage() {
                            <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
                               <td className="px-8 py-5 font-semibold text-sm text-slate-900">{client.name}</td>
                               <td className="px-8 py-5 text-sm text-slate-500">{client.email}</td>
+                              <td className="px-8 py-5 text-sm text-slate-500">{client.company_name || '-'}</td>
                               <td className="px-8 py-5">
                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-tighter ${
                                    (client.status || 'Active').toLowerCase() === 'active' 
@@ -178,8 +184,8 @@ export default function AdminClientsPage() {
                   placeholder="e.g. Nike Marketing" 
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   required 
-                  value={newClient.name}
-                  onChange={(e) => setNewClient({...newClient, name: e.target.value})}
+                  value={newClient.clientName}
+                  onChange={(e) => setNewClient({...newClient, clientName: e.target.value})}
                 />
               </div>
               <div className="space-y-1">
@@ -189,8 +195,18 @@ export default function AdminClientsPage() {
                   placeholder="contact@client.com" 
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   required 
-                  value={newClient.email}
-                  onChange={(e) => setNewClient({...newClient, email: e.target.value})}
+                  value={newClient.contactEmail}
+                  onChange={(e) => setNewClient({...newClient, contactEmail: e.target.value})}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block ml-1">Company Name</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Nike" 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  value={newClient.companyName}
+                  onChange={(e) => setNewClient({...newClient, companyName: e.target.value})}
                 />
               </div>
               <button type="submit" disabled={submitting} className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 mt-4 shadow-lg shadow-indigo-100">
