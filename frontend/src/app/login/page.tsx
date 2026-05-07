@@ -1,12 +1,12 @@
 'use client';
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { apiFetch } from "@/lib/api";
+import { useState } from "react";
+import apiCall from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -15,41 +15,8 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [userId, setUserId] = useState("");
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get("token");
-      const refreshToken = params.get("refreshToken");
-      const userParam = params.get("user");
-      const errorParam = params.get("error");
-      const twoFactorRequired = params.get("2fa_required");
-      const urlUserId = params.get("userId");
-
-      if (token && refreshToken) {
-        localStorage.setItem("token", token);
-        localStorage.setItem("refreshToken", refreshToken);
-        if (userParam) {
-          localStorage.setItem("user", decodeURIComponent(userParam));
-        }
-        router.push("/dashboard");
-      }
-
-      if (twoFactorRequired === "true" && urlUserId) {
-        setUserId(urlUserId);
-        setShowOTP(true);
-      }
-
-      if (errorParam === "oauth_failed") {
-        setError("Social login failed. Please try again.");
-      }
-    }
-  }, [router]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.clear(); // Clear any stale sessions/tokens before login
     setLoading(true);
     setError("");
 
@@ -57,7 +24,7 @@ export default function LoginPage() {
       const endpoint = showOTP ? "/auth/2fa/validate" : "/auth/login";
       const body = showOTP ? { userId, token: otp } : { email, password };
 
-      const data = await apiFetch(endpoint, {
+      const data = await apiCall(endpoint, {
         method: "POST",
         body: JSON.stringify(body),
       });
@@ -66,21 +33,11 @@ export default function LoginPage() {
         setShowOTP(true);
         setUserId(data.userId);
       } else {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("refreshToken", data.refreshToken);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        
-        // Dynamic redirection based on role
-        if (data.user.role === 'admin') {
-          router.push("/dashboard/admin");
-        } else if (data.user.role === 'client') {
-          router.push("/dashboard/client");
-        } else {
-          router.push("/dashboard/team");
-        }
+        // Use the centralized login function
+        login(data);
       }
     } catch (err: any) {
-      setError(err.message || "Authentication failed");
+      setError(err.message || "Authentication failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -88,6 +45,7 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-[#0F172A] px-6 relative overflow-hidden">
+      {/* Background Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full -z-10">
         <div className="absolute top-1/4 left-1/4 w-[60%] h-[60%] bg-indigo-500/10 blur-[120px] rounded-full" />
         <div className="absolute bottom-1/4 right-1/4 w-[60%] h-[60%] bg-blue-500/10 blur-[120px] rounded-full" />
@@ -125,7 +83,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-indigo-500 transition-all"
+                  className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600"
                   placeholder="admin@demo.com"
                 />
               </div>
@@ -139,7 +97,7 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-indigo-500 transition-all"
+                  className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600"
                   placeholder="••••••••"
                 />
               </div>
@@ -163,7 +121,12 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50"
           >
-            {loading ? "Authenticating..." : (showOTP ? "Verify" : "Sign In")}
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                <span>Authenticating...</span>
+              </div>
+            ) : (showOTP ? "Verify" : "Sign In")}
           </button>
         </form>
 
@@ -179,13 +142,17 @@ export default function LoginPage() {
             <div className="w-full border-t border-white/5"></div>
           </div>
           <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
-            <span className="px-4 bg-[#1e293b]/50 backdrop-blur-sm">Social Login</span>
+            <span className="px-4 bg-[#0F172A] backdrop-blur-sm">Social Login</span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <button onClick={() => window.location.href = `${apiUrl}/api/auth/google`} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm">Google</button>
-          <button onClick={() => window.location.href = `${apiUrl}/api/auth/facebook`} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm">Facebook</button>
+          <button className="bg-slate-800/50 hover:bg-slate-800 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm flex items-center justify-center gap-2">
+             Google
+          </button>
+          <button className="bg-slate-800/50 hover:bg-slate-800 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm flex items-center justify-center gap-2">
+             Facebook
+          </button>
         </div>
       </div>
     </main>

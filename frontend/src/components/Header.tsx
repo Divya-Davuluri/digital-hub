@@ -3,46 +3,30 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getNotifications, markNotificationAsRead, Notification } from '@/services/notificationService';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Header() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const { user, logout } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    const fetchUser = () => {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch (e) {
-          console.error("Failed to parse user", e);
-        }
-      }
-    };
-
     const fetchNotifications = async () => {
       try {
         const data = await getNotifications();
-        setNotifications(data);
+        setNotifications(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to fetch notifications", err);
       }
     };
 
-    fetchUser();
     fetchNotifications();
-    window.addEventListener('storage', fetchUser);
-    return () => window.removeEventListener('storage', fetchUser);
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    router.push('/login');
+    logout();
   };
 
   const handleMarkAsRead = async (id: string) => {
@@ -54,10 +38,10 @@ export default function Header() {
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0;
 
   return (
-    <header className="h-[64px] border-b border-border flex items-center justify-between px-8 bg-white sticky top-0 z-40">
+    <header className="h-[64px] border-b border-slate-200 flex items-center justify-between px-8 bg-white sticky top-0 z-40">
       <div className="flex items-center gap-4">
         <div className="relative group">
           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
@@ -68,7 +52,7 @@ export default function Header() {
           <input 
             type="text" 
             placeholder="Search anything..." 
-            className="w-64 bg-slate-50 border border-transparent rounded-lg pl-10 pr-4 py-1.5 text-sm transition-all focus:w-80 focus:bg-white focus:border-primary/40 focus:outline-none placeholder:text-slate-400"
+            className="w-64 bg-slate-50 border border-transparent rounded-lg pl-10 pr-4 py-1.5 text-sm transition-all focus:w-80 focus:bg-white focus:border-indigo-200 focus:outline-none placeholder:text-slate-400"
           />
         </div>
       </div>
@@ -89,8 +73,8 @@ export default function Header() {
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white border border-border rounded-xl shadow-xl py-2 animate-subtle-fade z-50">
-              <div className="px-4 py-2 border-b border-border flex justify-between items-center">
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl py-2 animate-subtle-fade z-50">
+              <div className="px-4 py-2 border-b border-slate-100 flex justify-between items-center">
                 <span className="font-bold text-sm">Notifications</span>
                 {unreadCount > 0 && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">{unreadCount} New</span>}
               </div>
@@ -119,14 +103,14 @@ export default function Header() {
           )}
         </div>
 
-        <div className="h-6 w-px bg-border mx-1"></div>
+        <div className="h-6 w-px bg-slate-200 mx-1"></div>
 
         <div className="relative">
           <button 
             onClick={() => { setShowDropdown(!showDropdown); setShowNotifications(false); }}
             className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-50 transition-all"
           >
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-primary flex items-center justify-center font-bold text-sm border border-indigo-100">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm border border-indigo-100">
               {user?.name?.[0] || 'U'}
             </div>
             <div className="text-left hidden md:block mr-1">
@@ -139,8 +123,8 @@ export default function Header() {
           </button>
 
           {showDropdown && (
-            <div className="absolute right-0 mt-2 w-56 bg-white border border-border rounded-xl shadow-xl py-1 animate-subtle-fade z-50">
-              <div className="px-4 py-3 border-b border-border mb-1">
+            <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl py-1 animate-subtle-fade z-50">
+              <div className="px-4 py-3 border-b border-slate-100 mb-1">
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Account</p>
                 <p className="text-sm font-medium text-slate-900 truncate">{user?.email}</p>
               </div>
@@ -158,10 +142,10 @@ export default function Header() {
                   Agency Branding
                 </button>
               )}
-              <div className="h-px bg-border my-1"></div>
+              <div className="h-px bg-slate-100 my-1"></div>
               <button 
                 onClick={handleLogout}
-                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-all"
               >
                 Sign out
               </button>

@@ -2,41 +2,40 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading, isAuthenticated } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    
-    if (!token || !storedUser) {
-      setIsAuthorized(false);
-      if (pathname !== '/login' && pathname !== '/signup' && pathname !== '/') {
-        router.push('/login');
-      }
+    if (loading) return;
+
+    // Public pages
+    const publicPages = ['/login', '/signup', '/'];
+    if (publicPages.includes(pathname)) {
+      setIsAuthorized(true);
       return;
     }
 
-    try {
-      const user = JSON.parse(storedUser);
-      // VALIDATE ROLE: Only allow 'admin', 'team', or 'client'
-      // If the role is unknown (like 'user'), default to 'team' or 'admin' based on user status
-      let role = user.role;
-      if (role !== 'admin' && role !== 'team' && role !== 'client') {
-        console.warn(`[ProtectedRoute] Unknown role detected: "${role}". Defaulting to "team".`);
-        role = 'team';
-      }
+    if (!isAuthenticated) {
+      setIsAuthorized(false);
+      router.push('/login');
+      return;
+    }
 
-      // 1. Handle root /dashboard redirect to specific role dashboard
+    if (user) {
+      const role = user.role;
+
+      // Handle root /dashboard redirect
       if (pathname === '/dashboard' || pathname === '/dashboard/') {
         router.push(`/dashboard/${role}`);
         return;
       }
 
-      // 2. Role-based route protection
+      // Role-based protection
       const isAdminRoute = pathname.startsWith('/dashboard/admin');
       const isTeamRoute = pathname.startsWith('/dashboard/team');
       const isClientRoute = pathname.startsWith('/dashboard/client');
@@ -54,23 +53,14 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
         return;
       }
 
-      // 3. Handle dead-end routes like /dashboard/user
-      if (pathname === '/dashboard/user' || pathname === '/dashboard/user/') {
-        router.push(`/dashboard/${role}`);
-        return;
-      }
-
       setIsAuthorized(true);
-    } catch (e) {
-      localStorage.clear();
-      router.push('/login');
     }
-  }, [pathname, router]);
+  }, [pathname, router, user, loading, isAuthenticated]);
 
-  if (isAuthorized === null) {
+  if (loading || isAuthorized === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="w-10 h-10 border-4 border-white/10 border-t-indigo-500 rounded-full animate-spin" />
       </div>
     );
   }
