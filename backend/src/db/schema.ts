@@ -1,5 +1,6 @@
 import { AnySQLiteColumn, sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 
 // --- Multi-Tenant Core ---
 
@@ -147,12 +148,13 @@ export const backupCodes = sqliteTable('backup_codes', {
 });
 
 export const sessions = sqliteTable('sessions', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  tenantId: text('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
   workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
   refreshToken: text('refresh_token').notNull(),
   expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const resetTokens = sqliteTable('reset_tokens', {

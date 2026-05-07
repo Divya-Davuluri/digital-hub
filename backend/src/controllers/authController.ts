@@ -45,9 +45,11 @@ export const generateTokens = async (userId: string, role: string, tenantId: str
     { expiresIn: '7d' }
   );
 
+  const sessionId = uuidv4();
   await db.insert(sessions).values({
+    id: sessionId,
     userId,
-    tenantId,
+    tenantId: tenantId || null,
     workspaceId: workspaceId || null,
     refreshToken,
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
