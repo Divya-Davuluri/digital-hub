@@ -43,6 +43,8 @@ export const configurePassport = () => {
         await db.insert(workspaces).values({
           id: workspaceId,
           tenantId,
+          clientId: userId,
+          clientName: profile.displayName,
           name: 'Main Workspace',
           slug: 'main',
         });
@@ -111,6 +113,8 @@ export const configurePassport = () => {
         await db.insert(workspaces).values({
           id: workspaceId,
           tenantId,
+          clientId: userId,
+          clientName: profile.displayName,
           name: 'Main Workspace',
           slug: 'main',
         });

@@ -90,6 +90,8 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   await db.insert(workspaces).values({
     id: workspaceId,
     tenantId,
+    clientId: userId, // Legacy support (Admins don't have a separate client, so use userId)
+    clientName: name, // Legacy support
     name: 'Main Workspace',
     slug: 'main',
   });
