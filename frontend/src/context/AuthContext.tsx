@@ -49,6 +49,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = (data: { token: string; refreshToken: string; user: User }) => {
+    if (!data.user) {
+      console.error('Login failed: User data missing in response', data);
+      throw new Error('Authentication failed: Missing user profile data');
+    }
+
     localStorage.setItem('token', data.token);
     localStorage.setItem('refreshToken', data.refreshToken);
     localStorage.setItem('user', JSON.stringify(data.user));

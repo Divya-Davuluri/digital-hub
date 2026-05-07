@@ -9,6 +9,9 @@ export const getToken = (): string => {
     sessionStorage.getItem('token') || '';
 };
 
+/**
+ * Enhanced API Call helper with proper error handling
+ */
 export const apiCall = async (
   endpoint: string,
   options: RequestInit = {}
@@ -18,7 +21,7 @@ export const apiCall = async (
   // Ensure endpoint starts with /
   let path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
-  // CRITICAL: Ensure all calls go to /api/... if not already present
+  // Ensure all calls go to /api/... if not already present
   if (!path.startsWith('/api/') && path !== '/api') {
     path = `/api${path}`;
   }
@@ -36,20 +39,23 @@ export const apiCall = async (
   );
   
   const text = await response.text();
+  let data;
   
   try {
-    return JSON.parse(text);
+    data = JSON.parse(text);
   } catch {
-    console.error('Non-JSON response:', 
-      text.substring(0, 200));
-    throw new Error(
-      'Server returned invalid response. ' +
-      'Status: ' + response.status
-    );
+    console.error('Non-JSON response:', text.substring(0, 200));
+    throw new Error(`Server error (${response.status}). Please try again later.`);
   }
+
+  // Handle non-200 responses
+  if (!response.ok) {
+    const errorMsg = data.message || data.error || `Request failed with status ${response.status}`;
+    throw new Error(errorMsg);
+  }
+  
+  return data;
 };
 
-// Also keep apiFetch as an alias to avoid breaking other pages immediately
 export const apiFetch = apiCall;
-
 export default apiCall;
