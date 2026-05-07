@@ -3,26 +3,26 @@
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { apiFetch } from "@/lib/api";
+import apiCall from "@/lib/api";
 
 export default function TeamCampaignsPage() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ name: '', budget: '', clientId: '' });
+  const [formData, setFormData] = useState({ name: '', budget: '', clientName: '', platform: 'Meta' });
   const [submitting, setSubmitting] = useState(false);
 
   const fetchData = async () => {
     try {
       const [campaignData, clientData] = await Promise.all([
-        apiFetch("/agency/campaigns"),
-        apiFetch("/agency/clients")
+        apiCall("/api/team/campaigns"),
+        apiCall("/api/team/clients")
       ]);
-      setCampaigns(campaignData);
-      setClients(clientData);
+      setCampaigns(campaignData.campaigns || []);
+      setClients(clientData.clients || []);
     } catch (err) {
-      console.error(err);
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -36,7 +36,7 @@ export default function TeamCampaignsPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await apiFetch("/agency/campaigns", {
+      await apiCall("/api/team/campaigns", {
         method: 'POST',
         body: JSON.stringify({
           ...formData,
@@ -44,9 +44,10 @@ export default function TeamCampaignsPage() {
         })
       });
       setShowModal(false);
-      setFormData({ name: '', budget: '', clientId: '' });
+      setFormData({ name: '', budget: '', clientName: '', platform: 'Meta' });
       fetchData();
     } catch (err) {
+      console.error('Create error:', err);
       alert("Failed to create campaign");
     } finally {
       setSubmitting(false);
@@ -66,26 +67,19 @@ export default function TeamCampaignsPage() {
             </div>
             <button 
               onClick={() => setShowModal(true)}
-              className="btn-primary !py-2.5 !px-6 text-xs font-bold shadow-lg shadow-indigo-100"
+              className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-xs shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-colors"
             >
                + Create New Campaign
             </button>
           </div>
 
-          <div className="card !p-0 overflow-hidden">
-             <div className="p-6 border-b border-border bg-white flex justify-between items-center">
-                <h3 className="text-base font-bold text-slate-900">Active Campaign Portfolio</h3>
-                <div className="flex gap-2">
-                   <select className="text-xs border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-500 transition-colors">
-                      <option>All Statuses</option>
-                      <option>Active</option>
-                      <option>Paused</option>
-                   </select>
-                </div>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="text-base font-bold text-slate-900 uppercase tracking-wider text-sm">Active Campaign Portfolio</h3>
              </div>
              
              {loading ? (
-               <div className="p-12 text-center text-slate-400 italic">Syncing with ad networks...</div>
+               <div className="p-12 text-center text-slate-400 italic animate-pulse">Syncing with ad networks...</div>
              ) : campaigns.length > 0 ? (
                <div className="overflow-x-auto">
                   <table className="w-full text-left">
@@ -93,6 +87,7 @@ export default function TeamCampaignsPage() {
                         <tr>
                            <th className="px-8 py-4">Campaign Name</th>
                            <th className="px-8 py-4">Budget</th>
+                           <th className="px-8 py-4">Platform</th>
                            <th className="px-8 py-4">Status</th>
                            <th className="px-8 py-4 text-right">Performance</th>
                         </tr>
@@ -106,14 +101,15 @@ export default function TeamCampaignsPage() {
                                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">ID: {c.id.split('-')[0]}</span>
                                  </div>
                               </td>
-                              <td className="px-8 py-5 font-bold text-sm text-slate-700">${c.budget.toLocaleString()}</td>
+                              <td className="px-8 py-5 font-bold text-sm text-slate-700">${Number(c.budget || 0).toLocaleString()}</td>
+                              <td className="px-8 py-5 text-xs text-slate-500 font-medium">{c.platform || 'Meta'}</td>
                               <td className="px-8 py-5">
                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tighter border ${
-                                    c.status === 'active' 
+                                    c.status === 'ACTIVE' 
                                        ? 'bg-green-50 text-green-700 border-green-100' 
                                        : 'bg-amber-50 text-amber-700 border-amber-100'
                                  }`}>
-                                    {c.status}
+                                    {c.status || 'ACTIVE'}
                                  </span>
                               </td>
                               <td className="px-8 py-5 text-right">
@@ -139,52 +135,67 @@ export default function TeamCampaignsPage() {
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl relative z-10 animate-subtle-fade">
-            <div className="p-6 border-b border-border flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-900">Launch New Campaign</h2>
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl relative z-10 p-6 space-y-6">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4 -mx-6 px-6">
+              <h2 className="text-lg font-bold text-slate-900">Launch New Campaign</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
             </div>
-            <form className="p-6 space-y-4" onSubmit={handleCreate}>
+            <form className="space-y-4" onSubmit={handleCreate}>
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Campaign Name</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block ml-1">Campaign Name</label>
                 <input 
                   type="text" 
                   placeholder="e.g. Q4 Growth Drive" 
-                  className="input-field" 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   required 
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Budget ($)</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block ml-1">Total Budget ($)</label>
                 <input 
                   type="number" 
                   placeholder="5000" 
-                  className="input-field" 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   required 
                   value={formData.budget}
                   onChange={(e) => setFormData({...formData, budget: e.target.value})}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Assign to Client</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block ml-1">Client Name</label>
                 <select 
-                  className="input-field" 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer appearance-none"
                   required 
-                  value={formData.clientId}
-                  onChange={(e) => setFormData({...formData, clientId: e.target.value})}
+                  value={formData.clientName}
+                  onChange={(e) => setFormData({...formData, clientName: e.target.value})}
                 >
                   <option value="">Select a Client</option>
                   {clients.map(client => (
-                    <option key={client.id} value={client.id}>{client.name}</option>
+                    <option key={client.id} value={client.name}>{client.name}</option>
                   ))}
+                  <option value="General">General</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block ml-1">Platform</label>
+                <select 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer appearance-none"
+                  required 
+                  value={formData.platform}
+                  onChange={(e) => setFormData({...formData, platform: e.target.value})}
+                >
+                  <option value="Meta">Meta Ads</option>
+                  <option value="Google">Google Ads</option>
+                  <option value="LinkedIn">LinkedIn Ads</option>
+                  <option value="TikTok">TikTok Ads</option>
                 </select>
               </div>
               <button 
                 type="submit" 
                 disabled={submitting}
-                className="w-full btn-primary py-3 mt-4 text-sm font-bold disabled:opacity-50"
+                className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 mt-4 shadow-lg shadow-indigo-100"
               >
                 {submitting ? "Launching..." : "Deploy Campaign"}
               </button>

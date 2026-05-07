@@ -1,11 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Removed output: 'export' to enable full dynamic SSR
-  // This ensures role-based routing and protected routes work correctly on Render
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'https://digital-hub-3h88.onrender.com/api/:path*'
+      }
+    ];
+  },
   images: {
     unoptimized: true,
+    domains: [
+      'digital-hub-3h88.onrender.com',
+      'i.imgur.com',
+      'i.postimg.cc'
+    ]
   },
-  // Keep trailingSlash to match your current URL structure if needed
   trailingSlash: true,
 };
 

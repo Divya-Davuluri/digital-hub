@@ -197,12 +197,37 @@ router.get('/campaigns', authMiddleware,
       success: true,
       campaigns: campaigns || []
     });
-  } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      campaigns: [],
-      error: error.message
+  }
+});
+
+router.post('/campaigns', authMiddleware,
+  async (req: any, res: any) => {
+  try {
+    const tenantId = req.user?.tenantId || req.user?.tenant_id || '';
+    const userId = req.user?.id || req.user?.userId || '';
+    const { name, budget, clientName, platform } = req.body || {};
+
+    if (!name?.trim()) {
+      return res.status(400).json({ success: false, error: 'Campaign name required' });
+    }
+
+    const campaignId = randomUUID();
+    const now = new Date().toISOString();
+
+    await db.run(sql`
+      INSERT INTO campaigns (
+        id, tenant_id, name, client_name, status, budget, platform, created_by, created_at
+      ) VALUES (
+        ${campaignId}, ${tenantId}, ${name.trim()}, ${clientName || null}, 'ACTIVE', ${Number(budget) || 0}, ${platform || 'Meta'}, ${userId}, ${now}
+      )
+    `);
+
+    return res.status(201).json({
+      success: true,
+      campaign: { id: campaignId, name: name.trim(), status: 'ACTIVE', budget: Number(budget) || 0, platform: platform || 'Meta' }
     });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -237,13 +262,45 @@ router.get('/clients', authMiddleware,
   }
 });
 
+router.post('/clients', authMiddleware,
+  async (req: any, res: any) => {
+  try {
+    const tenantId = req.user?.tenantId || req.user?.tenant_id || '';
+    const userId = req.user?.id || req.user?.userId || '';
+    const { contactPerson, contactEmail, companyName } = req.body || {};
+
+    if (!contactPerson || !contactEmail) {
+      return res.status(400).json({ success: false, error: 'Name and email required' });
+    }
+
+    const clientId = randomUUID();
+
+    await db.run(sql`
+      INSERT INTO clients (
+        id, tenant_id, name, email, company_name, status, assigned_team_member_id, created_at
+      ) VALUES (
+        ${clientId}, ${tenantId}, ${contactPerson}, ${contactEmail}, ${companyName || null}, 'ACTIVE', ${userId}, ${new Date().toISOString()}
+      )
+    `);
+
+    return res.json({
+      success: true,
+      client: { id: clientId, name: contactPerson, email: contactEmail, status: 'ACTIVE' }
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 console.log('=========================');
 console.log('TEAM ROUTES REGISTERED:');
 console.log('GET  /api/team/tasks ✓');
 console.log('POST /api/team/tasks ✓');
 console.log('PATCH /api/team/tasks/:id ✓');
 console.log('GET  /api/team/campaigns ✓');
+console.log('POST /api/team/campaigns ✓');
 console.log('GET  /api/team/clients ✓');
+console.log('POST /api/team/clients ✓');
 console.log('=========================');
 
 export default router;

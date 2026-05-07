@@ -39,7 +39,15 @@ const limiter = rateLimit({
 });
 
 // Middleware
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: [
+    'https://digital-hub-1.onrender.com',
+    'http://localhost:3000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
