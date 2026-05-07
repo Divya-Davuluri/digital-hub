@@ -16,7 +16,12 @@ export const apiCall = async (
   const token = getToken();
   
   // Ensure endpoint starts with /
-  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  let path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  
+  // CRITICAL: Ensure all calls go to /api/... if not already present
+  if (!path.startsWith('/api/') && path !== '/api') {
+    path = `/api${path}`;
+  }
   
   const response = await fetch(
     `${API_BASE}${path}`,
