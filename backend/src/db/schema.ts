@@ -179,4 +179,13 @@ export const projects = sqliteTable('projects', {
   createdBy: text('created_by').references(() => users.id, { onDelete: 'cascade' }),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
-
+export const tenantBranding = sqliteTable('tenant_branding', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  logoUrl: text('logo_url'),
+  primaryColor: text('primary_color').default('#4f46e5'),
+  secondaryColor: text('secondary_color').default('#10b981'),
+  subdomain: text('subdomain'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});

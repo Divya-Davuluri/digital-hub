@@ -2,34 +2,71 @@
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { updateBranding, BrandingSettings } from "@/services/brandingService";
+import { updateBranding } from "@/services/brandingService";
 import { useBranding } from "@/context/BrandingContext";
 
 export default function BrandingPage() {
-  const { branding: globalBranding, refreshBranding } = useBranding();
-  const [settings, setSettings] = useState<BrandingSettings>({
-    primaryColor: '#4f46e5',
-    secondaryColor: '#10b981',
-    logoUrl: '',
-    subdomain: ''
-  });
+  const { refreshBranding } = useBranding();
+  const [primaryColor, setPrimaryColor] = useState('#4f46e5');
+  const [secondaryColor, setSecondaryColor] = useState('#10b981');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [subdomain, setSubdomain] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (globalBranding) {
-      setSettings(globalBranding);
-      setLoading(false);
-    }
-  }, [globalBranding]);
+    const loadBranding = async () => {
+      try {
+        const token = localStorage.getItem('token') || '';
+        
+        const res = await fetch('/api/admin/branding', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        
+        const data = await res.json();
+        
+        if (data.success || data.primaryColor) {
+          const branding = data.branding || data;
+          
+          setPrimaryColor(
+            branding.primaryColor || 
+            branding.primary_color || 
+            '#4f46e5'
+          );
+          setSecondaryColor(
+            branding.secondaryColor || 
+            branding.secondary_color || 
+            '#10b981'
+          );
+          setLogoUrl(
+            branding.logoUrl || 
+            branding.logo_url || 
+            ''
+          );
+          setSubdomain(
+            branding.subdomain || ''
+          );
+        }
+      } catch (err) {
+        console.error('Load branding:', err);
+        setSecondaryColor('#10b981');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadBranding();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setMessage('');
     try {
-      await updateBranding(settings);
+      await updateBranding({ primaryColor, secondaryColor, logoUrl, subdomain });
       await refreshBranding();
       setMessage('Branding updated successfully!');
     } catch (err: any) {
@@ -65,14 +102,14 @@ export default function BrandingPage() {
                 <div className="flex items-center gap-3">
                   <input 
                     type="color" 
-                    value={settings.primaryColor} 
-                    onChange={(e) => setSettings({ ...settings, primaryColor: e.target.value })}
+                    value={primaryColor || '#4f46e5'} 
+                    onChange={(e) => setPrimaryColor(e.target.value)}
                     className="w-12 h-12 rounded cursor-pointer border-none"
                   />
                   <input 
                     type="text" 
-                    value={settings.primaryColor}
-                    onChange={(e) => setSettings({ ...settings, primaryColor: e.target.value })}
+                    value={primaryColor || '#4f46e5'}
+                    onChange={(e) => setPrimaryColor(e.target.value)}
                     className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm"
                   />
                 </div>
@@ -83,14 +120,15 @@ export default function BrandingPage() {
                 <div className="flex items-center gap-3">
                   <input 
                     type="color" 
-                    value={settings.secondaryColor} 
-                    onChange={(e) => setSettings({ ...settings, secondaryColor: e.target.value })}
+                    value={secondaryColor || '#10b981'} 
+                    onChange={(e) => setSecondaryColor(e.target.value)}
                     className="w-12 h-12 rounded cursor-pointer border-none"
                   />
                   <input 
                     type="text" 
-                    value={settings.secondaryColor}
-                    onChange={(e) => setSettings({ ...settings, secondaryColor: e.target.value })}
+                    value={secondaryColor || '#10b981'}
+                    onChange={(e) => setSecondaryColor(e.target.value)}
+                    placeholder="#10b981"
                     className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm"
                   />
                 </div>
@@ -101,8 +139,8 @@ export default function BrandingPage() {
               <label className="text-sm font-bold text-slate-700">Logo URL</label>
               <input 
                 type="text" 
-                value={settings.logoUrl}
-                onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
                 placeholder="https://example.com/logo.png"
                 className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
               />
@@ -113,8 +151,8 @@ export default function BrandingPage() {
               <div className="flex items-center">
                 <input 
                   type="text" 
-                  value={settings.subdomain}
-                  onChange={(e) => setSettings({ ...settings, subdomain: e.target.value })}
+                  value={subdomain}
+                  onChange={(e) => setSubdomain(e.target.value)}
                   placeholder="your-agency"
                   className="flex-1 px-4 py-2 border border-slate-200 rounded-l-lg text-sm"
                 />
@@ -128,7 +166,7 @@ export default function BrandingPage() {
               <button 
                 type="submit"
                 disabled={saving}
-                style={{ backgroundColor: settings.primaryColor }}
+                style={{ backgroundColor: primaryColor }}
                 className="px-8 py-3 text-white rounded-xl font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save Changes'}
@@ -155,13 +193,13 @@ export default function BrandingPage() {
                   }}>
                     {/* Left - Logo */}
                     <div>
-                      {settings.logoUrl ? (
-                        <img src={settings.logoUrl} alt="logo" 
+                      {logoUrl ? (
+                        <img src={logoUrl} alt="logo" 
                           style={{ height: '24px', maxWidth: '90px', 
                             objectFit: 'contain' }} />
                       ) : (
                         <div style={{ 
-                          background: settings.primaryColor, 
+                          background: primaryColor, 
                           color: 'white', 
                           fontSize: '11px',
                           fontWeight: '500',
@@ -201,14 +239,14 @@ export default function BrandingPage() {
                     <div className="w-2/3 h-4 bg-slate-100 rounded mb-4"></div>
                     <div className="w-full h-32 bg-slate-50 rounded mb-4 flex items-center justify-center">
                        <div 
-                         style={{ backgroundColor: settings.primaryColor }}
+                         style={{ backgroundColor: primaryColor }}
                          className="w-12 h-12 rounded-full flex items-center justify-center text-white text-xl"
                        >
                          ✓
                        </div>
                     </div>
                     <div className="flex gap-3">
-                      <div className="flex-1 h-10 rounded-lg" style={{ backgroundColor: settings.primaryColor }}></div>
+                      <div className="flex-1 h-10 rounded-lg" style={{ backgroundColor: primaryColor }}></div>
                       <div className="flex-1 h-10 rounded-lg border border-slate-200"></div>
                     </div>
                   </div>
