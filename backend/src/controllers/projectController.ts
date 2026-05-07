@@ -4,131 +4,76 @@ import { projects } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { randomUUID } from 'crypto';
+import { asyncHandler, AppError } from '../utils/errors';
 
-export const getProjects = async (req: AuthRequest, res: Response) => {
-  try {
-    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
-    
-    if (!tenantId) {
-      console.error('❌ GET_PROJECTS ERROR - No Tenant ID');
-      return res.status(400).json({ message: 'Tenant context missing' });
-    }
+export const getProjects = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const tenantId = req.user.tenantId;
 
-    console.log(`📂 FETCHING PROJECTS - Tenant: ${tenantId}`);
+  const results = await db.all(sql`
+    SELECT 
+      p.*,
+      COALESCE(p.client_name, c.name, 'No Client') as client_name,
+      COALESCE(p.client_name, c.name, 'No Client') as clientName
+    FROM projects p
+    LEFT JOIN clients c ON c.id = p.client_id
+    WHERE p.tenant_id = ${tenantId}
+    ORDER BY p.created_at DESC
+  `);
 
-    // Fetch all projects in the tenant with client details using unified tenant ID
-    const results = await db.run(sql`
-      SELECT 
-        p.*,
-        COALESCE(p.client_name, c.name, 'No Client') as client_name,
-        COALESCE(p.client_name, c.name, 'No Client') as clientName
-      FROM projects p
-      LEFT JOIN clients c ON c.id = p.client_id
-      WHERE p.tenant_id = ${tenantId}
-      ORDER BY p.created_at DESC
-    `);
+  res.json(results);
+});
 
-    const allProjects = results.rows || results;
-    res.json(allProjects);
-  } catch (err: any) {
-    console.error('[GET_PROJECTS_ERROR]', err);
-    res.status(500).json({ message: 'Failed to fetch projects: ' + err.message });
+export const createProject = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { 
+    name, 
+    projectName, 
+    title, 
+    clientId, 
+    clientName, 
+    status, 
+    targetDate, 
+    dueDate,
+    description
+  } = req.body;
+
+  const tenantId = req.user.tenantId;
+  const userId = req.user.id;
+
+  const finalName = projectName || name || title;
+  const finalStatus = (status || 'Planning').toUpperCase();
+  const finalClientId = clientId || null;
+  const finalClientName = clientName || 'General';
+  const finalDate = targetDate || dueDate || null;
+
+  if (!finalName) {
+    throw new AppError('Project name is required', 400);
   }
-};
 
-export const createProject = async (req: AuthRequest, res: Response) => {
-  try {
-    const { 
-      name, 
-      projectName, 
-      title, 
-      clientId, 
-      clientName, 
-      status, 
-      targetDate, 
-      dueDate,
-      description
-    } = req.body;
+  const projectId = randomUUID();
+  const createdAt = new Date().toISOString();
 
-    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
-    const userId = req.user?.id || req.user?.userId;
+  await db.run(sql`
+    INSERT INTO projects (
+      id, tenant_id, name, title, client_id, client_name,
+      target_date, due_date, status, completion,
+      description, created_by, created_at
+    ) VALUES (
+      ${projectId}, ${tenantId}, ${finalName}, ${finalName}, ${finalClientId}, ${finalClientName},
+      ${finalDate}, ${finalDate}, ${finalStatus}, 0,
+      ${description || null}, ${userId}, ${createdAt}
+    )
+  `);
 
-    if (!tenantId) {
-      return res.status(400).json({ success: false, message: 'Tenant context missing' });
+  res.status(201).json({
+    success: true,
+    project: {
+      id: projectId,
+      name: finalName,
+      clientName: finalClientName,
+      targetDate: finalDate,
+      status: finalStatus,
+      completion: 0,
+      createdAt: createdAt
     }
-
-    // Field Mapping & Normalization
-    const finalName = projectName || name || title;
-    const finalStatus = (status || 'Planning').toUpperCase();
-    const finalClientId = clientId || null;
-    const finalClientName = clientName || 'General';
-    const finalDate = targetDate || dueDate || null;
-
-    console.log('[CREATE_PROJECT_REQUEST]', { 
-      name: finalName, 
-      tenantId, 
-      userId 
-    });
-
-    if (!finalName) {
-      return res.status(400).json({ success: false, message: 'Project name is required' });
-    }
-
-    const projectId = randomUUID();
-    const createdAt = new Date().toISOString();
-
-    // EXHAUSTIVE INSERT - Handles all schema variations for stability
-    await db.run(sql`
-      INSERT INTO projects (
-        id,
-        tenant_id,
-        name,
-        title,
-        client_id,
-        client_name,
-        target_date,
-        due_date,
-        status,
-        completion,
-        description,
-        created_by,
-        created_at
-      ) VALUES (
-        ${projectId},
-        ${tenantId},
-        ${finalName},
-        ${finalName},
-        ${finalClientId},
-        ${finalClientName},
-        ${finalDate},
-        ${finalDate},
-        ${finalStatus},
-        0,
-        ${description || null},
-        ${userId},
-        ${createdAt}
-      )
-    `);
-
-    console.log('✅ PROJECT_CREATED_SUCCESS:', projectId);
-
-    res.status(201).json({
-      success: true,
-      project: {
-        id: projectId,
-        name: finalName,
-        clientName: finalClientName,
-        targetDate: finalDate,
-        status: finalStatus,
-        completion: 0,
-        createdAt: createdAt
-      }
-    });
-  } catch (err: any) {
-    console.error('[CREATE_PROJECT_ERROR]', err.message);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to create project: ' + err.message
-    });
-  }
-};
+  });
+});

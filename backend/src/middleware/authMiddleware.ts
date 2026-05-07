@@ -3,12 +3,13 @@ import jwt from 'jsonwebtoken';
 import { db } from '../db';
 import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'digital-marketing-hub-v1-secret-key-2026';
+import { config } from '../config/env';
+import { AppError } from '../utils/errors';
 
 export interface AuthRequest extends Request {
   user?: any;
   tenantId?: string;
+  clientId?: string;
 }
 
 export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -16,38 +17,39 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
   const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : authHeader;
 
   if (!token) {
-    return res.status(401).json({ message: 'No token, authorization denied' });
+    return next(new AppError('No token, authorization denied', 401));
   }
 
   try {
-    const decoded: any = jwt.verify(token, JWT_SECRET);
-    console.log(`🛡️ AUTH VERIFIED - User: ${decoded.userId}, Role: ${decoded.role}, Tenant: ${decoded.tenantId}, Client: ${decoded.clientId}`);
+    const decoded: any = jwt.verify(token, config.jwtSecret);
     
     const user = await db.query.users.findFirst({
       where: eq(users.id, decoded.userId),
     });
 
     if (!user) {
-      return res.status(401).json({ message: 'User not found, authorization denied' });
+      return next(new AppError('User not found, authorization denied', 401));
     }
 
     req.user = user;
-    req.tenantId = user.tenantId; // Attach for convenience
+    req.tenantId = user.tenantId || undefined;
+    req.clientId = user.clientId || undefined;
     next();
   } catch (err: any) {
     if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ message: 'Token expired' });
+      return next(new AppError('Token expired', 401));
     }
-    res.status(401).json({ message: 'Token is not valid' });
+    next(new AppError('Token is not valid', 401));
   }
 };
+
 export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return next(new AppError('Unauthorized', 401));
     }
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
+      return next(new AppError('Forbidden: Insufficient permissions', 403));
     }
     next();
   };

@@ -1,44 +1,61 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
 import session from 'express-session';
 import passport from 'passport';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 
 import { config } from './config/env';
-import { corsOptions } from './config/cors';
 import { getCookieOptions } from './config/cookies';
 import { configurePassport } from './config/passport';
 import { tenantMiddleware } from './middleware/tenantMiddleware';
+import { errorHandler } from './middleware/errorHandler';
 
+// Import Routes
 import authRoutes from './routes/authRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import agencyRoutes from './routes/agencyRoutes';
-import taskRoutes from './routes/taskRoutes';
+import teamRoutes from './routes/teamRoutes';
+import projectRoutes from './routes/projectRoutes';
 import clientRoutes from './routes/clientRoutes';
 import brandingRoutes from './routes/brandingRoutes';
+import adminBrandingRoutes from './routes/adminBrandingRoutes';
+import onboardingRoutes from './routes/onboarding';
 import notificationRoutes from './routes/notificationRoutes';
 import reportRoutes from './routes/reportRoutes';
 import documentRoutes from './routes/documentRoutes';
 
+// Import Controllers for specific routes
+import { 
+  exportClientPDF, 
+  exportSingleCampaignPDF, 
+  downloadClientReport, 
+  requestCustomReport, 
+  getReportRequests 
+} from './controllers/reportController';
+import { authMiddleware, authorize } from './middleware/authMiddleware';
+
 const app = express();
 
-// Trust proxy is required for secure cookies and correct OAuth redirects behind Render's load balancer
+// --- Production Hardening ---
 app.set('trust proxy', 1);
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP for API
+}));
+app.use(morgan(config.isProduction ? 'combined' : 'dev'));
 
-// Passport configuration
-configurePassport();
-
-// Rate limiting
+// --- Rate Limiting ---
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 1000,
-  message: 'Too many requests from this IP, please try again after 15 minutes',
+  message: { success: false, message: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// Middleware
+// --- Middleware Stack ---
 app.use(cors({
   origin: [
     'https://digital-hub-1.onrender.com',
@@ -48,105 +65,83 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Global Tenant Detection
 app.use(tenantMiddleware);
-
 app.use('/api', limiter);
 
-// Session configuration using our cookie helper
+// --- Session & Auth ---
 app.use(session({
   secret: config.sessionSecret,
   resave: false,
   saveUninitialized: false,
   name: 'dmh.sid',
-  cookie: getCookieOptions(7), // 7 days
+  cookie: getCookieOptions(7),
 }));
 
+configurePassport();
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Basic Route
+// --- Health Checks ---
 app.get('/', (req: Request, res: Response) => {
-  res.send('Digital Marketing Hub API is running');
+  res.status(200).json({ 
+    success: true, 
+    message: 'Digital Marketing Hub API',
+    version: '1.0.0'
+  });
 });
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({ 
     status: 'ok', 
     time: new Date().toISOString(),
-    env: config.nodeEnv,
-    port: config.port
+    env: config.nodeEnv
   });
 });
 
-import adminBrandingRoutes from './routes/adminBrandingRoutes';
-
-import projectRoutes from './routes/projectRoutes';
-
-import onboardingRoutes from './routes/onboarding';
-
-import teamRoutes from './routes/teamRoutes';
-
-// API Routes
+// --- API Route Mounting ---
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/agency', agencyRoutes);
-app.use('/api/admin/branding', adminBrandingRoutes);
-app.use('/api/admin', onboardingRoutes); // Mounts /api/admin/onboarding and /api/admin/team-members
-
-app.post('/api/team/tasks-test', (req: Request, res: Response) => {
-  res.json({ 
-    success: true, 
-    message: 'Route works!',
-    body: req.body
-  });
-});
-
 app.use('/api/team', teamRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/branding', brandingRoutes);
+app.use('/api/admin/branding', adminBrandingRoutes);
+app.use('/api/admin', onboardingRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/documents', documentRoutes);
 
-// Client Specific Report Route
-import { exportClientPDF, exportSingleCampaignPDF, downloadClientReport, requestCustomReport, getReportRequests } from './controllers/reportController';
-import { authMiddleware, authorize } from './middleware/authMiddleware';
+// --- Client Portal Special Routes ---
 app.get('/api/client/report/pdf', authMiddleware, exportClientPDF);
 app.get('/api/client/campaigns/:campaignId/pdf', authMiddleware, exportSingleCampaignPDF);
 app.get('/api/client/reports/:reportId/download', authMiddleware, downloadClientReport);
 app.post('/api/client/reports/request', authMiddleware, requestCustomReport);
 app.get('/api/admin/report-requests', authMiddleware, authorize('admin', 'team'), getReportRequests);
 
-// Catch-all 404 for API routes
+// --- 404 & Error Handling ---
 app.use('/api/*', (req: Request, res: Response) => {
-  console.warn(`[404_API] ${req.method} ${req.originalUrl} - Not Found`);
   res.status(404).json({
-    message: `API Route not found: ${req.method} ${req.originalUrl}`,
-    suggested: 'Check if the URL prefix /api is correct and if the endpoint exists.'
+    success: false,
+    message: `API Route not found: ${req.method} ${req.originalUrl}`
   });
 });
 
-// Error Handling Middleware
-app.use((err: any, req: Request, res: Response, next: any) => {
-  console.error('[SERVER_ERROR]', err);
-  res.status(err.status || 500).json({
-    message: err.message || 'Internal Server Error',
-    error: config.isProduction ? {} : err
-  });
+app.use(errorHandler);
+
+// --- Server Lifecycle ---
+const server = app.listen(config.port, '0.0.0.0', () => {
+  console.log(`🚀 BACKEND READY: Port ${config.port} | Env: ${config.nodeEnv}`);
 });
 
-// Start server
-app.listen(config.port, '0.0.0.0', () => {
-  console.log(`🚀 BACKEND READY: Server running on port ${config.port} in ${config.nodeEnv} mode`);
-  console.log('=== REGISTERED ROUTES ===');
-  console.log('POST /api/team/tasks - Tasks');
-  console.log('GET /api/team/tasks - Tasks');
-  console.log('GET /api/team/clients - Clients');
-  console.log('========================');
+// Graceful Shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    console.log('Process terminated.');
+  });
 });
