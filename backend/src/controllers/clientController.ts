@@ -47,15 +47,19 @@ export const createClient = async (req: Request, res: Response) => {
 
     // 1. Provision Workspace
     const workspaceId = uuidv4();
+    const clientId = uuidv4();
+    const slug = (companyName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
+    
     await db.insert(workspaces).values({
       id: workspaceId,
       tenantId,
-      name,
-      slug: name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      clientId: clientId,
+      clientName: name,
+      name: companyName || name,
+      slug,
     });
 
     // 2. Create Client
-    const clientId = uuidv4();
     const newClient = {
       id: clientId,
       tenantId,
