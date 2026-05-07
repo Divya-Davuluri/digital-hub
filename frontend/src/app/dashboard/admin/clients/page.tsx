@@ -48,8 +48,8 @@ export default function AdminClientsPage() {
       setShowAddModal(false);
       setNewClient({ clientName: '', contactEmail: '', companyName: '' });
       fetchClients();
-    } catch (err) {
-      alert("Failed to add client");
+    } catch (err: any) {
+      alert(err.message || "Failed to add client");
     } finally {
       setSubmitting(false);
     }

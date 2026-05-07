@@ -128,10 +128,12 @@ export const getClients = asyncHandler(async (req: Request, res: Response) => {
   // Clients only see themselves (or their assigned workspace info)
   // Admins see all clients in the tenant
   const allClients = await db.all(sql`
-    SELECT * FROM clients 
-    WHERE tenant_id = ${tenantId}
-    ${role === 'client' ? sql`AND workspace_id = ${workspaceId}` : sql``}
-    ORDER BY created_at DESC
+    SELECT c.*, w.slug as workspace_slug
+    FROM clients c
+    LEFT JOIN workspaces w ON c.workspace_id = w.id
+    WHERE c.tenant_id = ${tenantId}
+    ${role === 'client' ? sql`AND c.workspace_id = ${workspaceId}` : sql``}
+    ORDER BY c.created_at DESC
   `);
 
   res.json({ success: true, clients: allClients });
@@ -143,19 +145,30 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
 
   if (!name || !email) throw new AppError('Name and Email are required', 400);
 
+  // Check if email already exists
+  const existingUser = await db.query.users.findFirst({
+    where: eq(users.email, email.toLowerCase())
+  });
+
+  if (existingUser) {
+    throw new AppError('Email already registered', 400);
+  }
+
   // 1. Create Workspace Automatically
   const workspaceId = uuidv4();
+  const clientId = uuidv4();
   const slug = (companyName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
   
   await db.insert(workspaces).values({
     id: workspaceId,
     tenantId,
+    clientId: clientId,
+    clientName: name,
     name: companyName || name,
     slug,
   });
 
   // 2. Create Client record linked to workspace
-  const clientId = uuidv4();
   await db.insert(clients).values({
     id: clientId,
     tenantId,

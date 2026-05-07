@@ -16,7 +16,7 @@ export const getClients = asyncHandler(async (req: any, res: Response) => {
     const result = await db.all(sql`
       SELECT c.*, w.slug as workspace_slug
       FROM clients c
-      JOIN workspaces w ON c.workspace_id = w.id
+      LEFT JOIN workspaces w ON c.workspace_id = w.id
       WHERE c.tenant_id = ${tenantId}
       ORDER BY c.created_at DESC
     `);
@@ -38,19 +38,30 @@ export const createClient = asyncHandler(async (req: any, res: Response) => {
     throw new AppError('Name and email are required', 400);
   }
 
+  // Check if email already exists
+  const existingUser = await db.query.users.findFirst({
+    where: eq(users.email, email.toLowerCase())
+  });
+
+  if (existingUser) {
+    throw new AppError('Email already registered', 400);
+  }
+
   // 1. Create Workspace
   const workspaceId = uuidv4();
+  const clientId = uuidv4();
   const slug = (companyName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
   
   await db.insert(workspaces).values({
     id: workspaceId,
     tenantId,
+    clientId: clientId,
+    clientName: name,
     name: companyName || name,
     slug,
   });
 
   // 2. Create Client Record
-  const clientId = uuidv4();
   await db.insert(clients).values({
     id: clientId,
     tenantId,

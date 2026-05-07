@@ -22,6 +22,8 @@ export const tenants = sqliteTable('tenants', {
 export const workspaces = sqliteTable('workspaces', {
   id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  clientId: text('client_id'), // Legacy support
+  clientName: text('client_name'), // Legacy support
   name: text('name').notNull(),
   slug: text('slug').notNull(),
   logo: text('logo'),

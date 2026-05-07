@@ -50,6 +50,8 @@ router.post('/onboarding/client', authMiddleware, authorize('admin'), asyncHandl
   await db.insert(workspaces).values({
     id: workspaceId,
     tenantId,
+    clientId: clientId,
+    clientName: fullName,
     name: companyName || fullName,
     slug: (companyName || fullName).toLowerCase().replace(/[^a-z0-9]/g, '-'),
   });
