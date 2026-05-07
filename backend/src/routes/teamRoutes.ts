@@ -197,6 +197,12 @@ router.get('/campaigns', authMiddleware,
       success: true,
       campaigns: campaigns || []
     });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      campaigns: [],
+      error: error.message
+    });
   }
 });
 
