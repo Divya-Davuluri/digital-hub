@@ -2,7 +2,7 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as FacebookStrategy } from 'passport-facebook';
 import { db } from '../db';
-import { users, tenants } from '../db/schema';
+import { users, tenants, workspaces } from '../db/schema';
 import { eq, or, and } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -31,18 +31,26 @@ export const configurePassport = () => {
       } else {
         const userId = uuidv4();
         const tenantId = uuidv4();
+        const workspaceId = uuidv4();
         const subdomain = profile.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).substring(2, 7);
 
-        // Create a new tenant for social registration
         await db.insert(tenants).values({
           id: tenantId,
           name: `${profile.displayName}'s Agency`,
           subdomain,
         });
 
+        await db.insert(workspaces).values({
+          id: workspaceId,
+          tenantId,
+          name: 'Main Workspace',
+          slug: 'main',
+        });
+
         await db.insert(users).values({
           id: userId,
           tenantId,
+          workspaceId,
           name: profile.displayName,
           email: email,
           provider: 'google',
@@ -52,7 +60,15 @@ export const configurePassport = () => {
         user = await db.query.users.findFirst({ where: eq(users.id, userId) });
       }
 
-      return done(null, { id: user?.id, twoFactorEnabled: user?.twoFactorEnabled === 1 });
+      if (!user) return done(new Error('User creation failed'), undefined);
+
+      return done(null, { 
+        id: user.id, 
+        role: user.role as any, 
+        tenantId: user.tenantId, 
+        workspaceId: user.workspaceId,
+        twoFactorEnabled: user.twoFactorEnabled === 1 
+      });
     } catch (error) {
       return done(error, undefined);
     }
@@ -83,18 +99,26 @@ export const configurePassport = () => {
       } else {
         const userId = uuidv4();
         const tenantId = uuidv4();
+        const workspaceId = uuidv4();
         const subdomain = profile.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).substring(2, 7);
 
-        // Create a new tenant for social registration
         await db.insert(tenants).values({
           id: tenantId,
           name: `${profile.displayName}'s Agency`,
           subdomain,
         });
 
+        await db.insert(workspaces).values({
+          id: workspaceId,
+          tenantId,
+          name: 'Main Workspace',
+          slug: 'main',
+        });
+
         await db.insert(users).values({
           id: userId,
           tenantId,
+          workspaceId,
           name: profile.displayName,
           email: email,
           provider: 'facebook',
@@ -104,7 +128,15 @@ export const configurePassport = () => {
         user = await db.query.users.findFirst({ where: eq(users.id, userId) });
       }
 
-      return done(null, { id: user?.id, twoFactorEnabled: user?.twoFactorEnabled === 1 });
+      if (!user) return done(new Error('User creation failed'), undefined);
+
+      return done(null, { 
+        id: user.id, 
+        role: user.role as any, 
+        tenantId: user.tenantId, 
+        workspaceId: user.workspaceId,
+        twoFactorEnabled: user.twoFactorEnabled === 1 
+      });
     } catch (error) {
       return done(error, undefined);
     }

@@ -1,21 +1,21 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { db } from '../db';
 import { tasks } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
-import { AuthRequest } from '../middleware/authMiddleware';
+import { eq, and, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
-export const getTasks = async (req: AuthRequest, res: Response) => {
+export const getTasks = async (req: Request, res: Response) => {
   try {
-    const tenantId = req.user.tenantId;
-    console.log(`📡 FETCHING TASKS - Tenant: ${tenantId}`);
+    const { tenantId, workspaceId, role } = req.user as any;
+    const targetWorkspaceId = workspaceId || req.query.workspaceId;
 
     const allTasks = await db.query.tasks.findMany({
-      where: eq(tasks.tenantId, tenantId),
+      where: targetWorkspaceId 
+        ? and(eq(tasks.tenantId, tenantId), eq(tasks.workspaceId, targetWorkspaceId))
+        : eq(tasks.tenantId, tenantId),
       orderBy: (tasks, { desc }) => [desc(tasks.createdAt)],
     });
 
-    console.log(`✅ SUCCESS - Found ${allTasks.length} tasks`);
     res.json(allTasks);
   } catch (err: any) {
     console.error('[GET_TASKS_ERROR]', err);
@@ -23,42 +23,41 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const createTask = async (req: AuthRequest, res: Response) => {
+export const createTask = async (req: Request, res: Response) => {
   try {
-    const { title, description, priority, assignedTo } = req.body;
-    const tenantId = req.user.tenantId;
-    const userId = req.user.id;
+    const { title, description, priority, assignedTo, workspaceId: bodyWorkspaceId } = req.body;
+    const { tenantId, id: userId, workspaceId: tokenWorkspaceId } = req.user as any;
+    
+    const targetWorkspaceId = tokenWorkspaceId || bodyWorkspaceId;
 
-    console.log(`📝 CREATING TASK - User: ${userId}, Tenant: ${tenantId}`);
+    if (!title) return res.status(400).json({ message: 'Title is required' });
+    if (!targetWorkspaceId) return res.status(400).json({ message: 'Workspace context required' });
 
-    if (!title) {
-      return res.status(400).json({ message: 'Title is required' });
-    }
-
-    const newTask = await db.insert(tasks).values({
+    const newTask = {
       id: uuidv4(),
       tenantId,
+      workspaceId: targetWorkspaceId,
       title,
       description,
       priority: priority || 'medium',
       status: 'todo',
       assignedTo: assignedTo || userId,
       createdBy: userId,
-    }).returning();
+    };
 
-    console.log(`✅ SUCCESS - Task saved:`, newTask[0].id);
-    res.status(201).json(newTask[0]);
+    await db.insert(tasks).values([newTask] as any);
+    res.status(201).json(newTask);
   } catch (err: any) {
     console.error('[CREATE_TASK_ERROR]', err);
     res.status(500).json({ message: 'Failed to create task' });
   }
 };
 
-export const updateTaskStatus = async (req: AuthRequest, res: Response) => {
+export const updateTaskStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const tenantId = req.user.tenantId;
+    const { tenantId } = req.user as any;
 
     await db.update(tasks)
       .set({ status })

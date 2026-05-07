@@ -7,7 +7,7 @@ import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { db } from '../db';
-import { users, backupCodes, sessions, resetTokens, tenants } from '../db/schema';
+import { users, backupCodes, sessions, resetTokens, tenants, workspaces } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { encrypt, decrypt } from '../utils/crypto';
 import { getCookieOptions } from '../config/cookies';
@@ -32,9 +32,9 @@ const validate2FASchema = z.object({
 });
 
 // --- Token Utility ---
-export const generateTokens = async (userId: string, role: string, tenantId: string, clientId?: string | null) => {
+export const generateTokens = async (userId: string, role: string, tenantId: string, workspaceId?: string | null) => {
   const token = jwt.sign(
-    { userId, role, tenantId, clientId }, 
+    { userId, role, tenantId, workspaceId }, 
     config.jwtSecret, 
     { expiresIn: '2h' }
   );
@@ -48,6 +48,7 @@ export const generateTokens = async (userId: string, role: string, tenantId: str
   await db.insert(sessions).values({
     userId,
     tenantId,
+    workspaceId: workspaceId || null,
     refreshToken,
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   });
@@ -75,15 +76,27 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 
   const subdomain = name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).substring(2, 7);
   
+  // 1. Create Tenant (Agency)
   await db.insert(tenants).values({
     id: tenantId,
     name: `${name}'s Agency`,
     subdomain,
   });
 
+  // 2. Create Default Workspace for Admin
+  const workspaceId = uuidv4();
+  await db.insert(workspaces).values({
+    id: workspaceId,
+    tenantId,
+    name: 'Main Workspace',
+    slug: 'main',
+  });
+
+  // 3. Create User linked to Tenant and Workspace
   await db.insert(users).values({
     id: userId,
     tenantId,
+    workspaceId,
     name,
     email,
     password: hashedPassword,
@@ -91,7 +104,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     role: 'admin', 
   });
 
-  const { token, refreshToken } = await generateTokens(userId, 'admin', tenantId, null);
+  const { token, refreshToken } = await generateTokens(userId, 'admin', tenantId, workspaceId);
   
   const cookieOptions = getCookieOptions(7);
   res.cookie('token', token, cookieOptions);
@@ -101,7 +114,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     success: true,
     token, 
     refreshToken, 
-    user: { id: userId, email, name, role: 'admin', tenantId } 
+    user: { id: userId, email, name, role: 'admin', tenantId, workspaceId } 
   });
 });
 
@@ -126,7 +139,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     return res.json({ success: true, status: "2FA_REQUIRED", userId: user.id });
   }
 
-  const { token, refreshToken } = await generateTokens(user.id, user.role, user.tenantId || '', user.clientId);
+  const { token, refreshToken } = await generateTokens(user.id, user.role, user.tenantId, user.workspaceId);
   
   const cookieOptions = getCookieOptions(7);
   res.cookie('token', token, cookieOptions);
@@ -143,7 +156,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       email: user.email, 
       name: user.name, 
       role: user.role, 
-      tenantId: user.tenantId 
+      tenantId: user.tenantId,
+      workspaceId: user.workspaceId
     } 
   });
 });
@@ -189,7 +203,7 @@ export const validate2FA = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError('Invalid or expired code', 400);
   }
 
-  const { token: accessToken, refreshToken } = await generateTokens(user.id, user.role, user.tenantId || '');
+  const { token: accessToken, refreshToken } = await generateTokens(user.id, user.role, user.tenantId, user.workspaceId);
   
   const cookieOptions = getCookieOptions(7);
   res.cookie('token', accessToken, cookieOptions);
@@ -206,7 +220,8 @@ export const validate2FA = asyncHandler(async (req: Request, res: Response) => {
       email: user.email, 
       name: user.name, 
       role: user.role, 
-      tenantId: user.tenantId 
+      tenantId: user.tenantId,
+      workspaceId: user.workspaceId
     } 
   });
 });
@@ -222,13 +237,13 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
   const user = await db.query.users.findFirst({ where: eq(users.id, decoded.userId) });
   if (!user) throw new AppError('User no longer exists', 401);
   
-  const newTokens = await generateTokens(user.id, user.role, user.tenantId || '');
+  const newTokens = await generateTokens(user.id, user.role, user.tenantId, user.workspaceId);
   await db.delete(sessions).where(eq(sessions.id, session.id));
   res.json({ success: true, ...newTokens });
 });
 
 export const updateProfile = asyncHandler(async (req: any, res: Response) => {
-  const validated = req.body; // Simple update for now
+  const validated = req.body; 
   const userId = req.user.id;
   await db.update(users).set(validated).where(eq(users.id, userId));
   const updatedUser = await db.query.users.findFirst({ where: eq(users.id, userId) });
@@ -307,4 +322,10 @@ export const disable2FA_Dev = asyncHandler(async (req: Request, res: Response) =
   const { email } = req.body;
   await db.update(users).set({ twoFactorEnabled: 0, twoFactorSecret: null }).where(eq(users.email, email));
   res.json({ success: true, message: '2FA disabled (DEV MODE)' });
+});
+
+export const logout = asyncHandler(async (req: any, res: Response) => {
+  res.clearCookie('token');
+  res.clearCookie('refreshToken');
+  res.json({ success: true, message: 'Logged out successfully' });
 });

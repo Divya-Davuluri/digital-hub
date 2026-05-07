@@ -2,7 +2,7 @@ import express from 'express';
 import { db } from '../db';
 import { users, clients, workspaces } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { authMiddleware, authorize, AuthRequest } from '../middleware/authMiddleware';
+import { authMiddleware, authorize } from '../middleware/authMiddleware';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { asyncHandler, AppError } from '../utils/errors';
@@ -10,8 +10,8 @@ import { asyncHandler, AppError } from '../utils/errors';
 const router = express.Router();
 
 // GET /api/admin/team-members
-router.get('/team-members', authMiddleware, authorize('admin'), asyncHandler(async (req: AuthRequest, res: express.Response) => {
-  const tenantId = req.user.tenantId;
+router.get('/team-members', authMiddleware, authorize('admin'), asyncHandler(async (req: express.Request, res: express.Response) => {
+  const { tenantId } = req.user as any;
   const teamMembers = await db.query.users.findMany({
     where: and(
       eq(users.tenantId, tenantId),
@@ -26,86 +26,57 @@ router.get('/team-members', authMiddleware, authorize('admin'), asyncHandler(asy
   res.json(teamMembers);
 }));
 
-// GET /api/admin/onboarding/check-email
-router.get('/onboarding/check-email', authMiddleware, authorize('admin'), asyncHandler(async (req: AuthRequest, res: express.Response) => {
-  const email = req.query.email as string;
-  if (!email) throw new AppError('Email query parameter is required', 400);
-  
-  const existingUser = await db.query.users.findFirst({
-    where: eq(users.email, email.toLowerCase())
-  });
-  
-  res.json({ exists: !!existingUser });
-}));
-
 // POST /api/admin/onboarding/client
-router.post('/onboarding/client', authMiddleware, authorize('admin'), asyncHandler(async (req: AuthRequest, res: express.Response) => {
-  const { fullName, email, companyName, phone, plan, assignedTeamMemberId, sendWelcomeEmail } = req.body;
-  const tenantId = req.user.tenantId;
+router.post('/onboarding/client', authMiddleware, authorize('admin'), asyncHandler(async (req: express.Request, res: express.Response) => {
+  const { fullName, email, companyName, plan, assignedTeamMemberId, sendWelcomeEmail } = req.body;
+  const { tenantId } = req.user as any;
 
-  if (!fullName || !email) {
-    throw new AppError('Name and email are required', 400);
-  }
+  if (!fullName || !email) throw new AppError('Name and email are required', 400);
 
-  // 1. Check if email exists
   const existingUser = await db.query.users.findFirst({
     where: eq(users.email, email.toLowerCase())
   });
 
-  if (existingUser) {
-    throw new AppError('Email already registered', 400);
-  }
+  if (existingUser) throw new AppError('Email already registered', 400);
 
-  // 2. Generate random password
   const temporaryPassword = Math.random().toString(36).slice(-8) + 'A1!';
-
-  // 3. Hash password
   const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
 
   const userId = randomUUID();
-  const newClientId = randomUUID();
-  const newWorkspaceId = randomUUID();
+  const clientId = randomUUID();
+  const workspaceId = randomUUID();
 
-  // 4. Create user
+  // 1. Create Workspace
+  await db.insert(workspaces).values({
+    id: workspaceId,
+    tenantId,
+    name: companyName || fullName,
+    slug: (companyName || fullName).toLowerCase().replace(/[^a-z0-9]/g, '-'),
+  });
+
+  // 2. Create User linked to Workspace
   await db.insert(users).values({
     id: userId,
     tenantId,
+    workspaceId,
     name: fullName,
     email: email.toLowerCase(),
     password: hashedPassword,
     role: 'client',
     provider: 'local',
-    twoFactorEnabled: 0,
-    createdAt: new Date().toISOString()
   });
 
-  // 5. Create client
+  // 3. Create Client linked to Workspace
   await db.insert(clients).values({
-    id: newClientId,
+    id: clientId,
     tenantId,
-    name: companyName || fullName,
+    workspaceId,
+    name: fullName,
     email: email.toLowerCase(),
     companyName: companyName || null,
-    phone: phone || null,
-    plan: plan || 'STARTER',
-    assignedTeamMemberId: assignedTeamMemberId || null,
-    onboardingStatus: 'COMPLETED',
     status: 'active',
-    createdAt: new Date().toISOString()
   });
 
-  // 6. Create workspace
-  await db.insert(workspaces).values({
-    id: newWorkspaceId,
-    tenantId,
-    clientId: newClientId,
-    clientName: fullName,
-    plan: plan || 'STARTER',
-    status: 'ACTIVE',
-    createdAt: new Date().toISOString()
-  });
-
-  // 7. Email Logging
   if (sendWelcomeEmail) {
     console.log('📧 Welcome Email Details:', { To: email, Password: temporaryPassword });
   }
@@ -113,32 +84,28 @@ router.post('/onboarding/client', authMiddleware, authorize('admin'), asyncHandl
   res.json({
     success: true,
     client: {
-      id: newClientId,
+      id: clientId,
       name: fullName,
       email: email,
-      plan: plan || 'STARTER',
-      temporaryPassword: temporaryPassword,
-      workspaceId: newWorkspaceId,
-      loginUrl: '/login'
+      temporaryPassword,
+      workspaceId,
     }
   });
 }));
 
 // GET /api/admin/clients
-router.get('/clients', authMiddleware, authorize('admin'), asyncHandler(async (req: AuthRequest, res: express.Response) => {
-  const tenantId = req.user.tenantId;
+router.get('/clients', authMiddleware, authorize('admin'), asyncHandler(async (req: express.Request, res: express.Response) => {
+  const { tenantId } = req.user as any;
 
   const results = await db.all(sql`
-    SELECT id, name, email, company_name, status
-    FROM clients
-    WHERE tenant_id = ${tenantId}
-    ORDER BY name ASC
+    SELECT c.*, w.slug as workspace_slug
+    FROM clients c
+    JOIN workspaces w ON c.workspace_id = w.id
+    WHERE c.tenant_id = ${tenantId}
+    ORDER BY c.name ASC
   `);
 
-  res.json({
-    success: true,
-    clients: results || []
-  });
+  res.json({ success: true, clients: results || [] });
 }));
 
 export default router;

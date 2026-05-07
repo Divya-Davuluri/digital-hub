@@ -10,6 +10,7 @@ interface User {
   email: string;
   role: 'admin' | 'team' | 'client';
   tenantId: string;
+  workspaceId?: string | null;
 }
 
 interface AuthContextType {

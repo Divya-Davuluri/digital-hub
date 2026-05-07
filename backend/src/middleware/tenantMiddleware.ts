@@ -1,10 +1,12 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
 import { tenants } from '../db/schema';
 import { eq } from 'drizzle-orm';
-import { AuthRequest } from './authMiddleware';
 
-export const tenantMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
+/**
+ * Middleware to detect tenant from subdomain or query params
+ */
+export const tenantMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   const host = req.headers.host || '';
   const parts = host.split('.');
   
@@ -36,9 +38,3 @@ export const tenantMiddleware = async (req: AuthRequest, res: Response, next: Ne
 
   next();
 };
-
-declare module './authMiddleware' {
-  interface AuthRequest {
-    tenantId?: string;
-  }
-}

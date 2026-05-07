@@ -1,5 +1,5 @@
-import { Router, Response } from 'express';
-import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
+import { Router, Request, Response } from 'express';
+import { authMiddleware } from '../middleware/authMiddleware';
 import { getProjects, createProject } from '../controllers/projectController';
 import { sql } from 'drizzle-orm';
 import { db } from '../db';
@@ -8,13 +8,15 @@ import { asyncHandler, AppError } from '../utils/errors';
 const router = Router();
 
 // GET /api/projects/clients
-router.get('/clients', authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
-  const tenantId = req.user.tenantId;
+router.get('/clients', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
+  const { tenantId, workspaceId, role } = req.user as any;
 
+  // Strict isolation for clients
   const clients = await db.all(sql`
     SELECT id, name, email, company_name, status
     FROM clients
     WHERE tenant_id = ${tenantId}
+    ${(role === 'client' && workspaceId) ? sql`AND workspace_id = ${workspaceId}` : sql``}
     ORDER BY name ASC
   `);
 
@@ -31,20 +33,18 @@ router.get('/', authMiddleware, getProjects);
 router.post('/', authMiddleware, createProject);
 
 // GET /api/projects/:id - Detail
-router.get('/:id', authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/:id', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
   let { id } = req.params;
   if (id && id.endsWith('/')) id = id.slice(0, -1);
 
-  const tenantId = req.user.tenantId;
+  const { tenantId, workspaceId, role } = req.user as any;
 
   const projectResult = await db.all(sql`
-    SELECT 
-      p.*,
-      COALESCE(p.client_name, c.name, 'No Client Assigned') as client_name
+    SELECT p.*
     FROM projects p
-    LEFT JOIN clients c ON c.id = p.client_id
     WHERE p.id = ${id}
     AND p.tenant_id = ${tenantId}
+    ${(role === 'client' && workspaceId) ? sql`AND p.workspace_id = ${workspaceId}` : sql``}
     LIMIT 1
   `);
 

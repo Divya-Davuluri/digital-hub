@@ -1,31 +1,30 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { db } from '../db';
-import { AuthRequest } from '../middleware/authMiddleware';
 
-export const getDocuments = async (req: AuthRequest, res: Response) => {
+export const getDocuments = async (req: Request, res: Response) => {
   res.json([]);
 };
 
-export const getDocumentById = async (req: AuthRequest, res: Response) => {
+export const getDocumentById = async (req: Request, res: Response) => {
   res.json({});
 };
 
-export const createDocument = async (req: AuthRequest, res: Response) => {
+export const createDocument = async (req: Request, res: Response) => {
   res.status(201).json({ message: 'Created' });
 };
 
-export const updateDocument = async (req: AuthRequest, res: Response) => {
+export const updateDocument = async (req: Request, res: Response) => {
   res.json({ message: 'Updated' });
 };
 
-export const deleteDocument = async (req: AuthRequest, res: Response) => {
+export const deleteDocument = async (req: Request, res: Response) => {
   res.json({ message: 'Deleted' });
 };
 
-export const getDocumentVersions = async (req: AuthRequest, res: Response) => {
+export const getDocumentVersions = async (req: Request, res: Response) => {
   res.json([]);
 };
 
-export const restoreDocumentVersion = async (req: AuthRequest, res: Response) => {
+export const restoreDocumentVersion = async (req: Request, res: Response) => {
   res.json({ message: 'Restored' });
 };

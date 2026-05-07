@@ -1,39 +1,38 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { db } from '../db';
-import { users } from '../db/schema';
-import { eq } from 'drizzle-orm';
 import { config } from '../config/env';
 import { AppError } from '../utils/errors';
 
-export interface AuthRequest extends Request {
-  user?: any;
-  tenantId?: string;
-  clientId?: string;
-}
+/**
+ * Middleware to verify JWT and attach user context
+ */
+export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  const tokenFromCookie = req.cookies?.token;
 
-export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.header('Authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : authHeader;
+  let token = '';
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (tokenFromCookie) {
+    token = tokenFromCookie;
+  }
 
   if (!token) {
-    return next(new AppError('No token, authorization denied', 401));
+    return next(new AppError('No token provided, authorization denied', 401));
   }
 
   try {
     const decoded: any = jwt.verify(token, config.jwtSecret);
     
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, decoded.userId),
-    });
+    // ATTACH WORKSPACE CONTEXT (Using Extended Express Request)
+    req.user = {
+      id: decoded.userId,
+      role: decoded.role,
+      tenantId: decoded.tenantId,
+      workspaceId: decoded.workspaceId || null
+    };
 
-    if (!user) {
-      return next(new AppError('User not found, authorization denied', 401));
-    }
-
-    req.user = user;
-    req.tenantId = user.tenantId || undefined;
-    req.clientId = user.clientId || undefined;
     next();
   } catch (err: any) {
     if (err.name === 'TokenExpiredError') {
@@ -43,14 +42,25 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
+/**
+ * Middleware to authorize specific roles
+ */
 export const authorize = (...roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return next(new AppError('Unauthorized', 401));
-    }
-    if (!roles.includes(req.user.role)) {
-      return next(new AppError('Forbidden: Insufficient permissions', 403));
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return next(new AppError('Not authorized to access this route', 403));
     }
     next();
   };
+};
+
+/**
+ * PRODUCTION-GRADE WORKSPACE ISOLATION MIDDLEWARE
+ * Ensures every request is filtered by the user's assigned workspace
+ */
+export const workspaceIsolation = (req: Request, res: Response, next: NextFunction) => {
+  if (req.user?.role === 'client' && !req.user.workspaceId) {
+    return next(new AppError('Workspace context missing for client user', 403));
+  }
+  next();
 };

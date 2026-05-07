@@ -1,25 +1,25 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { db } from '../db';
 import { campaigns, clients, tasks } from '../db/schema';
 import { eq, sql, and } from 'drizzle-orm';
-import { AuthRequest } from '../middleware/authMiddleware';
 
 /**
  * GET /api/dashboard/summary
- * Provides aggregated KPIs across all campaigns for the tenant.
+ * Provides aggregated KPIs filtered by Workspace for Multi-Tenant Isolation.
  */
-export const getDashboardSummary = async (req: AuthRequest, res: Response) => {
+export const getDashboardSummary = async (req: Request, res: Response) => {
   try {
-    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
+    const { tenantId, workspaceId, role } = req.user as any;
+    const targetWorkspaceId = workspaceId || req.query.workspaceId;
     
-    if (!tenantId) {
-      console.error('❌ DASHBOARD SUMMARY ERROR - No Tenant ID found');
-      return res.status(400).json({ message: 'Tenant context missing' });
+    if (!tenantId) return res.status(400).json({ message: 'Tenant context missing' });
+    
+    // STRICT ISOLATION: Clients MUST have a workspace context
+    if (role === 'client' && !targetWorkspaceId) {
+      return res.status(403).json({ message: 'Unauthorized: Workspace context required' });
     }
 
-    console.log(`📊 FETCHING DASHBOARD SUMMARY - Tenant: ${tenantId}`);
-
-    // Aggregate Campaign KPIs using unified tenant ID
+    // Aggregate Campaign KPIs
     const stats = await db
       .select({
         totalImpressions: sql<number>`sum(${campaigns.impressions})`,
@@ -29,31 +29,37 @@ export const getDashboardSummary = async (req: AuthRequest, res: Response) => {
         count: sql<number>`count(*)`,
       })
       .from(campaigns)
-      .where(sql`tenant_id = ${tenantId}`);
+      .where(targetWorkspaceId 
+        ? and(eq(campaigns.tenantId, tenantId), eq(campaigns.workspaceId, targetWorkspaceId))
+        : eq(campaigns.tenantId, tenantId)
+      );
 
     const data = stats[0] || { totalImpressions: 0, totalClicks: 0, totalSpend: 0, totalConversions: 0, count: 0 };
     
-    // ROAS Calculation: Total Value (estimated) / Total Spend
     const roas = data.totalSpend > 0 
-      ? ((Number(data.totalConversions || 0) * 125) / Number(data.totalSpend)).toFixed(2) // Valuing conversions at $125 for higher fidelity
+      ? ((Number(data.totalConversions || 0) * 125) / Number(data.totalSpend)).toFixed(2)
       : "0.00";
 
-    // Get Active Clients Count
+    // Get Active Clients Count (Isolated to Tenant)
     const clientCountRes = await db
       .select({ count: sql<number>`count(*)` })
       .from(clients)
-      .where(sql`tenant_id = ${tenantId}`);
+      .where(targetWorkspaceId 
+        ? and(eq(clients.tenantId, tenantId), eq(clients.workspaceId, targetWorkspaceId))
+        : eq(clients.tenantId, tenantId)
+      );
 
-    // Get Pending Tasks Count using unified status check
+    // Get Pending Tasks Count
     const taskCountRes = await db
       .select({ count: sql<number>`count(*)` })
       .from(tasks)
       .where(and(
-        sql`tenant_id = ${tenantId}`, 
+        eq(tasks.tenantId, tenantId),
+        targetWorkspaceId ? eq(tasks.workspaceId, targetWorkspaceId) : sql`1=1`,
         sql`status != 'COMPLETED'`
       ));
 
-    const result = {
+    res.json({
       totalImpressions: Number(data.totalImpressions || 0),
       totalClicks: Number(data.totalClicks || 0),
       totalSpend: Number(data.totalSpend || 0),
@@ -62,10 +68,7 @@ export const getDashboardSummary = async (req: AuthRequest, res: Response) => {
       clientCount: clientCountRes[0]?.count || 0,
       activeCampaigns: data.count || 0,
       pendingTasks: taskCountRes[0]?.count || 0,
-    };
-
-    console.log(`✅ DASHBOARD SYNC COMPLETE - ${result.activeCampaigns} campaigns found`);
-    res.json(result);
+    });
 
   } catch (error: any) {
     console.error('[DASHBOARD_SUMMARY_ERROR]', error);
@@ -73,13 +76,17 @@ export const getDashboardSummary = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getDashboardStats = async (req: AuthRequest, res: Response) => {
+export const getDashboardStats = async (req: Request, res: Response) => {
   try {
-    const tenantId = req.user?.tenantId || req.user?.tenant_id || req.tenantId;
+    const { tenantId, workspaceId, role } = req.user as any;
+    const targetWorkspaceId = workspaceId || req.query.workspaceId;
 
     if (!tenantId) return res.status(400).json({ message: 'Tenant context missing' });
+    if (role === 'client' && !targetWorkspaceId) {
+      return res.status(403).json({ message: 'Unauthorized: Workspace context required' });
+    }
 
-    // Group by channel using unified tenant ID
+    // Group by channel
     const channelStats = await db
       .select({
         channel: campaigns.channel,
@@ -87,7 +94,10 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         conversions: sql<number>`sum(${campaigns.conversions})`,
       })
       .from(campaigns)
-      .where(sql`tenant_id = ${tenantId}`)
+      .where(targetWorkspaceId 
+        ? and(eq(campaigns.tenantId, tenantId), eq(campaigns.workspaceId, targetWorkspaceId))
+        : eq(campaigns.tenantId, tenantId)
+      )
       .groupBy(campaigns.channel);
 
     res.json(channelStats);
@@ -96,4 +106,3 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: 'Failed to fetch dashboard stats' });
   }
 };
-
