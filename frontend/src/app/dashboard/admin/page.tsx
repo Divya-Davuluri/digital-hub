@@ -63,75 +63,75 @@ export default function AdminDashboard() {
         <div className="flex-1 ml-[260px]">
           <Header />
           <main className="p-8">
-
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
-              <p className="text-slate-500">Overview of all client performance and agency health.</p>
-            </div>
-            <div className="flex gap-4">
-              <button 
-                onClick={() => handleExport('csv')}
-                disabled={exporting}
-                className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                Export CSV
-              </button>
-              <button 
-                onClick={() => handleExport('pdf')}
-                disabled={exporting}
-                style={{ backgroundColor: primaryColor }}
-                className="px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                Export PDF
-              </button>
-            </div>
-          </div>
-
-          {/* KPI Summary Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <KpiCard title="Total Spend" value={`$${summary?.totalSpend.toLocaleString()}`} trend="+12.5%" />
-            <KpiCard title="Conversions" value={summary?.totalConversions.toLocaleString()} trend="+8.2%" />
-            <KpiCard title="Avg ROAS" value={`${summary?.avgRoas.toFixed(2)}x`} trend="+4.1%" />
-            <KpiCard title="Active Campaigns" value={summary?.activeCampaigns} trend="Steady" />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Channel Performance Chart (Simplified SVG) */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-              <h3 className="text-lg font-bold mb-6">Channel Performance</h3>
-              <div className="space-y-6">
-                {stats.map((stat) => (
-                  <div key={stat.channel}>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="capitalize font-medium">{stat.channel}</span>
-                      <span className="text-slate-500">${stat.spend.toLocaleString()}</span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-indigo-500 rounded-full" 
-                        style={{ width: `${(stat.spend / (summary?.totalSpend || 1)) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
+                <p className="text-slate-500">Overview of all client performance and agency health.</p>
+              </div>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => handleExport('csv')}
+                  disabled={exporting}
+                  className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  Export CSV
+                </button>
+                <button 
+                  onClick={() => handleExport('pdf')}
+                  disabled={exporting}
+                  style={{ backgroundColor: primaryColor }}
+                  className="px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  Export PDF
+                </button>
               </div>
             </div>
 
-            {/* Quick Actions / Recent Activity */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-              <h3 className="text-lg font-bold mb-6">Quick Actions</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <ActionCard title="Add Client" icon="👤" onClick={() => router.push('/dashboard/admin/clients')} />
-                <ActionCard title="Branding" icon="🎨" onClick={() => router.push('/dashboard/admin/branding')} />
-                <ActionCard title="Campaigns" icon="🚀" onClick={() => router.push('/projects')} />
-                <ActionCard title="Settings" icon="⚙️" onClick={() => router.push('/settings')} />
+            {/* KPI Summary Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <KpiCard title="Total Spend" value={`$${summary?.totalSpend.toLocaleString()}`} trend="+12.5%" />
+              <KpiCard title="Conversions" value={summary?.totalConversions.toLocaleString()} trend="+8.2%" />
+              <KpiCard title="Avg ROAS" value={`${summary?.avgRoas.toFixed(2)}x`} trend="+4.1%" />
+              <KpiCard title="Active Campaigns" value={summary?.activeCampaigns} trend="Steady" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Channel Performance Chart */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                <h3 className="text-lg font-bold mb-6">Channel Performance</h3>
+                <div className="space-y-6">
+                  {stats.map((stat) => (
+                    <div key={stat.channel}>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="capitalize font-medium">{stat.channel}</span>
+                        <span className="text-slate-500">${stat.spend.toLocaleString()}</span>
+                      </div>
+                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-indigo-500 rounded-full" 
+                          style={{ width: `${(stat.spend / (summary?.totalSpend || 1)) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                <h3 className="text-lg font-bold mb-6">Quick Actions</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <ActionCard title="Add Client" icon="👥" onClick={() => router.push('/dashboard/admin/clients')} />
+                  <ActionCard title="Branding" icon="🎨" onClick={() => router.push('/dashboard/admin/branding')} />
+                  <ActionCard title="Campaigns" icon="🚀" onClick={() => router.push('/dashboard/admin/campaigns')} />
+                  <ActionCard title="Settings" icon="⚙️" onClick={() => router.push('/dashboard/admin/settings')} />
+                </div>
               </div>
             </div>
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     </RoleGuard>
   );

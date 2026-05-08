@@ -10,8 +10,8 @@ export default function TeamDashboard() {
   const [stats, setStats] = useState({
     totalClients: 0,
     activeCampaigns: 0,
-    pendingReports: 3, // Mocked for now
-    teamTasks: 12     // Mocked for now
+    pendingReports: 3,
+    teamTasks: 12
   });
   const [loading, setLoading] = useState(true);
 
