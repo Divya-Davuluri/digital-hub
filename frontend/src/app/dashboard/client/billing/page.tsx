@@ -565,26 +565,29 @@ export default function BillingPage() {
                 label: 'Cardholder Name',
                 key: 'cardName',
                 placeholder: 'John Smith',
-                type: 'text'
+                type: 'text',
+                autoComplete: 'cc-name'
               },
               {
                 label: 'Card Number',
                 key: 'cardNumber',
-                placeholder: 
-                  '•••• •••• •••• ••••',
-                type: 'text'
+                placeholder: '•••• •••• •••• ••••',
+                type: 'text',
+                autoComplete: 'cc-number'
               },
               {
                 label: 'Expiry (MM/YY)',
                 key: 'expiry',
                 placeholder: 'MM/YY',
-                type: 'text'
+                type: 'text',
+                autoComplete: 'cc-exp'
               },
               {
                 label: 'CVV',
                 key: 'cvv',
                 placeholder: '•••',
-                type: 'password'
+                type: 'password',
+                autoComplete: 'cc-csc'
               }
             ].map(field => (
               <div key={field.key}
@@ -602,6 +605,7 @@ export default function BillingPage() {
                 </label>
                 <input
                   type={field.type}
+                  autoComplete={field.autoComplete}
                   placeholder={
                     field.placeholder
                   }
