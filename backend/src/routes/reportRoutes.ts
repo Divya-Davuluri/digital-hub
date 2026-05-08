@@ -16,8 +16,6 @@ router.get('/export', authMiddleware, authorize('admin', 'team'), exportReport);
 // Client-specific report requests
 router.post('/request', authMiddleware, requestCustomReport);
 router.get('/client-pdf', authMiddleware, exportClientPDF);
-router.get('/campaigns/:campaignId/pdf', authMiddleware, exportSingleCampaignPDF);
-router.get('/:reportId/download', authMiddleware, downloadClientReport);
 
 // Admin-specific retrieval
 router.get('/requests', authMiddleware, authorize('admin', 'team'), getReportRequests);
