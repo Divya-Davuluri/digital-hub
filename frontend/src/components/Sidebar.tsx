@@ -87,9 +87,10 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
               href={item.href}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 isActive 
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+                  ? 'text-white shadow-lg shadow-indigo-600/20' 
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
+              style={isActive ? { backgroundColor: branding?.primaryColor || '#4f46e5' } : {}}
             >
               <span className="text-lg">{item.icon}</span>
               {item.name}

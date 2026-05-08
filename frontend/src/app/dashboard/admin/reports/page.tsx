@@ -53,7 +53,7 @@ export default function AdminReportsPage() {
               <div className="flex gap-4">
                 <button 
                   onClick={handleExportAll}
-                  className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-colors"
+                  className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-xs shadow-lg hover:opacity-90 transition-colors"
                 >
                   Export Agency PDF
                 </button>
@@ -103,7 +103,7 @@ export default function AdminReportsPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <button className="text-indigo-600 font-bold text-xs uppercase hover:underline">Process</button>
+                            <button className="text-primary font-bold text-xs uppercase hover:underline">Process</button>
                           </td>
                         </tr>
                       ))

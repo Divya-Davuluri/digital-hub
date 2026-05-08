@@ -94,7 +94,7 @@ export default function TeamCampaignsPage() {
               </div>
               <button 
                 onClick={() => handleOpenModal()}
-                className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-colors"
+                className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-xs shadow-lg hover:opacity-90 transition-colors"
               >
                 + Create Campaign
               </button>
@@ -124,7 +124,7 @@ export default function TeamCampaignsPage() {
                       </div>
                       <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Budget</p>
-                        <p className="font-bold text-indigo-600">${c.budget.toLocaleString()}</p>
+                        <p className="font-bold text-primary">${c.budget.toLocaleString()}</p>
                       </div>
                     </div>
                     
@@ -194,7 +194,7 @@ export default function TeamCampaignsPage() {
                       </button>
                       <button 
                         type="submit"
-                        className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-colors"
+                        className="flex-1 py-3 bg-primary text-white font-bold rounded-xl text-xs shadow-lg hover:opacity-90 transition-colors"
                       >
                         {editingCampaign ? 'Save Changes' : 'Create Campaign'}
                       </button>

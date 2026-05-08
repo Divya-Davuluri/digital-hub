@@ -108,7 +108,7 @@ export default function AdminCampaignsPage() {
                         <td className="px-6 py-4 text-right">
                           <button 
                             onClick={() => handleStatusToggle(c.id, c.status)}
-                            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-wider"
+                            className="text-xs font-bold text-primary hover:opacity-80 uppercase tracking-wider"
                           >
                             {c.status === 'active' ? 'Pause' : 'Resume'}
                           </button>
