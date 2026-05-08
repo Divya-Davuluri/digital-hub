@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authMiddleware, authorize } from '../middleware/authMiddleware';
 import { 
   getClients, createClient, updateClient, deleteClient,
-  getCampaigns, createCampaign,
+  getCampaigns, createCampaign, updateCampaign, deleteCampaign,
   getAgencyStats 
 } from '../controllers/agencyController';
 
@@ -16,5 +16,7 @@ router.patch('/clients/:id', authMiddleware, authorize('admin', 'team'), updateC
 router.delete('/clients/:id', authMiddleware, authorize('admin', 'team'), deleteClient);
 router.get('/campaigns', authMiddleware, authorize('admin', 'team', 'client'), getCampaigns);
 router.post('/campaigns', authMiddleware, authorize('admin', 'team'), createCampaign);
+router.patch('/campaigns/:id', authMiddleware, authorize('admin', 'team'), updateCampaign);
+router.delete('/campaigns/:id', authMiddleware, authorize('admin', 'team'), deleteCampaign);
 
 export default router;

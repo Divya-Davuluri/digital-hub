@@ -163,14 +163,38 @@ export const createCampaign = asyncHandler(async (req: any, res: Response) => {
   await db.run(sql`
     INSERT INTO campaigns (
       id, tenant_id, workspace_id, name, budget, 
-      status, platform, start_date, end_date, created_by, created_at
+      status, platform, start_date, end_date, created_at
     ) VALUES (
       ${campaignId}, ${tenantId}, ${targetWorkspaceId}, ${name}, ${budget}, 
-      'active', ${platform || 'google'}, ${startDate || null}, ${endDate || null}, ${userId}, ${createdAt}
+      'active', ${platform || 'google'}, ${startDate || null}, ${endDate || null}, ${createdAt}
     )
   `);
 
   res.status(201).json({ success: true, id: campaignId });
+});
+
+export const updateCampaign = asyncHandler(async (req: any, res: Response) => {
+  const { id } = req.params;
+  const { name, budget, status, platform, startDate, endDate } = req.body;
+  const { tenantId } = req.user;
+
+  await db.run(sql`
+    UPDATE campaigns 
+    SET name = ${name}, budget = ${budget}, status = ${status}, platform = ${platform}, 
+        start_date = ${startDate}, end_date = ${endDate}
+    WHERE id = ${id} AND tenant_id = ${tenantId}
+  `);
+
+  res.json({ success: true, message: 'Campaign updated successfully' });
+});
+
+export const deleteCampaign = asyncHandler(async (req: any, res: Response) => {
+  const { id } = req.params;
+  const { tenantId } = req.user;
+
+  await db.delete(campaigns).where(and(eq(campaigns.id, id), eq(campaigns.tenantId, tenantId)));
+
+  res.json({ success: true, message: 'Campaign deleted successfully' });
 });
 
 // --- Analytics ---
