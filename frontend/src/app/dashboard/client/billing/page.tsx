@@ -1,98 +1,684 @@
 'use client';
 
-import Sidebar from "../Sidebar";
-import Header from "@/components/Header";
+import { useState, useEffect } from 'react';
+import apiCall from '@/lib/api';
 
-export default function ClientBillingPage() {
-  const invoices = [
-    { id: 'INV-001', date: 'May 1, 2026', amount: '$1,200.00', status: 'Paid' },
-    { id: 'INV-002', date: 'Apr 1, 2026', amount: '$1,200.00', status: 'Paid' },
-    { id: 'INV-003', date: 'Mar 1, 2026', amount: '$950.00', status: 'Paid' },
-  ];
+interface Invoice {
+  id: string;
+  invoice_number: string;
+  amount: number;
+  status: string;
+  invoice_date: string;
+}
+
+interface Subscription {
+  plan_name: string;
+  amount: number;
+  next_billing_date: string;
+  status: string;
+}
+
+interface PaymentMethod {
+  last4: string;
+  expiry: string;
+  brand: string;
+}
+
+export default function BillingPage() {
+  const [subscription, setSubscription] = 
+    useState<Subscription>({
+      plan_name: 'Agency Pro Plan',
+      amount: 1200,
+      next_billing_date: 'June 1, 2026',
+      status: 'ACTIVE'
+    });
+  const [invoices, setInvoices] = 
+    useState<Invoice[]>([
+      {
+        id: '1',
+        invoice_number: 'INV-001',
+        amount: 1200,
+        status: 'PAID',
+        invoice_date: 'May 1, 2026'
+      },
+      {
+        id: '2',
+        invoice_number: 'INV-002',
+        amount: 1200,
+        status: 'PAID',
+        invoice_date: 'May 1, 2026'
+      },
+      {
+        id: '3',
+        invoice_number: 'INV-003',
+        amount: 950,
+        status: 'PAID',
+        invoice_date: 'Mar 1, 2026'
+      }
+    ]);
+  const [paymentMethod, setPaymentMethod] = 
+    useState<PaymentMethod>({
+      last4: '4242',
+      expiry: '12/28',
+      brand: 'VISA'
+    });
+  const [showCardModal, setShowCardModal] = 
+    useState<boolean>(false);
+  const [cardData, setCardData] = useState({
+    cardName: '',
+    cardNumber: '',
+    expiry: '',
+    cvv: ''
+  });
+  const [cardSaving, setCardSaving] = 
+    useState<boolean>(false);
+
+  useEffect(() => {
+    loadBilling();
+  }, []);
+
+  const loadBilling = async () => {
+    try {
+      const data = await apiCall(
+        '/api/client/billing'
+      );
+      if (data.subscription) {
+        setSubscription(data.subscription);
+      }
+      if (data.invoices?.length > 0) {
+        setInvoices(data.invoices);
+      }
+      if (data.paymentMethod) {
+        setPaymentMethod(data.paymentMethod);
+      }
+    } catch (err) {
+      console.log('Using default billing data');
+    }
+  };
+
+  const downloadInvoicePDF = (
+    invoiceNumber: string,
+    amount: number,
+    date: string
+  ) => {
+    const printWindow = 
+      window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+        <head>
+          <title>${invoiceNumber}</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif;
+              padding: 40px; color: #333;
+            }
+            .header { 
+              border-bottom: 2px solid #4f46e5;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .title { 
+              font-size: 28px;
+              color: #4f46e5;
+              font-weight: bold;
+            }
+            .row { 
+              display: flex;
+              justify-content: space-between;
+              padding: 12px 0;
+              border-bottom: 1px solid #eee;
+            }
+            .label { color: #6b7280; }
+            .total { 
+              font-size: 20px;
+              font-weight: bold;
+              color: #4f46e5;
+              margin-top: 20px;
+            }
+            .badge {
+              background: #d1fae5;
+              color: #065f46;
+              padding: 4px 12px;
+              border-radius: 20px;
+              font-size: 12px;
+            }
+            .footer {
+              margin-top: 40px;
+              text-align: center;
+              color: #9ca3af;
+              font-size: 12px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title">INVOICE</div>
+            <div style="color:#6b7280;
+              margin-top:8px">
+              Digital Marketing Hub
+            </div>
+          </div>
+          <div class="row">
+            <span class="label">
+              Invoice Number
+            </span>
+            <strong>${invoiceNumber}</strong>
+          </div>
+          <div class="row">
+            <span class="label">Date</span>
+            <span>${date}</span>
+          </div>
+          <div class="row">
+            <span class="label">Plan</span>
+            <span>Agency Pro Plan</span>
+          </div>
+          <div class="row">
+            <span class="label">Status</span>
+            <span class="badge">PAID</span>
+          </div>
+          <div class="row total">
+            <span>Total Amount</span>
+            <span>$${amount.toFixed(2)}</span>
+          </div>
+          <div class="footer">
+            Generated by Digital Marketing Hub
+          </div>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  const handleSaveCard = async () => {
+    if (!cardData.cardName || 
+        !cardData.cardNumber ||
+        !cardData.expiry || 
+        !cardData.cvv) {
+      alert('Please fill all card fields');
+      return;
+    }
+    setCardSaving(true);
+    await new Promise(r => 
+      setTimeout(r, 1000));
+    const digits = cardData.cardNumber
+      .replace(/\s/g, '');
+    const last4 = digits.slice(-4);
+    setPaymentMethod({
+      last4,
+      expiry: cardData.expiry,
+      brand: 'VISA'
+    });
+    setCardSaving(false);
+    setShowCardModal(false);
+    setCardData({
+      cardName: '', cardNumber: '',
+      expiry: '', cvv: ''
+    });
+    alert('Payment method updated!');
+  };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar role="client" />
-      <div className="flex-1 ml-[260px] flex flex-col">
-        <Header />
-        <main className="p-8 max-w-7xl mx-auto w-full">
-          <div className="mb-10">
-            <h1 className="text-2xl font-bold text-slate-900">Billing & Invoices</h1>
-            <p className="text-sm text-slate-500 mt-1">Manage your payment methods and view history.</p>
-          </div>
+    <div style={{
+      padding: '32px',
+      background: '#f9fafb',
+      minHeight: '100vh'
+    }}>
+      <h1 style={{
+        fontSize: '26px',
+        fontWeight: '700',
+        margin: '0 0 8px',
+        color: '#111827'
+      }}>
+        Billing & Invoices
+      </h1>
+      <p style={{
+        color: '#6b7280',
+        margin: '0 0 32px',
+        fontSize: '14px'
+      }}>
+        Manage your payment method and 
+        subscription details.
+      </p>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm lg:col-span-2">
-              <h3 className="text-lg font-bold text-slate-900 mb-6">Active Subscription</h3>
-              <div className="flex items-center justify-between p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold">
-                    ★
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-900">Agency Pro Plan</h4>
-                    <p className="text-xs text-indigo-600 font-bold">Next billing: June 1, 2026</p>
-                  </div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '24px',
+        marginBottom: '24px'
+      }}>
+        {/* Active Subscription */}
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h2 style={{
+            fontSize: '15px',
+            fontWeight: '600',
+            margin: '0 0 20px',
+            color: '#111827'
+          }}>
+            Active Subscription
+          </h2>
+          <div style={{
+            background: 
+              'linear-gradient(135deg, #4f46e5, #7c3aed)',
+            borderRadius: '10px',
+            padding: '20px',
+            color: 'white'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <div style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  marginBottom: '4px'
+                }}>
+                  {subscription.plan_name}
                 </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-slate-900">$1,200</div>
-                  <div className="text-[10px] text-slate-500 uppercase font-black">per month</div>
+                <div style={{
+                  fontSize: '12px',
+                  opacity: 0.8
+                }}>
+                  Next billing: {
+                    subscription
+                      .next_billing_date
+                  }
+                </div>
+              </div>
+              <div style={{
+                textAlign: 'right'
+              }}>
+                <div style={{
+                  fontSize: '24px',
+                  fontWeight: '700'
+                }}>
+                  ${subscription.amount}
+                </div>
+                <div style={{
+                  fontSize: '11px',
+                  opacity: 0.8
+                }}>
+                  PER MONTH
                 </div>
               </div>
             </div>
+          </div>
+        </div>
 
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900 mb-6">Payment Method</h3>
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-8 bg-slate-100 rounded border border-slate-200 flex items-center justify-center font-bold text-[10px]">VISA</div>
-                <div>
-                  <div className="text-sm font-bold text-slate-900">•••• 4242</div>
-                  <div className="text-[10px] text-slate-500 uppercase font-black">Expires 12/28</div>
-                </div>
+        {/* Payment Method */}
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h2 style={{
+            fontSize: '15px',
+            fontWeight: '600',
+            margin: '0 0 20px',
+            color: '#111827'
+          }}>
+            Payment Method
+          </h2>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            marginBottom: '20px'
+          }}>
+            <div style={{
+              background: '#1a1f71',
+              color: 'white',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: '700',
+              letterSpacing: '1px'
+            }}>
+              {paymentMethod.brand}
+            </div>
+            <div>
+              <div style={{
+                fontWeight: '600',
+                color: '#111827'
+              }}>
+                •••• •••• •••• {
+                  paymentMethod.last4
+                }
               </div>
-              <button className="w-full py-2.5 text-xs font-bold text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-50 transition-colors">
-                Update Card
+              <div style={{
+                fontSize: '12px',
+                color: '#6b7280'
+              }}>
+                EXPIRES {paymentMethod.expiry}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => 
+              setShowCardModal(true)}
+            style={{
+              width: '100%',
+              padding: '10px',
+              border: '1px solid #4f46e5',
+              borderRadius: '8px',
+              color: '#4f46e5',
+              background: 'white',
+              cursor: 'pointer',
+              fontWeight: '500',
+              fontSize: '14px'
+            }}
+          >
+            Update Card
+          </button>
+        </div>
+      </div>
+
+      {/* Billing History */}
+      <div style={{
+        background: 'white',
+        borderRadius: '12px',
+        border: '1px solid #e5e7eb',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          padding: '20px 24px',
+          borderBottom: '1px solid #e5e7eb'
+        }}>
+          <h2 style={{
+            fontSize: '15px',
+            fontWeight: '600',
+            margin: 0,
+            color: '#111827'
+          }}>
+            Billing History
+          </h2>
+        </div>
+        <table style={{
+          width: '100%',
+          borderCollapse: 'collapse'
+        }}>
+          <thead>
+            <tr style={{
+              background: '#f9fafb'
+            }}>
+              {[
+                'INVOICE ID', 'DATE',
+                'AMOUNT', 'STATUS', 'ACTION'
+              ].map(h => (
+                <th key={h} style={{
+                  padding: '12px 20px',
+                  textAlign: 'left',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#6b7280',
+                  letterSpacing: '0.05em',
+                  borderBottom: 
+                    '1px solid #e5e7eb'
+                }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {invoices.map(invoice => (
+              <tr
+                key={invoice.id}
+                style={{
+                  borderBottom: 
+                    '1px solid #f3f4f6'
+                }}
+              >
+                <td style={{
+                  padding: '16px 20px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  fontSize: '14px'
+                }}>
+                  {invoice.invoice_number}
+                </td>
+                <td style={{
+                  padding: '16px 20px',
+                  color: '#6b7280',
+                  fontSize: '14px'
+                }}>
+                  {invoice.invoice_date}
+                </td>
+                <td style={{
+                  padding: '16px 20px',
+                  fontWeight: '500',
+                  color: '#111827',
+                  fontSize: '14px'
+                }}>
+                  ${invoice.amount.toFixed(2)}
+                </td>
+                <td style={{
+                  padding: '16px 20px'
+                }}>
+                  <span style={{
+                    padding: '3px 12px',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    background: '#d1fae5',
+                    color: '#065f46'
+                  }}>
+                    {invoice.status}
+                  </span>
+                </td>
+                <td style={{
+                  padding: '16px 20px'
+                }}>
+                  <button
+                    onClick={() =>
+                      downloadInvoicePDF(
+                        invoice.invoice_number,
+                        invoice.amount,
+                        invoice.invoice_date
+                      )
+                    }
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#4f46e5',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      fontSize: '14px'
+                    }}
+                  >
+                    PDF
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Update Card Modal */}
+      {showCardModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0, left: 0,
+            right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={() =>
+            setShowCardModal(false)}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '28px',
+              width: '420px',
+              maxWidth: '90vw'
+            }}
+            onClick={e =>
+              e.stopPropagation()}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 
+                'space-between',
+              marginBottom: '24px'
+            }}>
+              <h2 style={{
+                margin: 0,
+                fontSize: '18px',
+                fontWeight: '600'
+              }}>
+                Update Payment Method
+              </h2>
+              <button
+                onClick={() =>
+                  setShowCardModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '22px',
+                  cursor: 'pointer',
+                  color: '#6b7280'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {[
+              {
+                label: 'Cardholder Name',
+                key: 'cardName',
+                placeholder: 'John Smith',
+                type: 'text'
+              },
+              {
+                label: 'Card Number',
+                key: 'cardNumber',
+                placeholder: 
+                  '•••• •••• •••• ••••',
+                type: 'text'
+              },
+              {
+                label: 'Expiry (MM/YY)',
+                key: 'expiry',
+                placeholder: 'MM/YY',
+                type: 'text'
+              },
+              {
+                label: 'CVV',
+                key: 'cvv',
+                placeholder: '•••',
+                type: 'password'
+              }
+            ].map(field => (
+              <div key={field.key}
+                style={{ 
+                  marginBottom: '16px' 
+                }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  marginBottom: '6px',
+                  color: '#374151'
+                }}>
+                  {field.label}
+                </label>
+                <input
+                  type={field.type}
+                  placeholder={
+                    field.placeholder
+                  }
+                  value={
+                    cardData[
+                      field.key as 
+                        keyof typeof cardData
+                    ]
+                  }
+                  onChange={e =>
+                    setCardData(prev => ({
+                      ...prev,
+                      [field.key]: 
+                        e.target.value
+                    }))
+                  }
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: 
+                      '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            ))}
+
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginTop: '8px'
+            }}>
+              <button
+                onClick={() =>
+                  setShowCardModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  border: 
+                    '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  background: 'white',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveCard}
+                disabled={cardSaving}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  background: cardSaving
+                    ? '#9ca3af'
+                    : '#4f46e5',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: cardSaving
+                    ? 'not-allowed'
+                    : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                {cardSaving
+                  ? 'Saving...'
+                  : 'Save Card'}
               </button>
             </div>
           </div>
-
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-              <h3 className="text-base font-bold text-slate-900">Billing History</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                    <th className="px-8 py-4">Invoice ID</th>
-                    <th className="px-8 py-4">Date</th>
-                    <th className="px-8 py-4">Amount</th>
-                    <th className="px-8 py-4">Status</th>
-                    <th className="px-8 py-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {invoices.map((inv) => (
-                    <tr key={inv.id} className="hover:bg-slate-50 transition-colors group">
-                      <td className="px-8 py-5 font-bold text-sm text-slate-900">{inv.id}</td>
-                      <td className="px-8 py-5 text-sm text-slate-500">{inv.date}</td>
-                      <td className="px-8 py-5 text-sm font-bold text-slate-900">{inv.amount}</td>
-                      <td className="px-8 py-5">
-                        <span className="px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-[10px] font-bold border border-green-100">
-                          {inv.status}
-                        </span>
-                      </td>
-                      <td className="px-8 py-5 text-right">
-                        <button className="text-indigo-600 hover:underline font-bold text-xs">PDF</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </main>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

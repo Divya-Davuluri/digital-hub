@@ -1,122 +1,206 @@
 'use client';
 
-import { useEffect, useState } from "react";
-import Sidebar from "@/components/Sidebar";
-import Header from "@/components/Header";
-import { apiFetch } from "@/lib/api";
+import { useState, useEffect } from 'react';
+import apiCall from '@/lib/api';
 
-export default function ClientCampaignsPage() {
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function ClientCampaigns() {
+  const [campaigns, setCampaigns] = 
+    useState<any[]>([]);
+  const [loading, setLoading] = 
+    useState<boolean>(true);
 
   useEffect(() => {
-    const fetchCampaigns = async () => {
-      try {
-        const data = await apiFetch("/agency/campaigns");
-        setCampaigns(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCampaigns();
+    loadCampaigns();
   }, []);
-  
-  const handleDownloadPDF = async (campaignId: string, campaignName: string) => {
+
+  const loadCampaigns = async () => {
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-3h88.onrender.com';
-      const base = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`;
-      
-      const response = await fetch(`${base}/client/campaigns/${campaignId}/pdf`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) throw new Error('Failed to download PDF');
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${campaignName.replace(/\s+/g, '-')}-report.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      setLoading(true);
+      const data = await apiCall(
+        '/api/client/campaigns'
+      );
+      setCampaigns(data.campaigns || []);
     } catch (err) {
-      console.error('Download error:', err);
-      alert('Failed to download PDF report. Please try again.');
+      console.error('Load campaigns:', err);
+      setCampaigns([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const downloadPDF = (
+    campaignName: string
+  ) => {
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(`
+        <html><head>
+          <title>${campaignName}</title>
+          <style>
+            body { font-family: Arial;
+              padding: 40px; }
+            h1 { color: #4f46e5; }
+            .row { display: flex;
+              justify-content: space-between;
+              padding: 10px 0;
+              border-bottom: 1px solid #eee; }
+          </style>
+        </head>
+        <body>
+          <h1>Campaign Report</h1>
+          <div class="row">
+            <span>Campaign</span>
+            <strong>${campaignName}</strong>
+          </div>
+          <div class="row">
+            <span>Generated</span>
+            <span>${new Date()
+              .toLocaleDateString()}</span>
+          </div>
+          <div class="row">
+            <span>Status</span>
+            <span>ACTIVE</span>
+          </div>
+        </body></html>
+      `);
+      win.document.close();
+      win.print();
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar role="client" />
-      <div className="flex-1 ml-[260px] flex flex-col">
-        <Header />
-        <main className="p-8 max-w-7xl mx-auto w-full">
-          <div className="mb-10">
-            <h1 className="text-2xl font-bold text-slate-900">Active Campaigns</h1>
-            <p className="text-sm text-slate-500 mt-1">View live status and performance metrics for your agency-managed campaigns.</p>
-          </div>
+    <div style={{
+      padding: '32px',
+      background: '#f9fafb',
+      minHeight: '100vh'
+    }}>
+      <h1 style={{
+        fontSize: '26px',
+        fontWeight: '700',
+        margin: '0 0 8px',
+        color: '#111827'
+      }}>
+        Campaign Portfolio
+      </h1>
+      <p style={{
+        color: '#6b7280',
+        margin: '0 0 24px',
+        fontSize: '14px'
+      }}>
+        View all your active campaigns 
+        and performance reports.
+      </p>
 
-          <div className="card !p-0 overflow-hidden bg-white">
-             <div className="p-6 border-b border-border">
-                <h3 className="text-base font-bold text-slate-900">Campaign Portfolio</h3>
-             </div>
-             
-             {loading ? (
-               <div className="p-12 text-center text-slate-400">Loading performance data...</div>
-             ) : campaigns.length > 0 ? (
-               <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                     <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                        <tr>
-                           <th className="px-8 py-4">Campaign</th>
-                           <th className="px-8 py-4">Budget</th>
-                           <th className="px-8 py-4">Status</th>
-                           <th className="px-8 py-4 text-right">Reports</th>
-                        </tr>
-                     </thead>
-                     <tbody className="divide-y divide-slate-100">
-                        {campaigns.map((c) => (
-                           <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="px-8 py-5">
-                                 <span className="font-semibold text-sm text-slate-900">{c.name}</span>
-                              </td>
-                              <td className="px-8 py-5 text-sm font-bold text-slate-700">${c.budget.toLocaleString()}</td>
-                              <td className="px-8 py-5">
-                                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tighter border ${
-                                    c.status === 'active' 
-                                       ? 'bg-green-50 text-green-700 border-green-100' 
-                                       : 'bg-amber-50 text-amber-700 border-amber-100'
-                                 }`}>
-                                    {c.status}
-                                 </span>
-                              </td>
-                               <td className="px-8 py-5 text-right">
-                                 <button 
-                                   onClick={() => handleDownloadPDF(c.id, c.name)}
-                                   className="text-xs font-bold text-indigo-600 hover:underline"
-                                 >
-                                   Download PDF
-                                 </button>
-                               </td>
-                           </tr>
-                        ))}
-                     </tbody>
-                  </table>
-               </div>
-             ) : (
-               <div className="p-20 text-center">
-                  <p className="text-slate-400 text-sm italic">No campaigns are currently active for your account.</p>
-               </div>
-             )}
-          </div>
-        </main>
+      <div style={{
+        background: 'white',
+        borderRadius: '12px',
+        border: '1px solid #e5e7eb',
+        overflow: 'hidden'
+      }}>
+        <table style={{
+          width: '100%',
+          borderCollapse: 'collapse'
+        }}>
+          <thead>
+            <tr style={{
+              background: '#f9fafb'
+            }}>
+              {[
+                'CAMPAIGN', 'BUDGET',
+                'STATUS', 'REPORTS'
+              ].map(h => (
+                <th key={h} style={{
+                  padding: '12px 20px',
+                  textAlign: 'left',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#6b7280',
+                  letterSpacing: '0.05em',
+                  borderBottom: 
+                    '1px solid #e5e7eb'
+                }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={4} style={{
+                  padding: '40px',
+                  textAlign: 'center',
+                  color: '#6b7280'
+                }}>
+                  Loading campaigns...
+                </td>
+              </tr>
+            ) : campaigns.length === 0 ? (
+              <tr>
+                <td colSpan={4} style={{
+                  padding: '40px',
+                  textAlign: 'center',
+                  color: '#6b7280'
+                }}>
+                  No campaigns found
+                </td>
+              </tr>
+            ) : (
+              campaigns.map((c: any) => (
+                <tr key={c.id} style={{
+                  borderBottom: 
+                    '1px solid #f3f4f6'
+                }}>
+                  <td style={{
+                    padding: '16px 20px',
+                    fontWeight: '500',
+                    color: '#111827'
+                  }}>
+                    {c.name}
+                  </td>
+                  <td style={{
+                    padding: '16px 20px',
+                    color: '#111827'
+                  }}>
+                    ${(c.budget || 0)
+                      .toLocaleString()}
+                  </td>
+                  <td style={{
+                    padding: '16px 20px'
+                  }}>
+                    <span style={{
+                      padding: '3px 10px',
+                      borderRadius: '20px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      background: '#d1fae5',
+                      color: '#065f46'
+                    }}>
+                      {c.status || 'ACTIVE'}
+                    </span>
+                  </td>
+                  <td style={{
+                    padding: '16px 20px'
+                  }}>
+                    <button
+                      onClick={() =>
+                        downloadPDF(c.name)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#4f46e5',
+                        cursor: 'pointer',
+                        fontWeight: '500'
+                      }}
+                    >
+                      Download PDF
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
