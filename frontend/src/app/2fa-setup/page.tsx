@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import apiCall from '@/lib/api';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -19,7 +19,7 @@ export default function TwoFASetupPage() {
   useEffect(() => {
     const fetchSetupData = async () => {
       try {
-        const data = await apiFetch('/auth/2fa/setup', { method: 'POST' });
+        const data = await apiCall('/auth/2fa/setup', { method: 'POST' });
         setQrCode(data.qrCode);
         setSecret(data.secret);
       } catch (err: any) {
@@ -35,7 +35,7 @@ export default function TwoFASetupPage() {
     setMessage({ type: '', text: '' });
 
     try {
-      const data = await apiFetch('/auth/2fa/verify', {
+      const data = await apiCall('/auth/2fa/verify', {
         method: 'POST',
         body: JSON.stringify({ token }),
       });
