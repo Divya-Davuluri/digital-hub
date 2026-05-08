@@ -213,8 +213,14 @@ export const requestCustomReport = async (req: Request, res: Response) => {
  */
 export const getReportRequests = async (req: Request, res: Response) => {
   try {
-    const { tenantId, workspaceId, role } = req.user as any;
-    const targetWorkspaceId = workspaceId || req.query.workspaceId;
+    const { tenantId, workspaceId: userWorkspaceId, role } = req.user as any;
+    const queryWorkspaceId = req.query.workspaceId;
+
+    // Admins see all unless they specify a workspace
+    let targetWorkspaceId = queryWorkspaceId;
+    if (!targetWorkspaceId && role !== 'admin') {
+      targetWorkspaceId = userWorkspaceId;
+    }
 
     const requests = await db.select({
       id: reportRequests.id,
@@ -229,7 +235,7 @@ export const getReportRequests = async (req: Request, res: Response) => {
     .from(reportRequests)
     .leftJoin(clients, eq(reportRequests.clientId, clients.id))
     .where(targetWorkspaceId 
-      ? and(eq(reportRequests.tenantId, tenantId), eq(reportRequests.workspaceId, targetWorkspaceId))
+      ? and(eq(reportRequests.tenantId, tenantId), eq(reportRequests.workspaceId, targetWorkspaceId as string))
       : eq(reportRequests.tenantId, tenantId)
     )
     .orderBy(sql`${reportRequests.createdAt} DESC`);

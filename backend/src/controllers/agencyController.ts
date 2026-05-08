@@ -122,11 +122,13 @@ export const deleteClient = asyncHandler(async (req: any, res: Response) => {
 // --- Campaign Management with Workspace Isolation ---
 
 export const getCampaigns = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId, role, workspaceId } = req.user;
-  const targetWorkspaceId = workspaceId || req.query.workspaceId;
+  const { tenantId, role, workspaceId: userWorkspaceId } = req.user;
+  const queryWorkspaceId = req.query.workspaceId;
 
-  if (!targetWorkspaceId && role === 'client') {
-    throw new AppError('Workspace context required', 403);
+  // Admins see all unless they specify a workspace. Team/Clients only see their workspace.
+  let targetWorkspaceId = queryWorkspaceId;
+  if (!targetWorkspaceId && role !== 'admin') {
+    targetWorkspaceId = userWorkspaceId;
   }
 
   let condition = eq(campaigns.tenantId, tenantId);
@@ -134,10 +136,15 @@ export const getCampaigns = asyncHandler(async (req: any, res: Response) => {
     condition = and(condition, eq(campaigns.workspaceId, targetWorkspaceId)) as any;
   }
 
-  const allCampaigns = await db.selectDistinct()
-    .from(campaigns)
-    .where(condition)
-    .orderBy(sql`${campaigns.createdAt} DESC`);
+  const allCampaigns = await db.all(sql`
+    SELECT c.*, w.name as workspace_name, cl.name as client_name
+    FROM campaigns c
+    LEFT JOIN workspaces w ON c.workspace_id = w.id
+    LEFT JOIN clients cl ON c.client_id = cl.id
+    WHERE c.tenant_id = ${tenantId}
+    ${targetWorkspaceId ? sql`AND c.workspace_id = ${targetWorkspaceId}` : sql``}
+    ORDER BY c.created_at DESC
+  `);
 
   res.json(allCampaigns);
 });
