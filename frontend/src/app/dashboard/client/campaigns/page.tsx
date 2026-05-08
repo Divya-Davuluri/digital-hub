@@ -17,9 +17,9 @@ export default function ClientCampaigns() {
     try {
       setLoading(true);
       const data = await apiCall(
-        '/api/client/campaigns'
+        '/api/agency/campaigns'
       );
-      setCampaigns(data.campaigns || []);
+      setCampaigns(Array.isArray(data) ? data : (data.campaigns || []));
     } catch (err) {
       console.error('Load campaigns:', err);
       setCampaigns([]);
