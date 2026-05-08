@@ -57,10 +57,10 @@ export default function ProjectsPage() {
     setSaving(true);
     try {
       const payload = {
-        name: newProject.projectName,
+        title: newProject.projectName,
         clientId: newProject.clientId || null,
         clientName: clients.find(c => c.id === newProject.clientId)?.name || 'General',
-        targetDate: newProject.targetDate,
+        dueDate: newProject.targetDate,
         status: newProject.status || 'PLANNING'
       };
 
