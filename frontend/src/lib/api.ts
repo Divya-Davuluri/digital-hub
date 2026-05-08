@@ -17,9 +17,16 @@ export const apiCall = async (
   options: RequestInit = {}
 ): Promise<any> => {
   const token = getToken();
-  const url = endpoint.startsWith('http') 
-    ? endpoint 
-    : `${API_BASE}${endpoint}`;
+  
+  // Ensure the endpoint has the /api prefix if it's a relative path
+  let path = endpoint;
+  if (!path.startsWith('/api') && !path.startsWith('http')) {
+    path = `/api${path.startsWith('/') ? '' : '/'}${path}`;
+  }
+
+  const url = path.startsWith('http') 
+    ? path 
+    : `${API_BASE}${path}`;
 
   const response = await fetch(url, {
     ...options,
@@ -41,8 +48,7 @@ export const apiCall = async (
       ':', text.substring(0, 100)
     );
     throw new Error(
-      `API error ${response.status}: ` +
-      'Server returned non-JSON response'
+      `API error ${response.status}: Server returned non-JSON response`
     );
   }
 };
