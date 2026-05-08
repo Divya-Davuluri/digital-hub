@@ -143,12 +143,15 @@ export default function AdminClientsPage() {
                                  </span>
                               </td>
                               <td className="px-8 py-5 text-right">
-                                 <button 
-                                  onClick={() => router.push(`/dashboard/admin/clients/${client.id}/settings`)}
-                                  className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors px-3 py-1 border border-slate-200 rounded-md hover:border-indigo-200 hover:bg-indigo-50"
-                                 >
-                                  Edit Settings
-                                 </button>
+                                  <button 
+                                   onClick={() => {
+                                     setEditingClient(client);
+                                     setShowEditModal(true);
+                                   }}
+                                   className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors px-3 py-1 border border-slate-200 rounded-md hover:border-indigo-200 hover:bg-indigo-50"
+                                  >
+                                   Edit Settings
+                                  </button>
                               </td>
                            </tr>
                         ))}
