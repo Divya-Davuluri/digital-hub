@@ -65,15 +65,15 @@ export default function TeamDashboard() {
                   </div>
                </div>
 
-               <div className="card">
+                <div className="card">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="font-bold text-slate-900">Quick Actions</h3>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <ActionButton icon="➕" label="New Campaign" color="indigo" />
-                    <ActionButton icon="📝" label="New Report" color="blue" />
-                    <ActionButton icon="📂" label="Client Docs" color="slate" />
-                    <ActionButton icon="💬" label="Team Chat" color="emerald" />
+                    <ActionButton icon="➕" label="New Campaign" color="indigo" onClick={() => {}} />
+                    <ActionButton icon="📝" label="New Report" color="blue" onClick={() => {}} />
+                    <ActionButton icon="📂" label="Client Docs" color="slate" onClick={() => {}} />
+                    <ActionButton icon="💬" label="Team Chat" color="emerald" onClick={() => {}} />
                   </div>
                </div>
             </div>
@@ -120,9 +120,12 @@ function TaskItem({ title, client, priority }: any) {
   );
 }
 
-function ActionButton({ icon, label, color }: any) {
+function ActionButton({ icon, label, color, onClick }: any) {
   return (
-    <button className="flex flex-col items-center justify-center p-6 bg-slate-50 hover:bg-white rounded-2xl border border-slate-100 hover:border-indigo-100 transition-all hover:shadow-md group">
+    <button 
+      onClick={onClick}
+      className="flex flex-col items-center justify-center p-6 bg-slate-50 hover:bg-white rounded-2xl border border-slate-100 hover:border-indigo-100 transition-all hover:shadow-md group"
+    >
       <span className="text-2xl mb-2 group-hover:scale-110 transition-transform">{icon}</span>
       <span className="text-xs font-bold text-slate-600 group-hover:text-indigo-600">{label}</span>
     </button>

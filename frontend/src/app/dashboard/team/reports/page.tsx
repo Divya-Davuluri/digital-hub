@@ -4,7 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import RoleGuard from "@/components/RoleGuard";
 
-export default function TeamCampaignsPage() {
+export default function TeamReportsPage() {
   return (
     <RoleGuard allowedRoles={['team', 'admin']}>
       <div className="flex min-h-screen bg-slate-50">
@@ -13,17 +13,17 @@ export default function TeamCampaignsPage() {
           <Header />
           <main className="p-8">
             <div className="mb-8">
-              <h1 className="text-3xl font-bold text-slate-900">Active Campaigns</h1>
-              <p className="text-slate-500">Track performance for all campaigns you are currently managing.</p>
+              <h1 className="text-3xl font-bold text-slate-900">Performance Reports</h1>
+              <p className="text-slate-500">View and download reports for the clients in your portfolio.</p>
             </div>
             
             <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
               <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-                🚀
+                📊
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Campaign Console</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Reports Dashboard</h3>
               <p className="text-slate-500 max-w-md mx-auto">
-                Real-time campaign data is being updated. Individual campaign controls will be available in the next release.
+                Reporting features for team members are being enabled. Contact your administrator for agency-wide exports.
               </p>
             </div>
           </main>
