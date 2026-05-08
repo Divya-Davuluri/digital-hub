@@ -4,8 +4,7 @@ import {
   requestCustomReport, 
   getReportRequests, 
   exportClientPDF,
-  exportSingleCampaignPDF,
-  downloadClientReport
+  updateReportRequestStatus
 } from '../controllers/reportController';
 import { authMiddleware, authorize } from '../middleware/authMiddleware';
 
@@ -22,5 +21,6 @@ router.get('/:reportId/download', authMiddleware, downloadClientReport);
 
 // Admin-specific retrieval
 router.get('/requests', authMiddleware, authorize('admin', 'team'), getReportRequests);
+router.patch('/requests/:id', authMiddleware, authorize('admin', 'team'), updateReportRequestStatus);
 
 export default router;

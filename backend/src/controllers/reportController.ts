@@ -247,12 +247,19 @@ export const getReportRequests = async (req: Request, res: Response) => {
   }
 };
 
-export const exportSingleCampaignPDF = async (req: Request, res: Response) => {
-  // Simplified version for now
-  res.json({ message: 'Single campaign PDF export not implemented' });
-};
+export const updateReportRequestStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const { tenantId } = req.user as any;
 
-export const downloadClientReport = async (req: Request, res: Response) => {
-  // Simplified version for now
-  res.json({ message: 'Client report download not implemented' });
+    await db.update(reportRequests)
+      .set({ status: status as any })
+      .where(and(eq(reportRequests.id, id), eq(reportRequests.tenantId, tenantId)));
+
+    res.json({ success: true, message: 'Report status updated' });
+  } catch (error) {
+    console.error('[UPDATE_REPORT_STATUS_ERROR]', error);
+    res.status(500).json({ message: 'Error updating report status' });
+  }
 };

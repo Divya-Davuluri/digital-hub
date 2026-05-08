@@ -6,27 +6,29 @@ import Header from "@/components/Header";
 import RoleGuard from "@/components/RoleGuard";
 import { getReportRequests, exportReportPDF, ReportRequest } from "@/services/reportService";
 import { getDashboardSummary, DashboardSummary } from "@/services/dashboardService";
+import apiCall from "@/lib/api";
 
 export default function AdminReportsPage() {
   const [requests, setRequests] = useState<ReportRequest[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchData = async () => {
+    try {
+      const [requestsData, summaryData] = await Promise.all([
+        getReportRequests(),
+        getDashboardSummary()
+      ]);
+      setRequests(requestsData);
+      setSummary(summaryData);
+    } catch (err) {
+      console.error("Error fetching report data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [requestsData, summaryData] = await Promise.all([
-          getReportRequests(),
-          getDashboardSummary()
-        ]);
-        setRequests(requestsData);
-        setSummary(summaryData);
-      } catch (err) {
-        console.error("Error fetching report data:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
@@ -35,6 +37,18 @@ export default function AdminReportsPage() {
       await exportReportPDF();
     } catch (err) {
       alert("Export failed");
+    }
+  };
+
+  const handleProcess = async (id: string) => {
+    try {
+      await apiCall(`/reports/requests/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'COMPLETED' })
+      });
+      fetchData(); // Refresh list
+    } catch (err) {
+      alert("Failed to update status");
     }
   };
 
@@ -62,9 +76,9 @@ export default function AdminReportsPage() {
 
             {/* Global Stats Summary */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-              <SummaryCard label="Total Spend" value={`$${summary?.totalSpend.toLocaleString()}`} />
-              <SummaryCard label="Total Conversions" value={summary?.totalConversions.toLocaleString()} />
-              <SummaryCard label="Avg. ROAS" value={`${summary?.avgRoas.toFixed(2)}x`} />
+              <SummaryCard label="Total Spend" value={`$${summary?.totalSpend?.toLocaleString() || '0'}`} />
+              <SummaryCard label="Total Conversions" value={summary?.totalConversions?.toLocaleString() || '0'} />
+              <SummaryCard label="Avg. ROAS" value={`${summary?.avgRoas?.toFixed(2) || '0'}x`} />
               <SummaryCard label="Report Requests" value={requests.length.toString()} />
             </div>
 
@@ -93,7 +107,7 @@ export default function AdminReportsPage() {
                       requests.map((req) => (
                         <tr key={req.id} className="hover:bg-slate-50/50">
                           <td className="px-6 py-4 font-bold text-slate-900">{req.clientName || 'Standard Client'}</td>
-                          <td className="px-6 py-4 text-sm text-slate-600">{req.reportType}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600">{req.reportType.replace('_', ' ')}</td>
                           <td className="px-6 py-4 text-sm text-slate-500">{new Date(req.createdAt).toLocaleDateString()}</td>
                           <td className="px-6 py-4">
                             <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
@@ -103,7 +117,14 @@ export default function AdminReportsPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <button className="text-primary font-bold text-xs uppercase hover:underline">Process</button>
+                            {req.status !== 'COMPLETED' && (
+                              <button 
+                                onClick={() => handleProcess(req.id)}
+                                className="text-primary font-bold text-xs uppercase hover:underline"
+                              >
+                                Process
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))
