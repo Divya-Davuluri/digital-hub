@@ -19,24 +19,62 @@ export default function ClientReportsPage() {
     notes: ''
   });
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
+  const [statusMessage, setStatusMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+
+  const validateForm = () => {
+    if (!reportRequest.dateFrom || !reportRequest.dateTo) {
+      setStatusMessage({ type: 'error', text: 'Please select both start and end dates.' });
+      return false;
+    }
+    const start = new Date(reportRequest.dateFrom);
+    const end = new Date(reportRequest.dateTo);
+    if (start > end) {
+      setStatusMessage({ type: 'error', text: 'Start date cannot be after end date.' });
+      return false;
+    }
+    return true;
+  };
 
   const handleRequestReport = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
+
     setSubmitting(true);
-    setMessage('');
+    setStatusMessage(null);
+    
     try {
-      await apiCall('/api/reports/request', {
+      // Dates from <input type="date"> are already YYYY-MM-DD
+      console.log('[SUBMITTING_REPORT_REQUEST]', reportRequest);
+      
+      const res = await apiCall('/api/reports/request', {
         method: 'POST',
         body: JSON.stringify(reportRequest)
       });
-      setMessage('Request submitted successfully!');
+
+      console.log('[REPORT_REQUEST_RESPONSE]', res);
+
+      setStatusMessage({ type: 'success', text: 'Report request submitted successfully! Our team will process it shortly.' });
+      
+      // Auto-close modal after success
       setTimeout(() => {
         setShowModal(false);
-        setMessage('');
-      }, 2000);
+        setStatusMessage(null);
+        setReportRequest({
+          reportType: 'Performance Summary',
+          dateFrom: '',
+          dateTo: '',
+          notes: ''
+        });
+        // In a real app, we might refresh the list here
+        // fetchReports(); 
+      }, 2500);
+
     } catch (err: any) {
-      setMessage(err.message || 'Failed to submit request');
+      console.error('[FRONTEND_REPORT_REQUEST_ERROR]', err);
+      setStatusMessage({ 
+        type: 'error', 
+        text: err.message || 'Failed to submit report request. Please try again.' 
+      });
     } finally {
       setSubmitting(false);
     }
@@ -44,9 +82,12 @@ export default function ClientReportsPage() {
 
   const handleDownload = async () => {
     try {
-      window.open('/api/reports/client-pdf', '_blank');
+      const token = localStorage.getItem('token');
+      // Use window.open for now, but in production this might need a more secure download flow
+      window.open(`/api/reports/client-pdf?token=${token}`, '_blank');
     } catch (err) {
-      alert('Failed to download report');
+      console.error('[DOWNLOAD_ERROR]', err);
+      alert('Failed to initiate download');
     }
   };
 
@@ -62,7 +103,10 @@ export default function ClientReportsPage() {
               <p className="text-sm text-slate-500 mt-1">Download and analyze your agency performance reports.</p>
             </div>
             <button 
-              onClick={() => setShowModal(true)}
+              onClick={() => {
+                setStatusMessage(null);
+                setShowModal(true);
+              }}
               className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-xs shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-colors"
             >
               Request Custom Report
@@ -96,11 +140,15 @@ export default function ClientReportsPage() {
 
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => !submitting && setShowModal(false)} />
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl relative z-10 p-6 space-y-6 animate-in fade-in zoom-in duration-200">
             <div className="flex justify-between items-center border-b border-slate-100 pb-4 -mx-6 px-6">
               <h2 className="text-lg font-bold text-slate-900">Request Custom Report</h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+              <button 
+                onClick={() => setShowModal(false)} 
+                disabled={submitting}
+                className="text-slate-400 hover:text-slate-600 text-2xl"
+              >&times;</button>
             </div>
             <form className="space-y-4" onSubmit={handleRequestReport}>
               <div className="space-y-1">
@@ -109,6 +157,7 @@ export default function ClientReportsPage() {
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   value={reportRequest.reportType}
                   onChange={(e) => setReportRequest({...reportRequest, reportType: e.target.value})}
+                  disabled={submitting}
                 >
                   <option>Performance Summary</option>
                   <option>Ad Spend Breakdown</option>
@@ -121,18 +170,22 @@ export default function ClientReportsPage() {
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block ml-1">From Date</label>
                   <input 
                     type="date" 
+                    required
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
                     value={reportRequest.dateFrom}
                     onChange={(e) => setReportRequest({...reportRequest, dateFrom: e.target.value})}
+                    disabled={submitting}
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block ml-1">To Date</label>
                   <input 
                     type="date" 
+                    required
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
                     value={reportRequest.dateTo}
                     onChange={(e) => setReportRequest({...reportRequest, dateTo: e.target.value})}
+                    disabled={submitting}
                   />
                 </div>
               </div>
@@ -144,22 +197,43 @@ export default function ClientReportsPage() {
                   placeholder="e.g. Please include Facebook Ad metrics specifically."
                   value={reportRequest.notes}
                   onChange={(e) => setReportRequest({...reportRequest, notes: e.target.value})}
+                  disabled={submitting}
                 />
               </div>
               
-              {message && (
-                <div className={`p-3 rounded-lg text-sm font-bold ${message.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                  {message}
+              {statusMessage && (
+                <div className={`p-4 rounded-xl text-xs font-bold border ${
+                  statusMessage.type === 'success' 
+                  ? 'bg-green-50 text-green-700 border-green-100' 
+                  : 'bg-red-50 text-red-700 border-red-100'
+                } animate-pulse`}>
+                  {statusMessage.type === 'success' ? '✅ ' : '⚠️ '}
+                  {statusMessage.text}
                 </div>
               )}
 
-              <button 
-                type="submit" 
-                disabled={submitting}
-                className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 mt-4 shadow-lg shadow-indigo-100"
-              >
-                {submitting ? 'Submitting...' : 'Submit Request'}
-              </button>
+              <div className="flex gap-3 pt-2">
+                <button 
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={submitting}
+                  className="flex-[2] py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
+                >
+                  {submitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      Processing...
+                    </>
+                  ) : 'Submit Request'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

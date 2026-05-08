@@ -191,10 +191,20 @@ export const requestCustomReport = async (req: Request, res: Response) => {
       status: 'PENDING'
     });
 
-    res.status(201).json({ message: 'Report request submitted successfully' });
-  } catch (error) {
-    console.error('[REPORT_REQUEST_ERROR]', error);
-    res.status(500).json({ message: 'Error submitting report request' });
+    console.log('[REPORT_REQUEST_SUCCESS]', { tenantId, targetWorkspaceId, finalClientId, reportType });
+    res.status(201).json({ success: true, message: 'Report request submitted successfully' });
+  } catch (error: any) {
+    console.error('[REPORT_REQUEST_ERROR_EXACT]', {
+      error: error.message,
+      stack: error.stack,
+      body: req.body,
+      user: req.user
+    });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error submitting report request',
+      error: error.message 
+    });
   }
 };
 

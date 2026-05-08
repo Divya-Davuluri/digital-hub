@@ -1,12 +1,26 @@
 import { Router } from 'express';
-import { exportReport, requestCustomReport, getReportRequests, exportClientPDF } from '../controllers/reportController';
+import { 
+  exportReport, 
+  requestCustomReport, 
+  getReportRequests, 
+  exportClientPDF,
+  exportSingleCampaignPDF,
+  downloadClientReport
+} from '../controllers/reportController';
 import { authMiddleware, authorize } from '../middleware/authMiddleware';
 
 const router = Router();
 
+// General exports
 router.get('/export', authMiddleware, authorize('admin', 'team'), exportReport);
-router.post('/request', authMiddleware, authorize('client', 'admin'), requestCustomReport);
+
+// Client-specific report requests
+router.post('/request', authMiddleware, requestCustomReport);
+router.get('/client-pdf', authMiddleware, exportClientPDF);
+router.get('/campaigns/:campaignId/pdf', authMiddleware, exportSingleCampaignPDF);
+router.get('/:reportId/download', authMiddleware, downloadClientReport);
+
+// Admin-specific retrieval
 router.get('/requests', authMiddleware, authorize('admin', 'team'), getReportRequests);
-router.get('/client-pdf', authMiddleware, authorize('client', 'admin'), exportClientPDF);
 
 export default router;

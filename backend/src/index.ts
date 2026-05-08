@@ -27,14 +27,6 @@ import notificationRoutes from './routes/notificationRoutes';
 import reportRoutes from './routes/reportRoutes';
 import documentRoutes from './routes/documentRoutes';
 
-// Import Controllers for specific routes
-import { 
-  exportClientPDF, 
-  exportSingleCampaignPDF, 
-  downloadClientReport, 
-  requestCustomReport, 
-  getReportRequests 
-} from './controllers/reportController';
 import { authMiddleware, authorize } from './middleware/authMiddleware';
 
 const app = express();
@@ -121,13 +113,6 @@ app.use('/api/admin', onboardingRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/documents', documentRoutes);
-
-// --- Client Portal Special Routes ---
-app.get('/api/client/report/pdf', authMiddleware, exportClientPDF);
-app.get('/api/client/campaigns/:campaignId/pdf', authMiddleware, exportSingleCampaignPDF);
-app.get('/api/client/reports/:reportId/download', authMiddleware, downloadClientReport);
-app.post('/api/client/reports/request', authMiddleware, requestCustomReport);
-app.get('/api/admin/report-requests', authMiddleware, authorize('admin', 'team'), getReportRequests);
 
 // --- 404 & Error Handling ---
 app.use('/api/*', (req: Request, res: Response) => {
