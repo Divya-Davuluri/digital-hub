@@ -163,15 +163,31 @@ export const requestCustomReport = async (req: Request, res: Response) => {
 
     if (!reportType) return res.status(400).json({ message: 'Report type is required' });
 
+    let finalClientId = clientId || req.body.clientId;
+
+    // If clientId is missing, resolve it from the workspaceId
+    if (!finalClientId && targetWorkspaceId) {
+      const clientRecord = await db.query.clients.findFirst({
+        where: eq(clients.workspaceId, targetWorkspaceId)
+      });
+      if (clientRecord) {
+        finalClientId = clientRecord.id;
+      }
+    }
+
+    if (!finalClientId) {
+      throw new AppError('Client context not found', 400);
+    }
+
     await db.insert(reportRequests).values({
       id: uuidv4(),
       tenantId,
       workspaceId: targetWorkspaceId,
-      clientId: targetClientId,
+      clientId: finalClientId,
       reportType,
-      dateFrom,
-      dateTo,
-      notes,
+      dateFrom: dateFrom || null,
+      dateTo: dateTo || null,
+      notes: notes || '',
       status: 'PENDING'
     });
 
