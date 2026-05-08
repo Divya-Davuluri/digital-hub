@@ -65,7 +65,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, password } = validated;
 
   const existingUser = await db.query.users.findFirst({
-    where: eq(users.email, email),
+    where: eq(users.email, email.toLowerCase()),
   });
 
   if (existingUser) {
@@ -74,51 +74,27 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 
   const hashedPassword = await bcrypt.hash(password, 12);
   const userId = uuidv4();
-  const tenantId = uuidv4();
-
-  const subdomain = name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).substring(2, 7);
   
-  // 1. Create Tenant (Agency)
-  await db.insert(tenants).values({
-    id: tenantId,
-    name: `${name}'s Agency`,
-    subdomain,
-  });
-
-  // 2. Create Default Workspace for Admin
-  const workspaceId = uuidv4();
-  await db.insert(workspaces).values({
-    id: workspaceId,
-    tenantId,
-    clientId: userId, // Legacy support (Admins don't have a separate client, so use userId)
-    clientName: name, // Legacy support
-    name: 'Main Workspace',
-    slug: 'main',
-  });
-
-  // 3. Create User linked to Tenant and Workspace
+  // For public signup, we use a default tenant or the one provided by the admin context
+  // Based on the user's setup, we'll use the provided admin tenant_id
+  const DEFAULT_TENANT_ID = '9142f583-09e6-4df9-b4a2-bcab048799b5';
+  
+  // 1. Create User as 'client' by default
   await db.insert(users).values({
     id: userId,
-    tenantId,
-    workspaceId,
+    tenantId: DEFAULT_TENANT_ID,
+    workspaceId: null, // Clients start without a workspace until assigned
     name,
-    email,
+    email: email.toLowerCase(),
     password: hashedPassword,
     provider: 'local',
-    role: 'admin', 
+    role: 'client', 
   });
-
-  const { token, refreshToken } = await generateTokens(userId, 'admin', tenantId, workspaceId);
-  
-  const cookieOptions = getCookieOptions(7);
-  res.cookie('token', token, cookieOptions);
-  res.cookie('refreshToken', refreshToken, cookieOptions);
 
   res.status(201).json({ 
     success: true,
-    token, 
-    refreshToken, 
-    user: { id: userId, email, name, role: 'admin', tenantId, workspaceId } 
+    message: 'Account created successfully. Please log in.',
+    user: { id: userId, email, name, role: 'client' } 
   });
 });
 

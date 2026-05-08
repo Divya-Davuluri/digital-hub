@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import RoleGuard from "@/components/RoleGuard";
 import { getDashboardSummary, getDashboardStats, exportReport, DashboardSummary, ChannelStat } from "@/services/dashboardService";
 import { useBranding } from "@/context/BrandingContext";
 
@@ -56,11 +57,13 @@ export default function AdminDashboard() {
   const primaryColor = branding?.primaryColor || '#4f46e5';
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#f9fafb', minHeight: '100vh' }}>
-      <Sidebar />
-      <div className="flex-1 ml-[260px]">
-        <Header />
-        <main className="p-8">
+    <RoleGuard allowedRoles={['admin']}>
+      <div className="flex min-h-screen" style={{ background: '#f9fafb', minHeight: '100vh' }}>
+        <Sidebar role="admin" />
+        <div className="flex-1 ml-[260px]">
+          <Header />
+          <main className="p-8">
+
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
@@ -130,7 +133,7 @@ export default function AdminDashboard() {
           </div>
         </main>
       </div>
-    </div>
+    </RoleGuard>
   );
 }
 

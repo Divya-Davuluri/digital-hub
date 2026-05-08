@@ -2,8 +2,10 @@
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import RoleGuard from "@/components/RoleGuard";
 import { updateBranding } from "@/services/brandingService";
 import { useBranding } from "@/context/BrandingContext";
+
 
 export default function BrandingPage() {
   const { refreshBranding } = useBranding();
@@ -85,11 +87,12 @@ export default function BrandingPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <div className="flex-1 ml-[260px]">
-        <Header />
-        <main className="p-8 max-w-4xl">
+    <RoleGuard allowedRoles={['admin']}>
+      <div className="flex min-h-screen bg-slate-50">
+        <Sidebar role="admin" />
+        <div className="flex-1 ml-[260px]">
+          <Header />
+          <main className="p-8 max-w-4xl">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-slate-900">White-Label Branding</h1>
             <p className="text-slate-500">Customize the look and feel of your agency's dashboard.</p>
@@ -255,6 +258,6 @@ export default function BrandingPage() {
           </div>
         </main>
       </div>
-    </div>
+    </RoleGuard>
   );
 }

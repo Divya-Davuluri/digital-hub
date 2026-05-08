@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import apiCall from "@/lib/api";
+import RoleGuard from "@/components/RoleGuard";
 
 export default function AdminClientsPage() {
   const router = useRouter();
+
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -90,11 +92,12 @@ export default function AdminClientsPage() {
   };
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#f9fafb', minHeight: '100vh' }}>
-      <Sidebar role="admin" />
-      <div className="flex-1 ml-[260px] flex flex-col">
-        <Header />
-        <main className="p-8 max-w-7xl mx-auto w-full">
+    <RoleGuard allowedRoles={['admin']}>
+      <div className="flex min-h-screen" style={{ background: '#f9fafb', minHeight: '100vh' }}>
+        <Sidebar role="admin" />
+        <div className="flex-1 ml-[260px] flex flex-col">
+          <Header />
+          <main className="p-8 max-w-7xl mx-auto w-full">
           <div className="flex justify-between items-end mb-10">
             <div>
               <h1 className="text-2xl font-bold text-slate-900">Client Management</h1>
@@ -283,6 +286,7 @@ export default function AdminClientsPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </RoleGuard>
   );
 }

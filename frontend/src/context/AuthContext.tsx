@@ -62,9 +62,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(data.user);
 
     // Redirect based on role
-    if (data.user.role === 'admin') router.push('/dashboard/admin');
-    else if (data.user.role === 'client') router.push('/dashboard/client');
-    else router.push('/dashboard/team');
+    if (data.user.role === 'admin') {
+      router.push('/dashboard/admin');
+    } else if (data.user.role === 'team') {
+      router.push('/dashboard/team');
+    } else if (data.user.role === 'client') {
+      router.push('/dashboard/client');
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   const logout = () => {

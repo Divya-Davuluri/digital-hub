@@ -39,8 +39,10 @@ export default function DashboardPage() {
       setUser(u);
       
       // Redirect to correct dashboard based on role
-      const role = u.role || 'client';
-      router.push(`/dashboard/${role}`);
+      if (u.role === 'admin') router.push('/dashboard/admin');
+      else if (u.role === 'team') router.push('/dashboard/team');
+      else if (u.role === 'client') router.push('/dashboard/client');
+      else router.push('/login');
     }
   }, [router]);
 

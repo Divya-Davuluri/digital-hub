@@ -11,7 +11,7 @@ interface SidebarProps {
 
 export default function Sidebar({ role: initialRole }: SidebarProps) {
   const pathname = usePathname();
-  const [role, setRole] = useState<'admin' | 'team' | 'client'>(initialRole || 'admin');
+  const [role, setRole] = useState<'admin' | 'team' | 'client'>(initialRole || 'client');
 
   useEffect(() => {
     if (!initialRole) {
@@ -24,45 +24,42 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
           console.error("Failed to parse user for sidebar", e);
         }
       }
+    } else {
+      setRole(initialRole);
     }
   }, [initialRole]);
 
   const getMenuItems = () => {
-    const common = [
-      { name: 'Overview', href: `/dashboard/${role}`, icon: '🏠' },
-    ];
-
     if (role === 'admin') {
       return [
-        ...common,
+        { name: 'Overview', href: '/dashboard/admin', icon: '🏠' },
         { name: 'Manage Clients', href: '/dashboard/admin/clients', icon: '🏢' },
         { name: 'Agency Branding', href: '/dashboard/admin/branding', icon: '🎨' },
-        { name: 'Campaigns', href: '/projects', icon: '🚀' },
-        { name: 'Reports', href: '/dashboard/admin', icon: '📈' },
-        { name: 'Settings', href: '/settings', icon: '⚙️' },
+        { name: 'Campaigns', href: '/dashboard/admin/campaigns', icon: '🚀' },
+        { name: 'Reports', href: '/dashboard/admin/reports', icon: '📈' },
+        { name: 'Settings', href: '/dashboard/admin/settings', icon: '⚙️' },
       ];
     }
 
     if (role === 'team') {
       return [
-        ...common,
-        { name: 'Clients', href: '/dashboard/team/clients', icon: '💼' },
-        { name: 'Tasks', href: '/dashboard/team/tasks', icon: '✅' },
-        { name: 'Campaigns', href: '/projects', icon: '🚀' },
+        { name: 'Overview', href: '/dashboard/team', icon: '🏠' },
+        { name: 'Assigned Clients', href: '/dashboard/team/clients', icon: '💼' },
+        { name: 'Campaigns', href: '/dashboard/team/campaigns', icon: '🚀' },
+        { name: 'Reports', href: '/dashboard/team/reports', icon: '📈' },
       ];
     }
 
     // Client Role
     return [
-      ...common,
-      { name: 'My Campaigns', href: '/dashboard/client/campaigns', icon: '📊' },
+      { name: 'Overview', href: '/dashboard/client', icon: '🏠' },
+      { name: 'Campaign Status', href: '/dashboard/client/campaigns', icon: '📊' },
       { name: 'Reports', href: '/dashboard/client/reports', icon: '📄' },
-      { name: 'Billing', href: '/dashboard/client/billing', icon: '💳' },
+      { name: 'Analytics', href: '/dashboard/client/analytics', icon: '📈' },
     ];
   };
 
   const menuItems = getMenuItems();
-
   const { branding } = useBranding();
 
   return (
