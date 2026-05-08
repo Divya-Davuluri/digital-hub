@@ -43,23 +43,29 @@ export const createProject = asyncHandler(async (req: any, res: Response) => {
   const projectId = randomUUID();
   const createdAt = new Date().toISOString();
 
-  await db.run(sql`
-    INSERT INTO projects (
-      id, tenant_id, workspace_id, title, client_name,
-      due_date, status, completion,
-      created_by, created_at
-    ) VALUES (
-      ${projectId}, ${tenantId}, ${targetWorkspaceId}, ${title}, ${clientName || 'General'},
-      ${dueDate || null}, ${status || 'PLANNING'}, 0,
-      ${userId}, ${createdAt}
-    )
-  `);
+  await db.insert(projects).values({
+    id: projectId,
+    tenantId,
+    workspaceId: targetWorkspaceId,
+    name: title, // Required by DB
+    title: title,
+    clientId: req.body.clientId || null,
+    clientName: clientName || 'General',
+    status: status || 'PLANNING',
+    dueDate: dueDate || null,
+    targetDate: dueDate || null,
+    description: description || '',
+    createdBy: userId,
+    createdAt: createdAt,
+    updatedAt: createdAt
+  });
 
   res.status(201).json({
     success: true,
     project: {
       id: projectId,
       title,
+      name: title,
       workspaceId: targetWorkspaceId,
       status: status || 'PLANNING',
       completion: 0,
