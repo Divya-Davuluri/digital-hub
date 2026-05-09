@@ -11,7 +11,8 @@ export const completeClientOnboarding = asyncHandler(async (req: any, res: Respo
   const { userId, tenantId, workspaceId } = req.user;
   const { companyName, logoUrl, primaryColor } = req.body;
 
-  console.log(`[ONBOARDING_FINALIZE] User: ${userId} | Workspace: ${workspaceId}`);
+  console.log(`[ONBOARDING_FINALIZE] START | User: ${userId} | Workspace: ${workspaceId}`);
+  console.log(`[ONBOARDING_BODY]`, JSON.stringify(req.body));
 
   if (!workspaceId) {
     console.error(`[ONBOARDING_ERROR] Workspace context missing for user ${userId}`);
@@ -20,6 +21,7 @@ export const completeClientOnboarding = asyncHandler(async (req: any, res: Respo
 
   try {
     // 1. Update Workspace details (Branding)
+    console.log(`[ONBOARDING_STEP] 1. Updating Workspace...`);
     await db.update(workspaces)
       .set({
         name: companyName || undefined,
@@ -30,6 +32,7 @@ export const completeClientOnboarding = asyncHandler(async (req: any, res: Respo
       .where(and(eq(workspaces.id, workspaceId), eq(workspaces.tenantId, tenantId)));
 
     // 2. Mark User as onboarding completed with extra metadata
+    console.log(`[ONBOARDING_STEP] 2. Updating User...`);
     await db.update(users)
       .set({ 
         onboardingCompleted: 1,
