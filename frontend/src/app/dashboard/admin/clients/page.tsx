@@ -117,10 +117,8 @@ export default function AdminClientsPage() {
     }
   };
 
-  const allowedRoles: ('admin' | 'team' | 'client')[] = ['admin'];
-
   return (
-    <RoleGuard allowedRoles={allowedRoles}>
+    <RoleGuard allowedRoles={['admin']}>
       <div className="flex min-h-screen bg-slate-50">
         <Sidebar role="admin" />
         <div className="flex-1 flex flex-col" style={{ marginLeft: '260px' }}>
@@ -132,10 +130,10 @@ export default function AdminClientsPage() {
                 <p className="text-sm text-slate-500 mt-1">Onboard new clients, assign teams, and manage workspaces.</p>
               </div>
               <button 
-                 onClick={() => setShowAddModal(true)}
-                 className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg hover:bg-indigo-700 transition-all"
+                onClick={() => setShowAddModal(true)}
+                className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg hover:bg-indigo-700 transition-all"
               >
-                 + Add New Client
+                + Add New Client
               </button>
             </div>
 
@@ -224,7 +222,6 @@ export default function AdminClientsPage() {
           </main>
         </div>
 
-        {/* Add Modal */}
         {showAddModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowAddModal(false)} />
@@ -236,84 +233,44 @@ export default function AdminClientsPage() {
                 </div>
                 <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
               </div>
-              
               <form className="p-8 space-y-6" onSubmit={handleAddClient}>
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Client Contact Name</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. John Doe" 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                      required 
-                      value={newClient.clientName}
-                      onChange={(e) => setNewClient({...newClient, clientName: e.target.value})}
-                    />
+                    <input type="text" placeholder="e.g. John Doe" className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" required value={newClient.clientName} onChange={(e) => setNewClient({...newClient, clientName: e.target.value})} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Contact Email</label>
-                    <input 
-                      type="email" 
-                      placeholder="contact@client.com" 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                      required 
-                      value={newClient.contactEmail}
-                      onChange={(e) => setNewClient({...newClient, contactEmail: e.target.value})}
-                    />
+                    <input type="email" placeholder="contact@client.com" className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" required value={newClient.contactEmail} onChange={(e) => setNewClient({...newClient, contactEmail: e.target.value})} />
                   </div>
                 </div>
-
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Company / Brand Name</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. Nike" 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                      required
-                      value={newClient.companyName}
-                      onChange={(e) => setNewClient({...newClient, companyName: e.target.value})}
-                    />
+                    <input type="text" placeholder="e.g. Nike" className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" required value={newClient.companyName} onChange={(e) => setNewClient({...newClient, companyName: e.target.value})} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Subscription Plan</label>
-                    <select 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none cursor-pointer"
-                      value={newClient.plan}
-                      onChange={(e) => setNewClient({...newClient, plan: e.target.value})}
-                    >
+                    <select className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none cursor-pointer" value={newClient.plan} onChange={(e) => setNewClient({...newClient, plan: e.target.value})} >
                       <option value="starter">Starter Plan</option>
                       <option value="pro">Pro Agency Plan</option>
                       <option value="enterprise">Enterprise Plan</option>
                     </select>
                   </div>
                 </div>
-
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Assign Team Member</label>
-                  <select 
-                    className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none cursor-pointer"
-                    value={newClient.assignedTeamMemberId}
-                    onChange={(e) => setNewClient({...newClient, assignedTeamMemberId: e.target.value})}
-                  >
+                  <select className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none cursor-pointer" value={newClient.assignedTeamMemberId} onChange={(e) => setNewClient({...newClient, assignedTeamMemberId: e.target.value})} >
                     <option value="">No Member Assigned</option>
                     {teamMembers.map(member => (
                       <option key={member.id} value={member.id}>{member.name}</option>
                     ))}
                   </select>
                 </div>
-
                 <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <input 
-                    type="checkbox" 
-                    id="sendInvite" 
-                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                    checked={newClient.sendInvite}
-                    onChange={(e) => setNewClient({...newClient, sendInvite: e.target.checked})}
-                  />
+                  <input type="checkbox" id="sendInvite" className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" checked={newClient.sendInvite} onChange={(e) => setNewClient({...newClient, sendInvite: e.target.checked})} />
                   <label htmlFor="sendInvite" className="text-sm font-bold text-slate-600 cursor-pointer">Send Welcome Email with Credentials</label>
                 </div>
-
                 <button type="submit" disabled={submitting} className="w-full py-4 bg-indigo-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-xl shadow-indigo-200">
                   {submitting ? 'Creating System Records...' : 'Deploy Client Workspace'}
                 </button>
@@ -323,7 +280,6 @@ export default function AdminClientsPage() {
         </div>
       )}
 
-      {/* Edit Modal */}
       {showEditModal && editingClient && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowEditModal(false)} />
@@ -332,40 +288,19 @@ export default function AdminClientsPage() {
             <form className="space-y-4" onSubmit={handleUpdateClient}>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Client Name</label>
-                <input 
-                  type="text" 
-                  value={editingClient.name}
-                  onChange={(e) => setEditingClient({...editingClient, name: e.target.value})}
-                  className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                  required 
-                />
+                <input type="text" value={editingClient.name} onChange={(e) => setEditingClient({...editingClient, name: e.target.value})} className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none" required />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Status</label>
-                <select 
-                  value={editingClient.status || 'active'}
-                  onChange={(e) => setEditingClient({...editingClient, status: e.target.value})}
-                  className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none"
-                >
+                <select value={editingClient.status || 'active'} onChange={(e) => setEditingClient({...editingClient, status: e.target.value})} className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none">
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="pending">Pending</option>
                 </select>
               </div>
-              
               <div className="flex gap-3 pt-6">
-                <button 
-                  type="button"
-                  onClick={() => handleDeleteClient(editingClient.id)}
-                  className="px-6 py-3 border border-red-100 text-red-500 rounded-2xl text-xs font-bold hover:bg-red-50 transition-colors"
-                >
-                  Delete
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={submitting} 
-                  className="flex-1 py-3 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200"
-                >
+                <button type="button" onClick={() => handleDeleteClient(editingClient.id)} className="px-6 py-3 border border-red-100 text-red-500 rounded-2xl text-xs font-bold hover:bg-red-50 transition-colors">Delete</button>
+                <button type="submit" disabled={submitting} className="flex-1 py-3 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200">
                   {submitting ? 'Saving...' : 'Update Settings'}
                 </button>
               </div>
@@ -373,7 +308,6 @@ export default function AdminClientsPage() {
           </div>
         </div>
       )}
-      </div>
     </RoleGuard>
   );
 }
