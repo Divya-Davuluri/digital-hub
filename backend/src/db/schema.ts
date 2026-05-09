@@ -45,6 +45,8 @@ export const users = sqliteTable('users', {
   role: text('role', { enum: ['admin', 'team', 'client'] }).default('team').notNull(),
   status: text('status', { enum: ['active', 'inactive', 'pending'] }).default('active'),
   onboardingCompleted: integer('onboarding_completed').default(0).notNull(),
+  onboardingStep: text('onboarding_step').default('start'),
+  firstLogin: integer('first_login').default(1).notNull(),
   twoFactorEnabled: integer('two_factor_enabled').default(0).notNull(),
   twoFactorSecret: text('two_factor_secret'),
   twoFactorTempSecret: text('two_factor_temp_secret'),

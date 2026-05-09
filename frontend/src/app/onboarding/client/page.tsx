@@ -29,8 +29,8 @@ export default function ClientOnboardingPage() {
       });
       await refreshUser();
       router.push("/dashboard/client");
-    } catch (err) {
-      alert("Failed to complete onboarding");
+    } catch (err: any) {
+      alert(err.message || "Failed to complete onboarding");
     } finally {
       setSubmitting(false);
     }

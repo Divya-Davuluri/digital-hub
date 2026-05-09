@@ -138,7 +138,9 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       role: user.role, 
       tenantId: user.tenantId,
       workspaceId: user.workspaceId,
-      onboardingCompleted: user.onboardingCompleted === 1
+      onboardingCompleted: user.onboardingCompleted === 1,
+      onboardingStep: user.onboardingStep,
+      firstLogin: user.firstLogin === 1
     } 
   });
 });
@@ -203,7 +205,9 @@ export const validate2FA = asyncHandler(async (req: Request, res: Response) => {
       role: user.role, 
       tenantId: user.tenantId,
       workspaceId: user.workspaceId,
-      onboardingCompleted: user.onboardingCompleted === 1
+      onboardingCompleted: user.onboardingCompleted === 1,
+      onboardingStep: user.onboardingStep,
+      firstLogin: user.firstLogin === 1
     } 
   });
 });
@@ -231,7 +235,9 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
       role: user.role,
       tenantId: user.tenantId,
       workspaceId: user.workspaceId,
-      onboardingCompleted: user.onboardingCompleted === 1
+      onboardingCompleted: user.onboardingCompleted === 1,
+      onboardingStep: user.onboardingStep,
+      firstLogin: user.firstLogin === 1
     }
   });
 });
