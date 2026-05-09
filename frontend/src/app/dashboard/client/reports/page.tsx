@@ -112,8 +112,14 @@ export default function ClientReportsPage() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-12">
-                      <p className="text-slate-400 text-sm italic">No custom report requests yet.</p>
+                    <div className="text-center py-16 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100 text-xl">
+                        📂
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900 mb-1">Your Report Vault is Empty</h4>
+                      <p className="text-xs text-slate-500 max-w-[240px] mx-auto">
+                        Once your first performance summary is generated, it will be securely archived here for download.
+                      </p>
                     </div>
                   )}
                 </div>

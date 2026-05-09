@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { db } from '../db';
-import { clients, campaigns, users, workspaces } from '../db/schema';
+import { clients, campaigns, users, workspaces, analytics, reports } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -110,7 +110,16 @@ export const createClient = asyncHandler(async (req: any, res: Response) => {
     status: 'active'
   });
 
-  // 4. Handle Invitation
+  // 4. Seed Demo Data for the new workspace
+  try {
+    await seedWorkspaceDemoData(tenantId, workspaceId, clientId);
+    console.log(`✅ Seeded demo data for workspace ${workspaceId}`);
+  } catch (seedError) {
+    console.error('⚠️ Failed to seed demo data:', seedError);
+    // Don't fail the whole request if seeding fails
+  }
+
+  // 5. Handle Invitation
   let inviteSent = false;
   let inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?email=${email}`;
   
@@ -275,3 +284,75 @@ export const getAgencyStats = asyncHandler(async (req: any, res: Response) => {
 
   res.json(stats);
 });
+
+/**
+ * HELPER: Seed Demo Data for new Workspaces
+ */
+async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clientId: string) {
+  const campaign1Id = uuidv4();
+  const campaign2Id = uuidv4();
+  const now = new Date();
+
+  // 1. Create Sample Campaigns
+  await db.insert(campaigns).values([
+    {
+      id: campaign1Id,
+      tenantId,
+      workspaceId,
+      clientId,
+      name: 'Summer Growth Campaign',
+      channel: 'google',
+      budget: 5000,
+      spend: 1240,
+      impressions: 45000,
+      clicks: 1200,
+      conversions: 85,
+      status: 'active',
+      startDate: now.toISOString()
+    },
+    {
+      id: campaign2Id,
+      tenantId,
+      workspaceId,
+      clientId,
+      name: 'Social Brand Awareness',
+      channel: 'facebook',
+      budget: 2500,
+      spend: 850,
+      impressions: 125000,
+      clicks: 3400,
+      conversions: 12,
+      status: 'active',
+      startDate: now.toISOString()
+    }
+  ]);
+
+  // 2. Create Sample Analytics Summary (last 7 days)
+  const analyticsData = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    analyticsData.push({
+      tenantId,
+      workspaceId,
+      campaignId: campaign1Id,
+      date: d.toISOString().split('T')[0],
+      clicks: Math.floor(Math.random() * 200),
+      impressions: Math.floor(Math.random() * 10000),
+      conversions: Math.floor(Math.random() * 20),
+      spend: Math.floor(Math.random() * 500)
+    });
+  }
+  await db.insert(analytics).values(analyticsData);
+
+  // 3. Create Starter Report
+  await db.insert(reports).values({
+    id: uuidv4(),
+    tenantId,
+    workspaceId,
+    name: 'Initial Strategy & Setup Report',
+    url: '#',
+    type: 'PERFORMANCE',
+    status: 'READY'
+  });
+}

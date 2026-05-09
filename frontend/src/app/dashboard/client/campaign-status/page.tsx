@@ -84,11 +84,17 @@ export default function ClientCampaignStatusPage() {
                       </div>
                    </div>
                  ))
-               ) : (
-                 <div className="text-center py-24 bg-white rounded-3xl border border-dashed border-slate-200">
-                    <p className="text-slate-400">No campaigns are currently running for your account.</p>
-                 </div>
-               )}
+                ) : (
+                  <div className="text-center py-24 bg-white rounded-[2rem] border border-dashed border-slate-200 shadow-sm">
+                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl">
+                        📡
+                     </div>
+                     <h3 className="text-xl font-bold text-slate-900 mb-2">No Active Campaigns</h3>
+                     <p className="text-slate-500 max-w-sm mx-auto">
+                        Your marketing initiatives are currently being prepared. Check back shortly for live performance tracking.
+                     </p>
+                  </div>
+                )}
             </div>
           </main>
         </div>
