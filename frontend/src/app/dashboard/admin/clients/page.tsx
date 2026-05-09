@@ -39,7 +39,7 @@ export default function AdminClientsPage() {
       setClients(Array.isArray(clientsData) ? clientsData : []);
       setTeamMembers(Array.isArray(teamData) ? teamData : []);
     } catch (err) {
-      console.error(err);
+      console.error("Fetch error:", err);
     } finally {
       setLoading(false);
     }
@@ -117,11 +117,13 @@ export default function AdminClientsPage() {
     }
   };
 
+  const allowedRoles: ('admin' | 'team' | 'client')[] = ['admin'];
+
   return (
-    <RoleGuard allowedRoles={['admin']}>
+    <RoleGuard allowedRoles={allowedRoles}>
       <div className="flex min-h-screen bg-slate-50">
         <Sidebar role="admin" />
-        <div className="flex-1 ml-[260px] flex flex-col">
+        <div className="flex-1 flex flex-col" style={{ marginLeft: '260px' }}>
           <Header />
           <main className="p-8 max-w-7xl mx-auto w-full">
             <div className="flex justify-between items-end mb-10">
@@ -131,7 +133,7 @@ export default function AdminClientsPage() {
               </div>
               <button 
                  onClick={() => setShowAddModal(true)}
-                 className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-xs shadow-lg hover:opacity-90 transition-all"
+                 className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg hover:bg-indigo-700 transition-all"
               >
                  + Add New Client
               </button>
@@ -200,7 +202,7 @@ export default function AdminClientsPage() {
                                        setEditingClient(client);
                                        setShowEditModal(true);
                                      }}
-                                     className="text-xs font-bold text-primary hover:underline"
+                                     className="text-xs font-bold text-indigo-600 hover:underline"
                                     >
                                      Edit Settings
                                     </button>
@@ -215,7 +217,7 @@ export default function AdminClientsPage() {
                     <div className="text-4xl mb-4 opacity-50">🏢</div>
                     <h3 className="text-lg font-bold text-slate-900 mb-1">No Clients Found</h3>
                     <p className="text-sm text-slate-500 mb-6">Start by adding your first agency client workspace.</p>
-                    <button onClick={() => setShowAddModal(true)} className="text-sm font-bold text-primary hover:underline">Add First Client →</button>
+                    <button onClick={() => setShowAddModal(true)} className="text-sm font-bold text-indigo-600 hover:underline">Add First Client →</button>
                  </div>
                )}
             </div>
@@ -226,7 +228,7 @@ export default function AdminClientsPage() {
         {showAddModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowAddModal(false)} />
-            <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl relative z-10 overflow-hidden animate-subtle-fade">
+            <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl relative z-10 overflow-hidden">
               <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">Onboard New Client</h2>
@@ -242,7 +244,7 @@ export default function AdminClientsPage() {
                     <input 
                       type="text" 
                       placeholder="e.g. John Doe" 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                       required 
                       value={newClient.clientName}
                       onChange={(e) => setNewClient({...newClient, clientName: e.target.value})}
@@ -253,7 +255,7 @@ export default function AdminClientsPage() {
                     <input 
                       type="email" 
                       placeholder="contact@client.com" 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                       required 
                       value={newClient.contactEmail}
                       onChange={(e) => setNewClient({...newClient, contactEmail: e.target.value})}
@@ -267,7 +269,7 @@ export default function AdminClientsPage() {
                     <input 
                       type="text" 
                       placeholder="e.g. Nike" 
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                       required
                       value={newClient.companyName}
                       onChange={(e) => setNewClient({...newClient, companyName: e.target.value})}
@@ -305,14 +307,14 @@ export default function AdminClientsPage() {
                   <input 
                     type="checkbox" 
                     id="sendInvite" 
-                    className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                     checked={newClient.sendInvite}
                     onChange={(e) => setNewClient({...newClient, sendInvite: e.target.checked})}
                   />
                   <label htmlFor="sendInvite" className="text-sm font-bold text-slate-600 cursor-pointer">Send Welcome Email with Credentials</label>
                 </div>
 
-                <button type="submit" disabled={submitting} className="w-full py-4 bg-primary text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50 shadow-xl shadow-primary/20">
+                <button type="submit" disabled={submitting} className="w-full py-4 bg-indigo-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-xl shadow-indigo-200">
                   {submitting ? 'Creating System Records...' : 'Deploy Client Workspace'}
                 </button>
               </form>
@@ -325,7 +327,7 @@ export default function AdminClientsPage() {
       {showEditModal && editingClient && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowEditModal(false)} />
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl relative z-10 p-8 space-y-6 animate-subtle-fade">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl relative z-10 p-8 space-y-6">
             <h2 className="text-xl font-bold text-slate-900">Manage Client Workspace</h2>
             <form className="space-y-4" onSubmit={handleUpdateClient}>
               <div className="space-y-1">
@@ -334,7 +336,7 @@ export default function AdminClientsPage() {
                   type="text" 
                   value={editingClient.name}
                   onChange={(e) => setEditingClient({...editingClient, name: e.target.value})}
-                  className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-primary outline-none"
+                  className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                   required 
                 />
               </div>
