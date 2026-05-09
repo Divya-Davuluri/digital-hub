@@ -1,6 +1,6 @@
 const API_BASE = 
   process.env.NEXT_PUBLIC_API_URL || 
-  'https://digital-hub-3h88.onrender.com';
+  (typeof window !== 'undefined' ? window.location.origin : 'https://digital-hub-1.onrender.com');
 
 export const getToken = (): string => {
   if (typeof window === 'undefined') 
@@ -41,6 +41,12 @@ export const apiCall = async (
   
   try {
     const data = JSON.parse(text);
+    
+    if (!response.ok) {
+      const errorMsg = data.message || `Request failed with status ${response.status}`;
+      throw new Error(errorMsg);
+    }
+    
     return data;
   } catch {
     console.error(
