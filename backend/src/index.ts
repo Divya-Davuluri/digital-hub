@@ -26,6 +26,7 @@ import onboardingRoutes from './routes/onboarding';
 import notificationRoutes from './routes/notificationRoutes';
 import reportRoutes from './routes/reportRoutes';
 import documentRoutes from './routes/documentRoutes';
+import settingsRoutes from './routes/settingsRoutes';
 
 import { authMiddleware, authorize } from './middleware/authMiddleware';
 
@@ -113,6 +114,7 @@ app.use('/api/admin', onboardingRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // --- 404 & Error Handling ---
 app.use('/api/*', (req: Request, res: Response) => {
