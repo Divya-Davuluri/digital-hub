@@ -8,7 +8,8 @@ import { asyncHandler, AppError } from '../utils/errors';
  * POST /api/onboarding/client/complete
  */
 export const completeClientOnboarding = asyncHandler(async (req: any, res: Response) => {
-  const { userId, tenantId, workspaceId } = req.user;
+  const { id, tenantId, workspaceId } = req.user;
+  const userId = id; // Maintain userId variable for consistency below
   const { companyName, logoUrl, primaryColor } = req.body;
 
   console.log(`[ONBOARDING_FINALIZE] START | User: ${userId} | Workspace: ${workspaceId}`);

@@ -10,10 +10,15 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
     console.error(err.stack);
   }
 
-  res.status(statusCode).json({
-    success: false,
-    message,
-    stack: config.isProduction ? undefined : err.stack,
-    error: config.isProduction ? undefined : err
-  });
+  try {
+    res.status(statusCode).json({
+      success: false,
+      message: String(message),
+      stack: config.isProduction ? undefined : err.stack,
+      error: config.isProduction ? undefined : (err instanceof Error ? err.message : err)
+    });
+  } catch (jsonErr) {
+    console.error('[CRITICAL] Error handler failed to send JSON:', jsonErr);
+    res.status(500).send(`{"success":false,"message":"Critical error in error handler"}`);
+  }
 };
