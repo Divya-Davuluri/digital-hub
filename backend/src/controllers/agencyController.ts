@@ -11,13 +11,24 @@ import { asyncHandler, AppError } from '../utils/errors';
 export const getClients = asyncHandler(async (req: any, res: Response) => {
   const { tenantId, role, workspaceId } = req.user;
   
-  if (role === 'admin' || role === 'team') {
+  if (role === 'admin') {
     // Admins see all clients in their agency
+    const result = await db.all(sql`
+      SELECT c.*, w.slug as workspace_slug, u.name as team_member_name
+      FROM clients c
+      LEFT JOIN workspaces w ON c.workspace_id = w.id
+      LEFT JOIN users u ON c.assigned_team_member_id = u.id
+      WHERE c.tenant_id = ${tenantId}
+      ORDER BY c.created_at DESC
+    `);
+    return res.json(result);
+  } else if (role === 'team') {
+    // Team members only see assigned clients
     const result = await db.all(sql`
       SELECT c.*, w.slug as workspace_slug
       FROM clients c
       LEFT JOIN workspaces w ON c.workspace_id = w.id
-      WHERE c.tenant_id = ${tenantId}
+      WHERE c.tenant_id = ${tenantId} AND c.assigned_team_member_id = ${req.user.id}
       ORDER BY c.created_at DESC
     `);
     return res.json(result);
@@ -30,8 +41,16 @@ export const getClients = asyncHandler(async (req: any, res: Response) => {
   }
 });
 
+export const getTeamMembers = asyncHandler(async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const members = await db.query.users.findMany({
+    where: and(eq(users.tenantId, tenantId), eq(users.role, 'team'))
+  });
+  res.json(members);
+});
+
 export const createClient = asyncHandler(async (req: any, res: Response) => {
-  const { name, email, companyName, status, password } = req.body;
+  const { name, email, companyName, status, password, plan, assignedTeamMemberId, sendInvite } = req.body;
   const { tenantId } = req.user;
 
   if (!name || !email) {
@@ -55,10 +74,9 @@ export const createClient = asyncHandler(async (req: any, res: Response) => {
   await db.insert(workspaces).values({
     id: workspaceId,
     tenantId,
-    clientId: clientId,
-    clientName: name,
     name: companyName || name,
     slug,
+    status: 'active'
   });
 
   // 2. Create Client Record
@@ -69,12 +87,14 @@ export const createClient = asyncHandler(async (req: any, res: Response) => {
     name,
     email,
     companyName: companyName || null,
-    status: status || 'active'
+    status: status || 'active',
+    plan: plan || 'starter',
+    assignedTeamMemberId: assignedTeamMemberId || null
   });
 
   // 3. Create Client User linked to Workspace
   const userId = uuidv4();
-  const tempPassword = password || 'Client123!';
+  const tempPassword = password || `DMH${Math.random().toString(36).substring(2, 10)}!`;
   const hashedPassword = await bcrypt.hash(tempPassword, 12);
 
   await db.insert(users).values({
@@ -82,14 +102,52 @@ export const createClient = asyncHandler(async (req: any, res: Response) => {
     tenantId,
     workspaceId,
     name,
-    email,
+    email: email.toLowerCase(),
     password: hashedPassword,
     role: 'client',
-    provider: 'local'
+    provider: 'local',
+    onboardingCompleted: 0,
+    status: 'active'
   });
 
-  res.status(201).json({ success: true, clientId, workspaceId, userId });
+  // 4. Handle Invitation
+  let inviteSent = false;
+  let inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?email=${email}`;
+  
+  if (sendInvite) {
+    const { sendEmail } = require('../utils/email');
+    const emailResult = await sendEmail({
+      to: email,
+      subject: `Welcome to ${companyName || 'Digital Marketing Hub'}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #4f46e5;">Welcome to your Dashboard!</h2>
+          <p>Hello <strong>${name}</strong>,</p>
+          <p>Your agency workspace <strong>${companyName || name}</strong> has been created.</p>
+          <p>You can log in to your portal using the details below:</p>
+          <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 0;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 5px 0 0 0;"><strong>Temporary Password:</strong> ${tempPassword}</p>
+          </div>
+          <a href="${inviteLink}" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Login to Dashboard</a>
+          <p style="margin-top: 30px; color: #64748b; font-size: 14px;">Please change your password after your first login.</p>
+        </div>
+      `
+    });
+    inviteSent = emailResult.success;
+  }
+
+  res.status(201).json({ 
+    success: true, 
+    clientId, 
+    workspaceId, 
+    userId, 
+    tempPassword,
+    inviteSent,
+    inviteLink 
+  });
 });
+
 
 export const updateClient = asyncHandler(async (req: any, res: Response) => {
   const { id } = req.params;

@@ -22,11 +22,12 @@ import projectRoutes from './routes/projectRoutes';
 import clientRoutes from './routes/clientRoutes';
 import brandingRoutes from './routes/brandingRoutes';
 import adminBrandingRoutes from './routes/adminBrandingRoutes';
-import onboardingRoutes from './routes/onboarding';
+import onboardingRoutes from './routes/onboardingRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import reportRoutes from './routes/reportRoutes';
 import documentRoutes from './routes/documentRoutes';
 import settingsRoutes from './routes/settingsRoutes';
+
 
 import { authMiddleware, authorize } from './middleware/authMiddleware';
 
@@ -110,11 +111,12 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/branding', brandingRoutes);
 app.use('/api/admin/branding', adminBrandingRoutes);
-app.use('/api/admin', onboardingRoutes);
+
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 
 // --- 404 & Error Handling ---
 app.use('/api/*', (req: Request, res: Response) => {

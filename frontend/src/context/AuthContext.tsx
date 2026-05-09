@@ -11,6 +11,7 @@ interface User {
   role: 'admin' | 'team' | 'client';
   tenantId: string;
   workspaceId?: string | null;
+  onboardingCompleted?: boolean;
 }
 
 interface AuthContextType {
@@ -19,6 +20,7 @@ interface AuthContextType {
   loading: boolean;
   login: (data: any) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -39,7 +41,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (storedToken && storedUser) {
       setToken(storedToken);
       try {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        
+        // Handle auto-redirect for incomplete onboarding
+        if (parsedUser.role === 'client' && parsedUser.onboardingCompleted === false && pathname !== '/onboarding/client') {
+          router.push('/onboarding/client');
+        }
       } catch (e) {
         console.error('Failed to parse stored user');
         logout();
@@ -61,15 +69,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(data.token);
     setUser(data.user);
 
-    // Redirect based on role
+    // Redirect based on role and onboarding status
     if (data.user.role === 'admin') {
       router.push('/dashboard/admin');
     } else if (data.user.role === 'team') {
       router.push('/dashboard/team');
     } else if (data.user.role === 'client') {
-      router.push('/dashboard/client');
+      if (data.user.onboardingCompleted === false) {
+        router.push('/onboarding/client');
+      } else {
+        router.push('/dashboard/client');
+      }
     } else {
       router.push('/dashboard');
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const updatedUser = await apiCall('/api/settings/profile');
+      const newUser = { ...user, ...updatedUser, onboardingCompleted: updatedUser.onboardingCompleted === 1 };
+      setUser(newUser);
+      localStorage.setItem('user', JSON.stringify(newUser));
+    } catch (err) {
+      console.error("Failed to refresh user", err);
     }
   };
 
@@ -86,7 +109,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       token, 
       loading, 
       login, 
-      logout, 
+      logout,
+      refreshUser,
       isAuthenticated: !!token 
     }}>
       {children}

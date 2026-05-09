@@ -43,4 +43,5 @@ export const config = {
     authToken: process.env.TURSO_AUTH_TOKEN as string,
   },
   isProduction: process.env.NODE_ENV === 'production',
+  resendApiKey: process.env.RESEND_API_KEY as string,
 };

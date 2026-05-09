@@ -137,7 +137,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       name: user.name, 
       role: user.role, 
       tenantId: user.tenantId,
-      workspaceId: user.workspaceId
+      workspaceId: user.workspaceId,
+      onboardingCompleted: user.onboardingCompleted === 1
     } 
   });
 });
@@ -201,7 +202,8 @@ export const validate2FA = asyncHandler(async (req: Request, res: Response) => {
       name: user.name, 
       role: user.role, 
       tenantId: user.tenantId,
-      workspaceId: user.workspaceId
+      workspaceId: user.workspaceId,
+      onboardingCompleted: user.onboardingCompleted === 1
     } 
   });
 });
@@ -219,7 +221,19 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
   
   const newTokens = await generateTokens(user.id, user.role, user.tenantId, user.workspaceId);
   await db.delete(sessions).where(eq(sessions.id, session.id));
-  res.json({ success: true, ...newTokens });
+  res.json({ 
+    success: true, 
+    ...newTokens,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      tenantId: user.tenantId,
+      workspaceId: user.workspaceId,
+      onboardingCompleted: user.onboardingCompleted === 1
+    }
+  });
 });
 
 export const updateProfile = asyncHandler(async (req: any, res: Response) => {

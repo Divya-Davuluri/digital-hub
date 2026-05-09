@@ -3,7 +3,7 @@ import { authMiddleware, authorize } from '../middleware/authMiddleware';
 import { 
   getTasks, createTask, 
   getCampaigns, createCampaign,
-  getClients, createClient
+  getClients
 } from '../controllers/teamController';
 
 const router = Router();
@@ -22,6 +22,5 @@ router.post('/campaigns', createCampaign);
 
 // Clients
 router.get('/clients', getClients);
-router.post('/clients', createClient);
 
 export default router;

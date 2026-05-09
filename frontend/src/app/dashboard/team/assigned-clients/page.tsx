@@ -3,80 +3,84 @@
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import RoleGuard from "@/components/RoleGuard";
 import apiCall from "@/lib/api";
-import { useAuth } from "@/context/AuthContext";
+import RoleGuard from "@/components/RoleGuard";
 
-export default function TeamClientsPage() {
-  const { user } = useAuth();
+export default function TeamAssignedClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchMyClients = async () => {
+    const fetchAssignedClients = async () => {
       try {
-        // Fetch clients filtered by tenant but relevant to team
-        const data = await apiCall('/agency/clients');
-        setClients(data);
+        setLoading(true);
+        const data = await apiCall("/api/agency/clients");
+        setClients(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error("Error fetching clients:", err);
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
-    fetchMyClients();
+    fetchAssignedClients();
   }, []);
 
   return (
-    <RoleGuard allowedRoles={['team', 'admin']}>
+    <RoleGuard allowedRoles={['team']}>
       <div className="flex min-h-screen bg-slate-50">
         <Sidebar role="team" />
-        <div className="flex-1 ml-[260px]">
+        <div className="flex-1 ml-[260px] flex flex-col">
           <Header />
-          <main className="p-8">
-            <div className="mb-8">
+          <main className="p-8 max-w-7xl mx-auto w-full">
+            <div className="mb-10">
               <h1 className="text-3xl font-bold text-slate-900">Assigned Clients</h1>
-              <p className="text-slate-500">Overview of client accounts you are currently managing.</p>
+              <p className="text-sm text-slate-500 mt-1">Manage performance and campaigns for your assigned client accounts.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {loading ? (
-                <div className="col-span-full py-12 text-center text-slate-400 italic">Syncing client portfolio...</div>
+                <div className="col-span-full py-12 text-center text-slate-400 italic">Syncing assigned accounts...</div>
               ) : clients.length > 0 ? (
                 clients.map((client) => (
-                  <div key={client.id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xl">
-                        {client.name?.[0]}
+                  <div key={client.id} className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all group">
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary text-xl font-bold">
+                        {client.company_name?.[0] || client.name[0]}
                       </div>
-                      <div>
-                        <h3 className="font-bold text-slate-900">{client.name}</h3>
-                        <p className="text-xs text-slate-500">{client.companyName || 'Private Client'}</p>
-                      </div>
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        client.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
+                      }`}>
+                        {client.status}
+                      </span>
                     </div>
                     
-                    <div className="space-y-3 mb-6">
-                       <div className="flex justify-between text-xs font-medium">
-                          <span className="text-slate-400">Email</span>
-                          <span className="text-slate-900">{client.email}</span>
-                       </div>
-                       <div className="flex justify-between text-xs font-medium">
-                          <span className="text-slate-400">Status</span>
-                          <span className={`capitalize ${client.status === 'active' ? 'text-green-600' : 'text-amber-600'}`}>{client.status}</span>
-                       </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-1">{client.company_name || client.name}</h3>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-6">{client.plan} Plan</p>
+                    
+                    <div className="space-y-3 mb-8">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-400">Contact</span>
+                        <span className="text-slate-900 font-medium">{client.name}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-400">Email</span>
+                        <span className="text-slate-900 font-medium truncate ml-4" title={client.email}>{client.email}</span>
+                      </div>
                     </div>
 
-                    <div className="flex gap-3">
-                       <button className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors">View Workspace</button>
-                       <button className="px-3 py-2 bg-slate-50 text-slate-400 rounded-lg hover:text-slate-900 transition-colors">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                       </button>
-                    </div>
+                    <button 
+                      onClick={() => window.location.href = `/dashboard/team/campaigns?workspaceId=${client.workspace_id}`}
+                      className="w-full py-3 bg-slate-900 text-white rounded-2xl text-xs font-bold hover:bg-slate-800 transition-colors"
+                    >
+                      View Campaigns
+                    </button>
                   </div>
                 ))
               ) : (
-                <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-                  <p className="text-slate-400">You don't have any assigned clients yet.</p>
+                <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-slate-200">
+                  <div className="text-4xl mb-4 opacity-30">👥</div>
+                  <h3 className="text-lg font-bold text-slate-900">No Assigned Clients</h3>
+                  <p className="text-sm text-slate-500">You haven't been assigned to any client workspaces yet.</p>
                 </div>
               )}
             </div>

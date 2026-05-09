@@ -29,7 +29,7 @@ export const updateProfile = asyncHandler(async (req: any, res: Response) => {
   const { name, email } = req.body;
 
   await db.update(users)
-    .set({ name, email: email?.toLowerCase(), updatedAt: new Date().toISOString() })
+    .set({ name, email: email?.toLowerCase() })
     .where(eq(users.id, userId));
 
   res.json({ success: true, message: 'Profile updated' });

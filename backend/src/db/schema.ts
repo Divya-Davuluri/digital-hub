@@ -27,6 +27,7 @@ export const workspaces = sqliteTable('workspaces', {
   name: text('name').notNull(),
   slug: text('slug').notNull(),
   logo: text('logo'),
+  status: text('status', { enum: ['active', 'inactive', 'pending'] }).default('active'),
   primaryColor: text('primary_color').default('#4f46e5'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
@@ -42,6 +43,8 @@ export const users = sqliteTable('users', {
   provider: text('provider', { enum: ['local', 'google', 'facebook'] }).default('local').notNull(),
   providerId: text('provider_id'),
   role: text('role', { enum: ['admin', 'team', 'client'] }).default('team').notNull(),
+  status: text('status', { enum: ['active', 'inactive', 'pending'] }).default('active'),
+  onboardingCompleted: integer('onboarding_completed').default(0).notNull(),
   twoFactorEnabled: integer('two_factor_enabled').default(0).notNull(),
   twoFactorSecret: text('two_factor_secret'),
   twoFactorTempSecret: text('two_factor_temp_secret'),
@@ -59,8 +62,23 @@ export const clients = sqliteTable('clients', {
   email: text('email').notNull(),
   companyName: text('company_name'),
   status: text('status', { enum: ['active', 'inactive', 'pending'] }).default('active'),
+  plan: text('plan', { enum: ['starter', 'pro', 'enterprise'] }).default('starter'),
+  assignedTeamMemberId: text('assigned_team_member_id').references(() => users.id, { onDelete: 'set null' }),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
+
+// ... (rest of the tables)
+
+export const invitations = sqliteTable('invitations', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(),
+  expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+  used: integer('used').default(0).notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 
 export const campaigns = sqliteTable('campaigns', {
   id: text('id').primaryKey(),

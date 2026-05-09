@@ -132,68 +132,11 @@ export const getClients = asyncHandler(async (req: Request, res: Response) => {
     FROM clients c
     LEFT JOIN workspaces w ON c.workspace_id = w.id
     WHERE c.tenant_id = ${tenantId}
-    ${role === 'client' ? sql`AND c.workspace_id = ${workspaceId}` : sql``}
+    ${role === 'client' ? sql`AND c.workspace_id = ${workspaceId}` : role === 'team' ? sql`AND c.assigned_team_member_id = ${(req as any).user.id}` : sql``}
     ORDER BY c.created_at DESC
   `);
 
   res.json({ success: true, clients: allClients });
 });
 
-export const createClient = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, companyName } = req.body;
-  const { tenantId } = req.user as any;
 
-  if (!name || !email) throw new AppError('Name and Email are required', 400);
-
-  // Check if email already exists
-  const existingUser = await db.query.users.findFirst({
-    where: eq(users.email, email.toLowerCase())
-  });
-
-  if (existingUser) {
-    throw new AppError('Email already registered', 400);
-  }
-
-  // 1. Create Workspace Automatically
-  const workspaceId = uuidv4();
-  const clientId = uuidv4();
-  const slug = (companyName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
-  
-  await db.insert(workspaces).values({
-    id: workspaceId,
-    tenantId,
-    clientId: clientId,
-    clientName: name,
-    name: companyName || name,
-    slug,
-  });
-
-  // 2. Create Client record linked to workspace
-  await db.insert(clients).values({
-    id: clientId,
-    tenantId,
-    workspaceId,
-    name,
-    email,
-    companyName: companyName || null,
-    status: 'active',
-  });
-
-  // 3. Create User record for the client
-  const userId = uuidv4();
-  const tempPassword = 'Client123!'; // Default password for new clients
-  const hashedPassword = await bcrypt.hash(tempPassword, 12);
-
-  await db.insert(users).values({
-    id: userId,
-    tenantId,
-    workspaceId,
-    name,
-    email,
-    password: hashedPassword,
-    role: 'client',
-    provider: 'local',
-  });
-
-  res.status(201).json({ success: true, clientId, workspaceId, userId });
-});
