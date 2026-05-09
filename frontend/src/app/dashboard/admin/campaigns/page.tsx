@@ -117,7 +117,15 @@ export default function AdminCampaignsPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-slate-400">No campaigns found.</td>
+                      <td colSpan={6} className="px-6 py-16 text-center">
+                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100 text-2xl">
+                          🚀
+                        </div>
+                        <h4 className="text-base font-bold text-slate-900 mb-1">No Active Campaigns</h4>
+                        <p className="text-sm text-slate-500 max-w-[300px] mx-auto">
+                          Global campaign data will appear here once clients or team members launch new initiatives.
+                        </p>
+                      </td>
                     </tr>
                   )}
                 </tbody>

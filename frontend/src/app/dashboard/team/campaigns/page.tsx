@@ -140,8 +140,14 @@ export default function TeamCampaignsPage() {
                   </div>
                 ))
               ) : (
-                <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-                  <p className="text-slate-400">No campaigns assigned to your workspace yet.</p>
+                <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl border border-slate-100">
+                    📈
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">No Active Campaigns</h3>
+                  <p className="text-slate-500 max-w-sm mx-auto">
+                    You don't have any active campaigns to manage yet. Click the "Create Campaign" button to launch one.
+                  </p>
                 </div>
               )}
             </div>

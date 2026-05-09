@@ -130,7 +130,15 @@ export default function AdminReportsPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400">No pending report requests.</td>
+                        <td colSpan={5} className="px-6 py-16 text-center">
+                          <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-100 text-xl">
+                            ✅
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-900 mb-1">All Caught Up</h4>
+                          <p className="text-xs text-slate-500 max-w-[240px] mx-auto">
+                            There are no pending report requests from your clients at this time.
+                          </p>
+                        </td>
                       </tr>
                     )}
                   </tbody>

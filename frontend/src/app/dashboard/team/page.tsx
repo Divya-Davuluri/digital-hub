@@ -70,8 +70,8 @@ export default function TeamDashboard() {
                     <h3 className="font-bold text-slate-900">Quick Actions</h3>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <ActionButton icon="➕" label="New Campaign" color="indigo" onClick={() => {}} />
-                    <ActionButton icon="📝" label="New Report" color="blue" onClick={() => {}} />
+                    <ActionButton icon="➕" label="New Campaign" color="indigo" onClick={() => window.location.href = '/dashboard/team/campaigns'} />
+                    <ActionButton icon="📝" label="New Report" color="blue" onClick={() => window.location.href = '/dashboard/team/reports'} />
                     <ActionButton icon="📂" label="Client Docs" color="slate" onClick={() => {}} />
                     <ActionButton icon="💬" label="Team Chat" color="emerald" onClick={() => {}} />
                   </div>

@@ -149,22 +149,36 @@ export default function AdminClientsPage() {
                           </tr>
                        </thead>
                        <tbody className="divide-y divide-slate-100 bg-white">
-                          {clients.map((client) => (
-                             <tr key={client.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="px-8 py-5">
-                                  <div className="font-bold text-sm text-slate-900">{client.name}</div>
-                                  <div className="text-xs text-slate-400">{client.email}</div>
-                                </td>
-                                <td className="px-8 py-5 text-sm text-slate-500 font-bold uppercase text-[10px]">{client.plan || "Starter"}</td>
-                                <td className="px-8 py-5 text-sm text-slate-500">{client.team_member_name || "Unassigned"}</td>
-                                <td className="px-8 py-5">
-                                   <span className="px-2 py-1 rounded bg-green-50 text-green-700 text-[10px] font-bold uppercase border border-green-100">{client.status || "Active"}</span>
-                                </td>
-                                <td className="px-8 py-5 text-right">
-                                    <button onClick={() => { setEditingClient(client); setShowEditModal(true); }} className="text-xs font-bold text-indigo-600 hover:underline">Edit</button>
-                                </td>
-                             </tr>
-                          ))}
+                          {clients.length > 0 ? (
+                            clients.map((client) => (
+                               <tr key={client.id} className="hover:bg-slate-50 transition-colors">
+                                  <td className="px-8 py-5">
+                                    <div className="font-bold text-sm text-slate-900">{client.name}</div>
+                                    <div className="text-xs text-slate-400">{client.email}</div>
+                                  </td>
+                                  <td className="px-8 py-5 text-sm text-slate-500 font-bold uppercase text-[10px]">{client.plan || "Starter"}</td>
+                                  <td className="px-8 py-5 text-sm text-slate-500">{client.team_member_name || "Unassigned"}</td>
+                                  <td className="px-8 py-5">
+                                     <span className="px-2 py-1 rounded bg-green-50 text-green-700 text-[10px] font-bold uppercase border border-green-100">{client.status || "Active"}</span>
+                                  </td>
+                                  <td className="px-8 py-5 text-right">
+                                      <button onClick={() => { setEditingClient(client); setShowEditModal(true); }} className="text-xs font-bold text-indigo-600 hover:underline">Edit</button>
+                                  </td>
+                               </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={5} className="px-6 py-16 text-center">
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100 text-2xl">
+                                  🏢
+                                </div>
+                                <h4 className="text-base font-bold text-slate-900 mb-1">No Clients Yet</h4>
+                                <p className="text-sm text-slate-500 max-w-[300px] mx-auto">
+                                  Your agency has no active clients. Click "Add New Client" to onboard your first workspace.
+                                </p>
+                              </td>
+                            </tr>
+                          )}
                        </tbody>
                     </table>
                  </div>
