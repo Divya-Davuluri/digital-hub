@@ -23,7 +23,7 @@ export const getCampaigns = async (workspaceId?: string): Promise<Campaign[]> =>
 };
 
 export const updateCampaignStatus = async (id: string, status: string): Promise<any> => {
-  return apiCall(`/agency/campaigns/${id}/status`, {
+  return apiCall(`/agency/campaigns/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ status })
   });
