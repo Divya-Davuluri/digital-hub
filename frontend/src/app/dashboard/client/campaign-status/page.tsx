@@ -11,6 +11,15 @@ export default function ClientCampaignStatusPage() {
   const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [optimizingId, setOptimizingId] = useState<string | null>(null);
+
+  const handleOptimize = async (campaignId: string) => {
+    setOptimizingId(campaignId);
+    // Simulate API call for optimization request
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    alert("Optimization request submitted successfully! Our AI engine is analyzing your campaign.");
+    setOptimizingId(null);
+  };
 
   useEffect(() => {
     const fetchMyCampaigns = async () => {
@@ -76,11 +85,18 @@ export default function ClientCampaignStatusPage() {
                          </div>
                          <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
                             <div 
+                           <div 
                               className="h-full bg-indigo-500 rounded-full" 
                               style={{ width: `${Math.min((c.spend / c.budget) * 100, 100)}%` }}
                             ></div>
                          </div>
-                         <button className="mt-8 w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold transition-all border border-white/10">Request Optimization</button>
+                         <button 
+                            onClick={() => handleOptimize(c.id)}
+                            disabled={optimizingId === c.id}
+                            className="mt-8 w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold transition-all border border-white/10 disabled:opacity-50"
+                         >
+                            {optimizingId === c.id ? 'Requesting...' : 'Request Optimization'}
+                         </button>
                       </div>
                    </div>
                  ))
