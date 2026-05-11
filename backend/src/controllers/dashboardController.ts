@@ -9,7 +9,7 @@ import { eq, sql, and } from 'drizzle-orm';
  */
 export const getDashboardSummary = async (req: Request, res: Response) => {
   try {
-    const { tenantId, workspaceId, role } = req.user as any;
+    const { tenantId, workspaceId, role, id: userId } = req.user as any;
     // Admins see everything in the tenant by default, Clients are restricted to their workspace
     const targetWorkspaceId = role === 'admin' ? (req.query.workspaceId as string) : (workspaceId || req.query.workspaceId as string);
     
@@ -33,7 +33,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       .where(targetWorkspaceId 
         ? and(eq(campaigns.tenantId, tenantId), eq(campaigns.workspaceId, targetWorkspaceId))
         : role === 'team'
-        ? and(eq(campaigns.tenantId, tenantId), sql`exists (select 1 from clients where clients.workspace_id = campaigns.workspace_id and clients.assigned_team_member_id = ${req.user.id})`)
+        ? and(eq(campaigns.tenantId, tenantId), sql`exists (select 1 from clients where clients.workspace_id = campaigns.workspace_id and clients.assigned_team_member_id = ${userId})`)
         : eq(campaigns.tenantId, tenantId)
       );
 
@@ -50,7 +50,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       .where(targetWorkspaceId 
         ? and(eq(clients.tenantId, tenantId), eq(clients.workspaceId, targetWorkspaceId))
         : role === 'team'
-        ? and(eq(clients.tenantId, tenantId), eq(clients.assignedTeamMemberId, req.user.id))
+        ? and(eq(clients.tenantId, tenantId), eq(clients.assignedTeamMemberId, userId))
         : eq(clients.tenantId, tenantId)
       );
 
@@ -63,7 +63,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
         targetWorkspaceId 
           ? eq(tasks.workspaceId, targetWorkspaceId) 
           : role === 'team' 
-            ? sql`exists (select 1 from clients where clients.workspace_id = tasks.workspace_id and clients.assigned_team_member_id = ${req.user.id})` 
+            ? sql`exists (select 1 from clients where clients.workspace_id = tasks.workspace_id and clients.assigned_team_member_id = ${userId})` 
             : sql`1=1`,
         sql`status != 'COMPLETED'`
       ));
@@ -87,7 +87,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
 
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
-    const { tenantId, workspaceId, role } = req.user as any;
+    const { tenantId, workspaceId, role, id: userId } = req.user as any;
     const targetWorkspaceId = role === 'admin' ? (req.query.workspaceId as string) : (workspaceId || req.query.workspaceId as string);
 
     if (!tenantId) return res.status(400).json({ message: 'Tenant context missing' });
@@ -106,7 +106,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       .where(targetWorkspaceId 
         ? and(eq(campaigns.tenantId, tenantId), eq(campaigns.workspaceId, targetWorkspaceId))
         : role === 'team'
-        ? and(eq(campaigns.tenantId, tenantId), sql`exists (select 1 from clients where clients.workspace_id = campaigns.workspace_id and clients.assigned_team_member_id = ${req.user.id})`)
+        ? and(eq(campaigns.tenantId, tenantId), sql`exists (select 1 from clients where clients.workspace_id = campaigns.workspace_id and clients.assigned_team_member_id = ${userId})`)
         : eq(campaigns.tenantId, tenantId)
       )
       .groupBy(campaigns.channel);

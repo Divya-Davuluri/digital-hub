@@ -226,7 +226,7 @@ export const requestCustomReport = async (req: Request, res: Response) => {
  */
 export const getReportRequests = async (req: Request, res: Response) => {
   try {
-    const { tenantId, workspaceId: userWorkspaceId, role } = req.user as any;
+    const { tenantId, workspaceId: userWorkspaceId, role, id: userId } = req.user as any;
     const queryWorkspaceId = req.query.workspaceId;
 
     // Admins see all unless they specify a workspace
@@ -250,7 +250,7 @@ export const getReportRequests = async (req: Request, res: Response) => {
     .where(targetWorkspaceId 
       ? and(eq(reportRequests.tenantId, tenantId), eq(reportRequests.workspaceId, targetWorkspaceId as string))
       : role === 'team'
-      ? and(eq(reportRequests.tenantId, tenantId), eq(clients.assignedTeamMemberId, req.user.id))
+      ? and(eq(reportRequests.tenantId, tenantId), eq(clients.assignedTeamMemberId, userId))
       : eq(reportRequests.tenantId, tenantId)
     )
     .orderBy(sql`${reportRequests.createdAt} DESC`);

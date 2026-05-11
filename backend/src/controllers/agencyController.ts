@@ -189,7 +189,7 @@ export const deleteClient = asyncHandler(async (req: any, res: Response) => {
 // --- Campaign Management with Workspace Isolation ---
 
 export const getCampaigns = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId, role, workspaceId: userWorkspaceId } = req.user;
+  const { tenantId, role, workspaceId: userWorkspaceId, id: userId } = req.user;
   const queryWorkspaceId = req.query.workspaceId;
 
   // Admins see all unless they specify a workspace. Team/Clients only see their workspace.
@@ -210,7 +210,7 @@ export const getCampaigns = asyncHandler(async (req: any, res: Response) => {
     LEFT JOIN clients cl ON c.client_id = cl.id
     WHERE c.tenant_id = ${tenantId}
     ${targetWorkspaceId ? sql`AND c.workspace_id = ${targetWorkspaceId}` : sql``}
-    ${role === 'team' && !targetWorkspaceId ? sql`AND cl.assigned_team_member_id = ${req.user.id}` : sql``}
+    ${role === 'team' && !targetWorkspaceId ? sql`AND cl.assigned_team_member_id = ${userId}` : sql``}
     ORDER BY c.created_at DESC
   `);
 
@@ -278,7 +278,7 @@ export const deleteCampaign = asyncHandler(async (req: any, res: Response) => {
 // --- Analytics ---
 
 export const getAgencyStats = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId, role, workspaceId } = req.user;
+  const { tenantId, role, workspaceId, id: userId } = req.user;
 
   const [stats]: any = await db.select({
     totalClients: sql`count(distinct ${clients.id})`,
@@ -291,7 +291,7 @@ export const getAgencyStats = asyncHandler(async (req: any, res: Response) => {
   .where(role === 'client' 
     ? and(eq(clients.tenantId, tenantId), eq(clients.workspaceId, workspaceId || '')) 
     : role === 'team'
-    ? and(eq(clients.tenantId, tenantId), eq(clients.assignedTeamMemberId, req.user.id))
+    ? and(eq(clients.tenantId, tenantId), eq(clients.assignedTeamMemberId, userId))
     : eq(clients.tenantId, tenantId)
   );
 
