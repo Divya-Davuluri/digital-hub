@@ -395,7 +395,9 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
       clicks: Math.floor(Math.random() * 200),
       impressions: Math.floor(Math.random() * 10000),
       conversions: Math.floor(Math.random() * 20),
-      spend: Math.floor(Math.random() * 500)
+      spend: Math.floor(Math.random() * 500),
+      totalSpend: Math.floor(Math.random() * 5000), // New field
+      roas: Math.floor(Math.random() * 10) + 2, // New field
     });
   }
   await db.insert(analytics).values(analyticsData);
@@ -408,6 +410,10 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
     name: 'Initial Strategy & Setup Report',
     url: '#',
     type: 'PERFORMANCE',
+    period: 'April 2026', // New field
+    spend: 2090, // New field
+    conversions: 97, // New field
+    roas: 4, // New field
     status: 'READY'
   });
 

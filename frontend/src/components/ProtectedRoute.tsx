@@ -35,6 +35,12 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
         return;
       }
 
+      // Onboarding check
+      if (role === 'client' && !user.onboardingCompleted && pathname !== '/onboarding/client') {
+        router.push('/onboarding/client');
+        return;
+      }
+
       // Role-based protection
       const isAdminRoute = pathname.startsWith('/dashboard/admin');
       const isTeamRoute = pathname.startsWith('/dashboard/team');
