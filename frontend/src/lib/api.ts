@@ -1,6 +1,5 @@
 const API_BASE = 
-  process.env.NEXT_PUBLIC_API_URL || 
-  'https://digital-hub-3h88.onrender.com';
+  (process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-3h88.onrender.com') + '/api';
 
 export const getToken = (): string => {
   if (typeof window === 'undefined') 
