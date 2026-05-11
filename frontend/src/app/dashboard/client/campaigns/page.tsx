@@ -135,7 +135,7 @@ export default function ClientCampaigns() {
                   Loading campaigns...
                 </td>
               </tr>
-            ) : campaigns.length === 0 ? (
+            ) : !Array.isArray(campaigns) || campaigns.length === 0 ? (
               <tr>
                 <td colSpan={4} style={{
                   padding: '40px',

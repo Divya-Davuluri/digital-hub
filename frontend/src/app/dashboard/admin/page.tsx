@@ -120,7 +120,7 @@ export default function AdminDashboard() {
                         cursor={{ fill: '#f8fafc' }}
                       />
                       <Bar dataKey="spend" radius={[6, 6, 0, 0]} barSize={40}>
-                        {stats.map((entry, index) => (
+                        {Array.isArray(stats) && stats.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={index === 0 ? primaryColor : `${primaryColor}aa`} />
                         ))}
                       </Bar>

@@ -103,12 +103,12 @@ export default function AdminReportsPage() {
                       <tr>
                         <td colSpan={5} className="px-6 py-8 text-center text-slate-400 italic">Syncing report requests...</td>
                       </tr>
-                    ) : requests.length > 0 ? (
+                    ) : Array.isArray(requests) && requests.length > 0 ? (
                       requests.map((req) => (
                         <tr key={req.id} className="hover:bg-slate-50/50">
                           <td className="px-6 py-4 font-bold text-slate-900">{req.clientName || 'Standard Client'}</td>
-                          <td className="px-6 py-4 text-sm text-slate-600">{req.reportType.replace('_', ' ')}</td>
-                          <td className="px-6 py-4 text-sm text-slate-500">{new Date(req.createdAt).toLocaleDateString()}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600">{(req.reportType || '').replace('_', ' ')}</td>
+                          <td className="px-6 py-4 text-sm text-slate-500">{req.createdAt ? new Date(req.createdAt).toLocaleDateString() : 'N/A'}</td>
                           <td className="px-6 py-4">
                             <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
                               req.status === 'COMPLETED' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'

@@ -60,13 +60,13 @@ export default function ClientDashboard() {
               <tr><th>Campaign Name</th><th>Budget</th><th>Status</th></tr>
             </thead>
             <tbody>
-              ${campaigns.map(c => `
+              ${Array.isArray(campaigns) ? campaigns.map(c => `
                 <tr>
                   <td>${c.name}</td>
                   <td>$${c.budget}</td>
                   <td>${c.status.toUpperCase()}</td>
                 </tr>
-              `).join('')}
+              `).join('') : ''}
             </tbody>
           </table>
           
@@ -113,7 +113,7 @@ export default function ClientDashboard() {
                <h3 className="text-base font-bold mb-6">Active Campaigns</h3>
                {loading ? (
                   <div className="text-slate-400 text-sm italic">Synchronizing live data...</div>
-               ) : campaigns.length > 0 ? (
+               ) : Array.isArray(campaigns) && campaigns.length > 0 ? (
                   <div className="space-y-4">
                     {campaigns.map((c, i) => (
                       <div key={i} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">

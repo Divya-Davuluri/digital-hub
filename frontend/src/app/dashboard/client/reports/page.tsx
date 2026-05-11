@@ -100,7 +100,7 @@ export default function ClientReportsPage() {
                 <div className="space-y-4">
                   {loading ? (
                     <div className="text-center py-8 text-slate-400 italic">Syncing your secure report vault...</div>
-                  ) : generatedReports.length > 0 ? (
+                  ) : Array.isArray(generatedReports) && generatedReports.length > 0 ? (
                     generatedReports.map((report) => (
                       <div key={report.id} className="p-4 bg-white rounded-2xl border border-slate-100 flex justify-between items-center group hover:border-indigo-200 transition-all">
                         <div className="flex items-center gap-4">
@@ -108,8 +108,10 @@ export default function ClientReportsPage() {
                             📊
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">{report.name}</p>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Generated {new Date(report.createdAt).toLocaleDateString()}</p>
+                            <p className="font-bold text-slate-900">{report.name || 'Untitled Report'}</p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                              Generated {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : 'N/A'}
+                            </p>
                           </div>
                         </div>
                         <button 
@@ -129,24 +131,29 @@ export default function ClientReportsPage() {
               <div className="card border-dashed border-2">
                 <h3 className="text-lg font-bold text-slate-900 mb-6">Recent Requests</h3>
                 <div className="space-y-4">
-                  {requests.map((req) => (
+                  {Array.isArray(requests) && requests.map((req) => (
                     <div key={req.id} className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex justify-between items-center">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-xl border border-slate-100">
                           📩
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900">{req.reportType.replace('_', ' ')}</p>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Requested {new Date(req.createdAt).toLocaleDateString()}</p>
+                          <p className="font-bold text-slate-900">{(req.reportType || 'Custom Report').replace('_', ' ')}</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                            Requested {req.createdAt ? new Date(req.createdAt).toLocaleDateString() : 'N/A'}
+                          </p>
                         </div>
                       </div>
                       <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                          req.status === 'COMPLETED' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
                        }`}>
-                        {req.status}
+                        {req.status || 'PENDING'}
                       </div>
                     </div>
                   ))}
+                  {(!Array.isArray(requests) || requests.length === 0) && !loading && (
+                    <p className="text-center py-8 text-slate-400 text-sm italic">No recent requests found.</p>
+                  )}
                 </div>
               </div>
             </div>
