@@ -12,7 +12,7 @@ export const getToken = (): string => {
   );
 };
 
-export const apiCall = async (
+const apiCall = async (
   endpoint: string,
   options: RequestInit = {}
 ): Promise<any> => {
@@ -60,4 +60,5 @@ export const apiCall = async (
 };
 
 export const apiFetch = apiCall;
+export { apiCall };
 export default apiCall;
