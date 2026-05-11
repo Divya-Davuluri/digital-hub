@@ -42,5 +42,4 @@ export const apiCall = async (
 };
 
 export const apiFetch = apiCall;
-export { apiCall };
 export default apiCall;

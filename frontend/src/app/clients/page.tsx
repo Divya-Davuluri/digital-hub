@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 
@@ -204,13 +204,13 @@ export default function ClientsPage() {
               </div>
               
               <div className="space-y-2">
-                <label className="block text-[10px] font-black text-text-muted uppercase tracking-[0.2em] ml-1">Business Vertical</label>
+                <label className="block text-[10px] font-black text-text-muted uppercase tracking-[0.2em] ml-1">Email Address</label>
                 <input 
-                  type="text" 
+                  type="email" 
                   required
-                  value={newClient.industry}
-                  onChange={(e) => setNewClient({...newClient, industry: e.target.value})}
-                  placeholder="e.g. Technology"
+                  value={newClient.email}
+                  onChange={(e) => setNewClient({...newClient, email: e.target.value})}
+                  placeholder="e.g. contact@acme.com"
                   className="input-field"
                 />
               </div>
@@ -223,19 +223,19 @@ export default function ClientsPage() {
                     onChange={(e) => setNewClient({...newClient, status: e.target.value})}
                     className="input-field appearance-none cursor-pointer"
                   >
-                    <option value="Active">Active</option>
-                    <option value="Onboarding">Onboarding</option>
-                    <option value="Inactive">Inactive</option>
+                    <option value="active">Active</option>
+                    <option value="onboarding">Onboarding</option>
+                    <option value="inactive">Inactive</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-black text-text-muted uppercase tracking-[0.2em] ml-1">Target Revenue</label>
+                  <label className="block text-[10px] font-black text-text-muted uppercase tracking-[0.2em] ml-1">Company Name</label>
                   <input 
                     type="text" 
                     required
-                    value={newClient.revenue}
-                    onChange={(e) => setNewClient({...newClient, revenue: e.target.value})}
-                    placeholder="e.g. $5,000/mo"
+                    value={newClient.companyName}
+                    onChange={(e) => setNewClient({...newClient, companyName: e.target.value})}
+                    placeholder="e.g. Acme Corporation"
                     className="input-field font-mono"
                   />
                 </div>
