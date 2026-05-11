@@ -85,7 +85,6 @@ export default function ClientCampaignStatusPage() {
                          </div>
                          <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
                             <div 
-                           <div 
                               className="h-full bg-indigo-500 rounded-full" 
                               style={{ width: `${Math.min((c.spend / c.budget) * 100, 100)}%` }}
                             ></div>
