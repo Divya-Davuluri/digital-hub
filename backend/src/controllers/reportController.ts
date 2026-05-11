@@ -67,13 +67,26 @@ export const exportClientPDF = async (req: Request, res: Response) => {
     const { tenantId, workspaceId, role } = req.user as any;
     const targetWorkspaceId = workspaceId || req.query.workspaceId;
 
-    if (!targetWorkspaceId) throw new AppError('Workspace context required', 403);
+    if (!targetWorkspaceId && role === 'client') throw new AppError('Workspace context required', 403);
 
     // 1. Fetch Data
-    const workspace = await db.query.workspaces.findFirst({
-      where: and(eq(workspaces.id, targetWorkspaceId), eq(workspaces.tenantId, tenantId))
-    });
-    const data = await db.select().from(campaigns).where(and(eq(campaigns.tenantId, tenantId), eq(campaigns.workspaceId, targetWorkspaceId)));
+    let workspaceName = 'Agency Report';
+    let primaryColor = '#4f46e5';
+    let data;
+
+    if (targetWorkspaceId) {
+      const workspace = await db.query.workspaces.findFirst({
+        where: and(eq(workspaces.id, targetWorkspaceId), eq(workspaces.tenantId, tenantId))
+      });
+      if (workspace) {
+        workspaceName = workspace.name;
+        primaryColor = workspace.primaryColor || '#4f46e5';
+      }
+      data = await db.select().from(campaigns).where(and(eq(campaigns.tenantId, tenantId), eq(campaigns.workspaceId, targetWorkspaceId)));
+    } else {
+      if (role !== 'admin' && role !== 'team') throw new AppError('Workspace context required', 403);
+      data = await db.select().from(campaigns).where(eq(campaigns.tenantId, tenantId));
+    }
     
     // 2. Calculate Totals
     const totals = data.reduce((acc, c) => ({
@@ -92,7 +105,7 @@ export const exportClientPDF = async (req: Request, res: Response) => {
     doc.pipe(res);
 
     // HEADER
-    doc.fontSize(24).font('Helvetica-Bold').fillColor(workspace?.primaryColor || '#4f46e5').text(workspace?.name || 'Workspace Report', { align: 'center' });
+    doc.fontSize(24).font('Helvetica-Bold').fillColor(primaryColor).text(workspaceName, { align: 'center' });
     doc.moveDown(0.2);
     doc.fontSize(10).font('Helvetica').fillColor('#64748b').text(`Generated on ${new Date().toLocaleDateString()}`, { align: 'center' });
     doc.moveDown(2);

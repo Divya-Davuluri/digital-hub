@@ -217,7 +217,7 @@ export const getCampaigns = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const createCampaign = asyncHandler(async (req: any, res: Response) => {
-  const { name, budget, workspaceId: bodyWorkspaceId, platform, startDate, endDate } = req.body;
+  const { name, budget, workspaceId: bodyWorkspaceId, platform, channel, startDate, endDate } = req.body;
   const { tenantId, id: userId, workspaceId: tokenWorkspaceId } = req.user;
   
   const targetWorkspaceId = tokenWorkspaceId || bodyWorkspaceId;
@@ -227,30 +227,40 @@ export const createCampaign = asyncHandler(async (req: any, res: Response) => {
   const campaignId = uuidv4();
   const createdAt = new Date().toISOString();
 
-  await db.run(sql`
-    INSERT INTO campaigns (
-      id, tenant_id, workspace_id, name, budget, 
-      status, platform, start_date, end_date, created_at
-    ) VALUES (
-      ${campaignId}, ${tenantId}, ${targetWorkspaceId}, ${name}, ${budget}, 
-      'active', ${platform || 'google'}, ${startDate || null}, ${endDate || null}, ${createdAt}
-    )
-  `);
+  await db.insert(campaigns).values({
+    id: campaignId,
+    tenantId,
+    workspaceId: targetWorkspaceId,
+    name,
+    budget,
+    status: 'active',
+    channel: platform || channel || 'google',
+    startDate: startDate || null,
+    endDate: endDate || null,
+    createdAt
+  });
 
   res.status(201).json({ success: true, id: campaignId });
 });
 
 export const updateCampaign = asyncHandler(async (req: any, res: Response) => {
   const { id } = req.params;
-  const { name, budget, status, platform, startDate, endDate } = req.body;
+  const { name, budget, status, platform, channel, startDate, endDate } = req.body;
   const { tenantId } = req.user;
 
-  await db.run(sql`
-    UPDATE campaigns 
-    SET name = ${name}, budget = ${budget}, status = ${status}, platform = ${platform}, 
-        start_date = ${startDate}, end_date = ${endDate}
-    WHERE id = ${id} AND tenant_id = ${tenantId}
-  `);
+  const updateData: any = {};
+  if (name !== undefined) updateData.name = name;
+  if (budget !== undefined) updateData.budget = budget;
+  if (status !== undefined) updateData.status = status;
+  if (platform !== undefined || channel !== undefined) updateData.channel = platform || channel;
+  if (startDate !== undefined) updateData.startDate = startDate;
+  if (endDate !== undefined) updateData.endDate = endDate;
+
+  if (Object.keys(updateData).length > 0) {
+    await db.update(campaigns)
+      .set(updateData)
+      .where(and(eq(campaigns.id, id), eq(campaigns.tenantId, tenantId)));
+  }
 
   res.json({ success: true, message: 'Campaign updated successfully' });
 });
