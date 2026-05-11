@@ -16,9 +16,21 @@ export const apiCall = async (
   options: RequestInit = {}
 ): Promise<any> => {
   const token = getToken();
-  const url = endpoint.startsWith('http')
-    ? endpoint
-    : `${API_BASE}${endpoint}`;
+  
+  let targetPath = endpoint;
+  if (!endpoint.startsWith('http')) {
+    // Ensure leading slash
+    if (!endpoint.startsWith('/')) {
+      targetPath = '/' + endpoint;
+    }
+    // Avoid double /api if endpoint already includes it
+    if (targetPath.startsWith('/api')) {
+      targetPath = targetPath.substring(4);
+    }
+    targetPath = `${API_BASE}${targetPath}`;
+  }
+  
+  const url = targetPath;
 
   const response = await fetch(url, {
     ...options,
