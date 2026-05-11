@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { db } from '../db';
-import { clients, campaigns, users, workspaces, analytics, reports, reportRequests } from '../db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { clients, campaigns, users, workspaces, analytics, reports, reportRequests, transactions } from '../db/schema';
+import { eq, and, sql, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { asyncHandler, AppError } from '../utils/errors';
@@ -296,6 +296,57 @@ export const getAgencyStats = asyncHandler(async (req: any, res: Response) => {
   );
 
   res.json(stats);
+});
+
+export const getAgencyStats = asyncHandler(async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+
+  // Get stats for the current tenant
+  const clientsCountResult = await db.select({ count: sql<number>`count(*)` }).from(workspaces).where(eq(workspaces.tenantId, tenantId));
+  const activeCampaignsCountResult = await db.select({ count: sql<number>`count(*)` }).from(campaigns).where(and(eq(campaigns.tenantId, tenantId), eq(campaigns.status, 'active')));
+  
+  // Sum total revenue from transactions
+  const totalRevenueResult = await db.select({ total: sql<number>`sum(amount)` }).from(transactions).where(eq(transactions.tenantId, tenantId));
+  const totalRevenue = totalRevenueResult[0]?.total || 0;
+
+  // Last month revenue for growth calculation (simple approximation)
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  const lastMonthRevenueResult = await db.select({ total: sql<number>`sum(amount)` })
+    .from(transactions)
+    .where(and(
+      eq(transactions.tenantId, tenantId),
+      sql`created_at < ${oneMonthAgo.toISOString()}`
+    ));
+  const lastMonthRevenue = lastMonthRevenueResult[0]?.total || 0;
+  
+  let growth = 0;
+  if (lastMonthRevenue > 0) {
+    growth = ((totalRevenue - lastMonthRevenue) / lastMonthRevenue) * 100;
+  }
+
+  res.json({
+    totalRevenue,
+    growth: growth.toFixed(1),
+    clientsCount: clientsCountResult[0].count,
+    activeCampaigns: activeCampaignsCountResult[0].count,
+    period: new Date().toLocaleString('default', { month: 'long', year: 'numeric' })
+  });
+});
+
+export const getRecentTransactions = asyncHandler(async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+
+  const result = await db.all(sql`
+    SELECT t.*, w.name as clientName
+    FROM transactions t
+    JOIN workspaces w ON t.workspace_id = w.id
+    WHERE t.tenant_id = ${tenantId}
+    ORDER BY t.created_at DESC
+    LIMIT 10
+  `);
+
+  res.json(result);
 });
 
 /**

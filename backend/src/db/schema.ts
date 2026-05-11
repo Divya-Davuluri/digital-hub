@@ -214,3 +214,12 @@ export const tenantBranding = sqliteTable('tenant_branding', {
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
+export const transactions = sqliteTable('transactions', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  amount: integer('amount').notNull(),
+  type: text('type').notNull(), // 'Subscription', 'Project', etc.
+  status: text('status').notNull(), // 'paid', 'pending', etc.
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});

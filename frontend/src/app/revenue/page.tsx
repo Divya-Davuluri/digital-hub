@@ -1,27 +1,25 @@
-'use client';
-
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { apiCall } from '@/lib/api';
 
-const REVENUE_DATA = {
-  total: '$45,200',
-  growth: '+15.4%',
-  period: 'April 2026',
-  stats: [
-    { label: 'Monthly Recurring', value: '$38,500', trend: 'up' },
-    { label: 'One-time Projects', value: '$6,700', trend: 'down' },
-    { label: 'Avg. Revenue Per Client', value: '$3,766', trend: 'up' },
-  ],
-  transactions: [
-    { id: 1, client: 'Acme Corp', date: '2026-04-25', amount: '$12,000', type: 'Subscription', status: 'Paid' },
-    { id: 2, client: 'EcoWare', date: '2026-04-22', amount: '$4,200', type: 'Subscription', status: 'Paid' },
-    { id: 3, client: 'Global Solutions', date: '2026-04-18', amount: '$8,500', type: 'Subscription', status: 'Pending' },
-    { id: 4, client: 'Skyline Media', date: '2026-04-15', amount: '$2,500', type: 'Project', status: 'Paid' },
-    { id: 5, client: 'TechFlow', date: '2026-04-10', amount: '$5,000', type: 'Project', status: 'Paid' },
-  ]
-};
+interface RevenueStats {
+  totalRevenue: number;
+  growth: string;
+  clientsCount: number;
+  activeCampaigns: number;
+  period: string;
+}
+
+interface Transaction {
+  id: string;
+  clientName: string;
+  createdAt: string;
+  amount: number;
+  type: string;
+  status: string;
+}
 
 export default function RevenuePage() {
   const router = useRouter();
@@ -29,6 +27,31 @@ export default function RevenuePage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [currency, setCurrency] = useState('USD ($)');
   const [taxRate, setTaxRate] = useState('15');
+  
+  const [stats, setStats] = useState<RevenueStats | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const [statsData, transactionsData] = await Promise.all([
+          apiCall('/agency/stats'),
+          apiCall('/agency/transactions')
+        ]);
+        setStats(statsData);
+        setTransactions(transactionsData);
+      } catch (err: any) {
+        console.error('Error fetching revenue data:', err);
+        setError(err.message || 'Failed to load revenue data');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
 
   const handleExport = () => {
     setIsExporting(true);
@@ -43,6 +66,29 @@ export default function RevenuePage() {
     setIsSettingsOpen(false);
     alert('Financial settings updated successfully!');
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-background text-text">
+        <Sidebar />
+        <div className="flex-1 ml-64 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen bg-background text-text">
+        <Sidebar />
+        <div className="flex-1 ml-64 flex flex-col items-center justify-center p-8">
+          <p className="text-red-500 mb-4">{error}</p>
+          <button onClick={() => window.location.reload()} className="btn-primary">Retry</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-background text-text">
@@ -64,7 +110,7 @@ export default function RevenuePage() {
                 Back to Dashboard
               </button>
               <h1 className="text-4xl font-black tracking-tight text-white mb-2">Revenue Analytics</h1>
-              <p className="text-text-muted font-medium">Financial performance for {REVENUE_DATA.period}</p>
+              <p className="text-text-muted font-medium">Financial performance for {stats?.period}</p>
             </div>
             <div className="flex gap-4">
               <button 
@@ -95,41 +141,44 @@ export default function RevenuePage() {
             <div className="lg:col-span-2 relative overflow-hidden p-10 bg-gradient-to-br from-primary via-primary/80 to-secondary rounded-[2.5rem] shadow-2xl group">
               <div className="relative z-10">
                 <p className="text-white/80 font-bold uppercase tracking-[0.2em] text-[10px] mb-4">Total Revenue (MTD)</p>
-                <h2 className="text-7xl font-black mb-8 tracking-tighter text-white">{REVENUE_DATA.total}</h2>
+                <h2 className="text-7xl font-black mb-8 tracking-tighter text-white">${stats?.totalRevenue.toLocaleString()}</h2>
                 <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white border border-white/10">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
-                  {REVENUE_DATA.growth} vs last month
+                  {stats?.growth}% vs last month
                 </div>
               </div>
-              {/* Abstract decorative elements */}
               <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-1000"></div>
               <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/4 w-64 h-64 bg-black/10 rounded-full blur-2xl"></div>
             </div>
 
             <div className="card flex flex-col justify-between py-10">
-              <h4 className="font-black mb-8 text-text-muted uppercase tracking-[0.2em] text-[10px]">Revenue Breakdown</h4>
+              <h4 className="font-black mb-8 text-text-muted uppercase tracking-[0.2em] text-[10px]">Agency Overview</h4>
               <div className="space-y-8">
-                {REVENUE_DATA.stats.map((stat, i) => (
-                  <div key={i} className="flex justify-between items-center group">
-                    <div>
-                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">{stat.label}</p>
-                      <p className="text-2xl font-black group-hover:text-primary transition-colors">{stat.value}</p>
-                    </div>
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all group-hover:scale-110 ${stat.trend === 'up' ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400'}`}>
-                      {stat.trend === 'up' ? (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                        </svg>
-                      ) : (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" />
-                        </svg>
-                      )}
-                    </div>
+                <div className="flex justify-between items-center group">
+                  <div>
+                    <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Active Clients</p>
+                    <p className="text-2xl font-black group-hover:text-primary transition-colors">{stats?.clientsCount}</p>
                   </div>
-                ))}
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 text-primary">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center group">
+                  <div>
+                    <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Active Campaigns</p>
+                    <p className="text-2xl font-black group-hover:text-primary transition-colors">{stats?.activeCampaigns}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-secondary/10 text-secondary">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -152,24 +201,29 @@ export default function RevenuePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {REVENUE_DATA.transactions.map((t) => (
+                  {transactions.map((t) => (
                     <tr key={t.id} className="hover:bg-white/[0.02] transition-colors group cursor-default">
-                      <td className="px-8 py-5 font-black group-hover:text-primary transition-colors">{t.client}</td>
-                      <td className="px-8 py-5 text-sm text-text-muted font-medium">{t.date}</td>
+                      <td className="px-8 py-5 font-black group-hover:text-primary transition-colors">{t.clientName}</td>
+                      <td className="px-8 py-5 text-sm text-text-muted font-medium">{new Date(t.createdAt).toLocaleDateString()}</td>
                       <td className="px-8 py-5">
                         <span className="text-[10px] px-3 py-1 bg-white/5 border border-white/5 rounded-full font-black uppercase tracking-widest text-text-muted">{t.type}</span>
                       </td>
-                      <td className="px-8 py-5 font-mono font-bold text-white text-lg">{t.amount}</td>
+                      <td className="px-8 py-5 font-mono font-bold text-white text-lg">${t.amount.toLocaleString()}</td>
                       <td className="px-8 py-5 text-right">
                         <span className={`inline-flex items-center px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                          t.status === 'Paid' ? 'bg-green-400/10 text-green-400' : 'bg-amber-400/10 text-amber-400'
+                          t.status === 'paid' ? 'bg-green-400/10 text-green-400' : 'bg-amber-400/10 text-amber-400'
                         }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full mr-2 ${t.status === 'Paid' ? 'bg-green-400' : 'bg-amber-400'}`}></span>
+                          <span className={`w-1.5 h-1.5 rounded-full mr-2 ${t.status === 'paid' ? 'bg-green-400' : 'bg-amber-400'}`}></span>
                           {t.status}
                         </span>
                       </td>
                     </tr>
                   ))}
+                  {transactions.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-8 py-10 text-center text-text-muted">No recent transactions found</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -209,7 +263,7 @@ export default function RevenuePage() {
                 <label className="block text-[10px] font-black text-text-muted uppercase tracking-[0.2em] ml-1">Agency Tax Rate (%)</label>
                 <input 
                   type="number" 
-                  value={taxRate}
+                  value={taxRate} 
                   onChange={(e) => setTaxRate(e.target.value)}
                   className="input-field font-mono"
                 />
