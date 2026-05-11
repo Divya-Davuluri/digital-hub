@@ -1,4 +1,4 @@
-import { apiFetch } from '@/lib/api';
+import apiCall from '@/lib/api';
 
 export interface BrandingSettings {
   logoUrl?: string;
@@ -8,11 +8,11 @@ export interface BrandingSettings {
 }
 
 export const getBranding = async (): Promise<BrandingSettings> => {
-  return apiFetch('/admin/branding');
+  return apiCall('/admin/branding');
 };
 
 export const updateBranding = async (settings: BrandingSettings): Promise<void> => {
-  return apiFetch('/admin/branding', {
+  return apiCall('/admin/branding', {
     method: 'PUT',
     body: JSON.stringify(settings),
   });

@@ -5,30 +5,53 @@ import { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 
-const INITIAL_CLIENTS = [
-  { id: 1, name: 'Acme Corp', industry: 'Tech', status: 'Active', revenue: '$12,000/mo' },
-  { id: 2, name: 'Global Solutions', industry: 'Logistics', status: 'Active', revenue: '$8,500/mo' },
-  { id: 3, name: 'EcoWare', industry: 'Retail', status: 'Active', revenue: '$4,200/mo' },
-  { id: 4, name: 'Skyline Media', industry: 'Entertainment', status: 'Onboarding', revenue: '$0/mo' },
-];
+import apiCall from '@/lib/api';
 
 export default function ClientsPage() {
   const router = useRouter();
-  const [clients, setClients] = useState(INITIAL_CLIENTS);
+  const [clients, setClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', industry: '', status: 'Active', revenue: '' });
+  const [newClient, setNewClient] = useState({ name: '', email: '', companyName: '', status: 'active' });
 
-  const handleAddClient = (e: React.FormEvent) => {
-    e.preventDefault();
-    const id = clients.length + 1;
-    setClients([...clients, { ...newClient, id }]);
-    setIsModalOpen(false);
-    setNewClient({ name: '', industry: '', status: 'Active', revenue: '' });
+  const fetchClients = async () => {
+    try {
+      const data = await apiCall('/clients');
+      setClients(data);
+    } catch (err) {
+      console.error('Fetch clients error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteClient = (id: number) => {
-    if (confirm('Are you sure you want to delete this client?')) {
-      setClients(clients.filter(c => c.id !== id));
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const handleAddClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await apiCall('/clients', {
+        method: 'POST',
+        body: JSON.stringify(newClient),
+      });
+      setIsModalOpen(false);
+      setNewClient({ name: '', email: '', companyName: '', status: 'active' });
+      fetchClients();
+    } catch (err) {
+      alert('Failed to add client');
+    }
+  };
+
+  const handleDeleteClient = async (id: string) => {
+    if (confirm('Are you sure you want to delete this client? This will also delete their workspace.')) {
+      try {
+        await apiCall(`/clients/${id}`, { method: 'DELETE' });
+        fetchClients();
+      } catch (err) {
+        alert('Failed to delete client');
+      }
     }
   };
 
@@ -40,7 +63,14 @@ export default function ClientsPage() {
         <Header />
         
         <main className="p-8 max-w-[1400px] mx-auto animate-fade-in">
-          <header className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+              <div className="w-10 h-10 border-4 border-white/10 border-t-primary rounded-full animate-spin"></div>
+              <p className="text-text-muted font-bold text-xs uppercase tracking-widest">Fetching Portfolio...</p>
+            </div>
+          ) : (
+            <>
+              <header className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12">
             <div>
               <button 
                 onClick={() => router.back()}
@@ -85,9 +115,9 @@ export default function ClientsPage() {
                 <thead>
                   <tr className="bg-white/[0.02] text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">
                     <th className="px-8 py-4">Client Identity</th>
-                    <th className="px-8 py-4">Vertical / Industry</th>
+                    <th className="px-8 py-4">Email Address</th>
                     <th className="px-8 py-4">Engagement Status</th>
-                    <th className="px-8 py-4">Contractual Revenue</th>
+                    <th className="px-8 py-4">Workspace Slug</th>
                     <th className="px-8 py-4 text-right">System Actions</th>
                   </tr>
                 </thead>
@@ -101,23 +131,23 @@ export default function ClientsPage() {
                           </div>
                           <div>
                             <div className="font-black text-white group-hover:text-primary transition-colors">{client.name}</div>
-                            <div className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-0.5">Ref: CL-00{client.id}</div>
+                            <div className="text-[9px] font-black text-text-muted uppercase tracking-widest mt-0.5">{client.companyName || 'No Company'}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-8 py-6">
-                        <span className="text-xs font-medium text-text-muted">{client.industry}</span>
+                        <span className="text-xs font-medium text-text-muted">{client.email}</span>
                       </td>
                       <td className="px-8 py-6">
                         <span className={`inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
-                          client.status === 'Active' ? 'bg-green-400/10 text-green-400' : 'bg-primary/10 text-primary'
+                          client.status === 'active' ? 'bg-green-400/10 text-green-400' : 'bg-primary/10 text-primary'
                         }`}>
-                          <span className={`w-1 h-1 rounded-full mr-2 ${client.status === 'Active' ? 'bg-green-400' : 'bg-primary'}`}></span>
+                          <span className={`w-1 h-1 rounded-full mr-2 ${client.status === 'active' ? 'bg-green-400' : 'bg-primary'}`}></span>
                           {client.status}
                         </span>
                       </td>
                       <td className="px-8 py-6">
-                        <p className="font-mono text-sm font-bold text-white">{client.revenue}</p>
+                        <p className="font-mono text-[10px] font-bold text-white/40">{client.workspace_slug || client.workspaceId?.slice(0,8)}</p>
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2">
@@ -142,6 +172,8 @@ export default function ClientsPage() {
               </table>
             </div>
           </div>
+          </>
+          )}
         </main>
       </div>
 

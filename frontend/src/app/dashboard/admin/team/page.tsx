@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { apiFetch } from "@/lib/api";
+import apiCall from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export default function AdminTeamPage() {
     const fetchTeam = async () => {
       try {
         // Fetching team members - adjusting to standard API path
-        const data = await apiFetch("/admin/team"); 
+        const data = await apiCall("/admin/team"); 
         setTeam(data);
       } catch (err) {
         console.error("Failed to fetch team:", err);

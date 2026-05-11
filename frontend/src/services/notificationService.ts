@@ -1,4 +1,4 @@
-import { apiFetch } from '@/lib/api';
+import apiCall from '@/lib/api';
 
 export interface Notification {
   id: string;
@@ -9,11 +9,11 @@ export interface Notification {
 }
 
 export const getNotifications = async (): Promise<Notification[]> => {
-  return apiFetch('/notifications');
+  return apiCall('/notifications');
 };
 
 export const markNotificationAsRead = async (id: string): Promise<void> => {
-  return apiFetch(`/notifications/${id}/read`, {
+  return apiCall(`/notifications/${id}/read`, {
     method: 'POST',
   });
 };

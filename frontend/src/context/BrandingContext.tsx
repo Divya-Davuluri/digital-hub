@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { apiFetch } from '@/lib/api';
+import apiCall from '@/lib/api';
 
 interface Branding {
   primaryColor: string;
@@ -35,7 +35,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Step 3: Fetch from GET /api/admin/branding
       // Note: We use /api/branding for public (login) and /api/admin/branding for admin
       // But for simplicity in the context, we'll try admin first, fallback to public
-      const data = await apiFetch('/admin/branding').catch(() => apiFetch('/branding'));
+      const data = await apiCall('/admin/branding').catch(() => apiCall('/branding'));
       
       setBranding(data);
       applyBranding(data);

@@ -12,21 +12,14 @@ export const getToken = (): string => {
   );
 };
 
-const apiCall = async (
+export const apiCall = async (
   endpoint: string,
   options: RequestInit = {}
 ): Promise<any> => {
   const token = getToken();
-  
-  // Ensure the endpoint has the /api prefix if it's a relative path
-  let path = endpoint;
-  if (!path.startsWith('/api') && !path.startsWith('http')) {
-    path = `/api${path.startsWith('/') ? '' : '/'}${path}`;
-  }
-
-  const url = path.startsWith('http') 
-    ? path 
-    : `${API_BASE}${path}`;
+  const url = endpoint.startsWith('http')
+    ? endpoint
+    : `${API_BASE}${endpoint}`;
 
   const response = await fetch(url, {
     ...options,
@@ -38,23 +31,12 @@ const apiCall = async (
   });
 
   const text = await response.text();
-  
   try {
-    const data = JSON.parse(text);
-    
-    if (!response.ok) {
-      const errorMsg = data.message || `Request failed with status ${response.status}`;
-      throw new Error(errorMsg);
-    }
-    
-    return data;
+    return JSON.parse(text);
   } catch {
-    console.error(
-      'Non-JSON from', endpoint, 
-      ':', text.substring(0, 100)
-    );
     throw new Error(
-      `API error ${response.status}: Server returned non-JSON response`
+      `API error ${response.status}: ` +
+      'Invalid response from server'
     );
   }
 };

@@ -1,6 +1,5 @@
 import { createClient } from '@libsql/client';
 import dotenv from 'dotenv';
-import path from 'path';
 
 dotenv.config();
 
@@ -19,14 +18,16 @@ async function main() {
   });
 
   try {
-    await client.execute("ALTER TABLE sessions ADD COLUMN workspace_id TEXT;");
-    console.log("Success");
+    await client.execute(`
+      UPDATE tenant_branding
+      SET secondary_color = '#10b981'
+      WHERE secondary_color IS NULL
+      OR secondary_color = ''
+      OR secondary_color = '#000000';
+    `);
+    console.log("UPDATE tenant_branding success");
   } catch (err: any) {
-    if (err.message && err.message.includes("duplicate column name")) {
-      console.log("Column already exists");
-    } else {
-      console.error(err);
-    }
+    console.error(err);
   }
 }
 

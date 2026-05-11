@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
-import { apiFetch } from '@/lib/api';
+import apiCall from '@/lib/api';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -30,7 +30,7 @@ export default function SettingsPage() {
     setLoading(true);
     setMessage({ type: '', text: '' });
     try {
-      const data = await apiFetch('/auth/update-profile', {
+      const data = await apiCall('/auth/update-profile', {
         method: 'POST',
         body: JSON.stringify({ name, email }),
       });

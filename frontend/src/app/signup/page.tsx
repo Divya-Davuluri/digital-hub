@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import apiCall from '@/lib/api';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -18,7 +18,7 @@ export default function SignupPage() {
     setLoading(true);
     localStorage.clear(); // Ensure clean state for new registration
     try {
-      await apiFetch('/auth/register', {
+      await apiCall('/auth/register', {
         method: 'POST',
         body: JSON.stringify(formData),
       });

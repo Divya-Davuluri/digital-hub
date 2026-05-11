@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { apiFetch } from "@/lib/api";
+import apiCall from "@/lib/api";
 
 export default function ClientDetailsPage() {
   const params = useParams();
@@ -21,9 +21,9 @@ export default function ClientDetailsPage() {
     const fetchData = async () => {
       try {
         const [clientData, campaignsData, tasksData] = await Promise.all([
-          apiFetch(`/clients/${clientId}`),
-          apiFetch(`/agency/campaigns?clientId=${clientId}`),
-          apiFetch(`/team/tasks`)
+          apiCall(`/clients/${clientId}`),
+          apiCall(`/agency/campaigns?clientId=${clientId}`),
+          apiCall(`/team/tasks`)
         ]);
         setClient(clientData);
         setCampaigns(campaignsData);

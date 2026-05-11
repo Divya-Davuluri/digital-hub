@@ -1,5 +1,5 @@
 import { db } from '../src/db';
-import { users, clients, campaigns, branding, notifications, tenants } from '../src/db/schema';
+import { users, clients, campaigns, tenantBranding, notifications, tenants, workspaces } from '../src/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import * as dotenv from 'dotenv';
 import path from 'path';
@@ -40,34 +40,51 @@ async function seed() {
   const actualTenantId = admin.tenantId!;
   const userId = admin.id;
 
-  // 3. Create Clients
-  console.log('Creating clients...');
-  const clientIds = [uuidv4(), uuidv4(), uuidv4()];
-  const clientNames = ['Acme Corp', 'Globex', 'Soylent Corp'];
-  const clientEmails = ['contact@acme.com', 'info@globex.com', 'sales@soylent.com'];
+  // 3. Create Clients and Workspaces
+  console.log('Creating clients and workspaces...');
+  const clientData = [
+    { name: 'Acme Corp', email: 'contact@acme.com' },
+    { name: 'Globex', email: 'info@globex.com' },
+    { name: 'Soylent Corp', email: 'sales@soylent.com' }
+  ];
   
-  for (let i = 0; i < clientIds.length; i++) {
-    await db.insert(clients).values({
-      id: clientIds[i],
-      name: clientNames[i],
-      email: clientEmails[i],
+  const createdClients = [];
+
+  for (const data of clientData) {
+    const workspaceId = uuidv4();
+    const clientId = uuidv4();
+    
+    await db.insert(workspaces).values({
+      id: workspaceId,
       tenantId: actualTenantId,
+      name: `${data.name} Workspace`,
+      slug: data.name.toLowerCase().replace(/ /g, '-'),
+    });
+
+    await db.insert(clients).values({
+      id: clientId,
+      name: data.name,
+      email: data.email,
+      tenantId: actualTenantId,
+      workspaceId: workspaceId,
       status: 'active',
-    }).onConflictDoNothing();
+    });
+
+    createdClients.push({ clientId, workspaceId });
   }
 
   // 4. Create Campaigns with Performance Data
   console.log('Creating campaigns...');
-  // Allowed channels: 'google', 'facebook', 'instagram', 'linkedin', 'tiktok'
   const channels = ['google', 'facebook', 'instagram', 'linkedin', 'tiktok'] as const;
   
-  for (const clientId of clientIds) {
+  for (const { clientId, workspaceId } of createdClients) {
     for (let i = 0; i < 3; i++) {
       await db.insert(campaigns).values({
         id: uuidv4(),
         tenantId: actualTenantId,
+        workspaceId,
         clientId,
-        name: `Campaign ${i + 1} for ${clientId.slice(0, 4)}`,
+        name: `Campaign ${i + 1} for ${workspaceId.slice(0, 4)}`,
         channel: channels[Math.floor(Math.random() * channels.length)],
         status: 'active',
         budget: Math.floor(Math.random() * 5000) + 1000,
@@ -82,7 +99,8 @@ async function seed() {
 
   // 5. Create Branding
   console.log('Creating branding...');
-  await db.insert(branding).values({
+  await db.insert(tenantBranding).values({
+    id: uuidv4(),
     tenantId: actualTenantId,
     logoUrl: 'https://via.placeholder.com/150?text=DigitalHub',
     primaryColor: '#3b82f6',

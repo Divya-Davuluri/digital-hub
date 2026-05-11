@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import apiCall from '@/lib/api';
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -22,7 +22,7 @@ export default function ProjectDetailPage() {
   const fetchProject = async () => {
     try {
       setLoading(true);
-      const data = await apiFetch(`/projects/${projectId}`);
+      const data = await apiCall(`/projects/${projectId}`);
       setProject(data.project);
       setProject(data.project);
 

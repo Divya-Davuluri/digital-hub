@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiFetch } from '@/lib/api';
+import apiCall from '@/lib/api';
 
 interface ClientOnboardingWizardProps {
   isOpen: boolean;
@@ -49,7 +49,7 @@ export default function ClientOnboardingWizard({ isOpen, onClose, onSuccess }: C
 
   const fetchTeamMembers = async () => {
     try {
-      const data = await apiFetch('/admin/team-members');
+      const data = await apiCall('/admin/team-members');
       setTeamMembers(data || []);
     } catch (err) {
       console.error('Failed to fetch team members', err);
@@ -61,7 +61,7 @@ export default function ClientOnboardingWizard({ isOpen, onClose, onSuccess }: C
     setCheckingEmail(true);
     setEmailError('');
     try {
-      const data = await apiFetch(`/admin/onboarding/check-email?email=${encodeURIComponent(email)}`);
+      const data = await apiCall(`/admin/onboarding/check-email?email=${encodeURIComponent(email)}`);
       if (data.exists) {
         setEmailError('Email already registered');
       }
@@ -102,7 +102,7 @@ export default function ClientOnboardingWizard({ isOpen, onClose, onSuccess }: C
       await new Promise(r => setTimeout(r, 600)); // Simulate multi-step feel
       setLoadingMessage('Setting up workspace...');
       
-      const response = await apiFetch('/admin/onboarding/client', {
+      const response = await apiCall('/admin/onboarding/client', {
         method: 'POST',
         body: JSON.stringify(formData)
       });

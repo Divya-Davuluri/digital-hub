@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import { apiFetch } from "@/lib/api";
+import apiCall from "@/lib/api";
 
 interface DashboardData {
   totalCampaigns: number;

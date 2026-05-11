@@ -1,4 +1,4 @@
-import { apiFetch } from '@/lib/api';
+import apiCall from '@/lib/api';
 
 export interface DashboardSummary {
   totalSpend: number;
@@ -17,11 +17,11 @@ export interface ChannelStat {
 }
 
 export const getDashboardSummary = async (): Promise<DashboardSummary> => {
-  return apiFetch('/dashboard/summary');
+  return apiCall('/dashboard/summary');
 };
 
 export const getDashboardStats = async (): Promise<ChannelStat[]> => {
-  return apiFetch('/dashboard/stats');
+  return apiCall('/dashboard/stats');
 };
 
 export const exportReport = async (format: 'csv' | 'pdf') => {
@@ -30,7 +30,9 @@ export const exportReport = async (format: 'csv' | 'pdf') => {
     ? process.env.NEXT_PUBLIC_API_URL 
     : `${process.env.NEXT_PUBLIC_API_URL}/api`;
     
-  const response = await fetch(`${baseUrl}/reports/export?format=${format}`, {
+  const endpoint = format === 'csv' ? '/reports/export?format=csv' : '/reports/client-pdf';
+  
+  const response = await fetch(`${baseUrl}${endpoint}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }

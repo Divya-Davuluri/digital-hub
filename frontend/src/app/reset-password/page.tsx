@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { apiFetch } from '@/lib/api';
+import apiCall from '@/lib/api';
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -29,7 +29,7 @@ function ResetPasswordForm() {
     setMessage({ type: '', text: '' });
 
     try {
-      await apiFetch('/auth/reset-password', {
+      await apiCall('/auth/reset-password', {
         method: 'POST',
         body: JSON.stringify({ token, password }),
       });

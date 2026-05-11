@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
-import { apiFetch } from '@/lib/api';
+import apiCall from '@/lib/api';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -29,7 +29,7 @@ export default function ProjectsPage() {
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const data = await apiFetch('/projects');
+      const data = await apiCall('/projects');
       setProjects(Array.isArray(data) ? data : (data.projects || []));
       setError('');
     } catch (err: any) {
@@ -42,7 +42,7 @@ export default function ProjectsPage() {
 
   const fetchClients = async () => {
     try {
-      const data = await apiFetch('/projects/clients');
+      const data = await apiCall('/projects/clients');
       const clientsList = data.clients || [];
       console.log('[CLIENTS_LOADED]', clientsList.length);
       setClients(clientsList);
@@ -66,7 +66,7 @@ export default function ProjectsPage() {
 
       console.log('[INITIATING_PROJECT]', payload);
       
-      const data = await apiFetch('/projects', {
+      const data = await apiCall('/projects', {
         method: 'POST',
         body: JSON.stringify(payload),
       });

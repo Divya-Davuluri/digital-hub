@@ -4,7 +4,8 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'https://digital-hub-3h88.onrender.com/api/:path*'
+        destination: 
+          'https://digital-hub-3h88.onrender.com/api/:path*'
       }
     ]
   },

@@ -21,7 +21,7 @@ export default function ConfirmContent() {
       }
 
       try {
-        const res = await fetch('http://localhost:5000/api/auth/2fa/reset-confirm', {
+        const res = await fetch('/api/auth/forgot-2fa-confirm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token }),
