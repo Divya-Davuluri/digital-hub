@@ -18,6 +18,10 @@ router.post('/request', authMiddleware, requestCustomReport);
 router.get('/client-pdf', authMiddleware, exportClientPDF);
 
 // Admin-specific retrieval
+router.get('/', authMiddleware, authorize('admin', 'team', 'client'), (req: any, res: any) => {
+  const { getReports } = require('../controllers/reportController');
+  return getReports(req, res);
+});
 router.get('/requests', authMiddleware, authorize('admin', 'team'), getReportRequests);
 router.patch('/requests/:id', authMiddleware, authorize('admin', 'team'), updateReportRequestStatus);
 

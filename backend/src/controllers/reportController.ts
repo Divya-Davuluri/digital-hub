@@ -272,9 +272,54 @@ export const updateReportRequestStatus = async (req: Request, res: Response) => 
       .set({ status: status as any })
       .where(and(eq(reportRequests.id, id), eq(reportRequests.tenantId, tenantId)));
 
+    // If completed, create a record in the reports table
+    if (status === 'COMPLETED') {
+      const request = await db.query.reportRequests.findFirst({
+        where: and(eq(reportRequests.id, id), eq(reportRequests.tenantId, tenantId))
+      });
+
+      if (request) {
+        await db.insert(reports).values({
+          id: uuidv4(),
+          tenantId,
+          workspaceId: request.workspaceId,
+          name: `${request.reportType.replace('_', ' ')} - ${new Date().toLocaleDateString()}`,
+          url: `/api/reports/export?workspaceId=${request.workspaceId}&format=pdf`, // Dynamic link
+          type: 'PERFORMANCE',
+          status: 'READY'
+        });
+      }
+    }
+
     res.json({ success: true, message: 'Report status updated' });
   } catch (error) {
     console.error('[UPDATE_REPORT_STATUS_ERROR]', error);
     res.status(500).json({ message: 'Error updating report status' });
+  }
+};
+
+export const getReports = async (req: Request, res: Response) => {
+  try {
+    const { tenantId, workspaceId: userWorkspaceId, role } = req.user as any;
+    const { reports: reportsTable } = require('../db/schema');
+    const queryWorkspaceId = req.query.workspaceId;
+
+    let targetWorkspaceId = queryWorkspaceId;
+    if (!targetWorkspaceId && role !== 'admin') {
+      targetWorkspaceId = userWorkspaceId;
+    }
+
+    const allReports = await db.select()
+      .from(reportsTable)
+      .where(targetWorkspaceId 
+        ? and(eq(reportsTable.tenantId, tenantId), eq(reportsTable.workspaceId, targetWorkspaceId as string))
+        : eq(reportsTable.tenantId, tenantId)
+      )
+      .orderBy(sql`${reportsTable.createdAt} DESC`);
+
+    res.json(allReports);
+  } catch (error) {
+    console.error('[GET_REPORTS_ERROR]', error);
+    res.status(500).json({ message: 'Error fetching reports' });
   }
 };

@@ -1,20 +1,16 @@
-'use client';
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+} from 'recharts';
 
-import { useEffect, useState } from "react";
-import Sidebar from "@/components/Sidebar";
-import Header from "@/components/Header";
-import RoleGuard from "@/components/RoleGuard";
-import apiCall from "@/lib/api";
-import { useAuth } from "@/context/AuthContext";
-
-interface AnalyticsSummary {
-  totalImpressions: number;
-  totalClicks: number;
-  totalSpend: number;
-  totalConversions: number;
-  avgRoas: number;
-  activeCampaigns: number;
-}
+const mockTrendData = [
+  { name: 'Mon', spend: 400, conv: 24 },
+  { name: 'Tue', spend: 300, conv: 13 },
+  { name: 'Wed', spend: 200, conv: 98 },
+  { name: 'Thu', spend: 278, conv: 39 },
+  { name: 'Fri', spend: 189, conv: 48 },
+  { name: 'Sat', spend: 239, conv: 38 },
+  { name: 'Sun', spend: 349, conv: 43 },
+];
 
 export default function ClientAnalyticsPage() {
   const { user } = useAuth();
@@ -69,23 +65,27 @@ export default function ClientAnalyticsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 card">
                 <div className="flex justify-between items-center mb-8">
-                   <h3 className="text-lg font-bold text-slate-900">Conversion Funnel</h3>
-                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Last 30 Days</span>
+                   <h3 className="text-lg font-bold text-slate-900">Performance Trends</h3>
+                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Last 7 Days</span>
                 </div>
-                <div className="h-[300px] flex items-end gap-4">
-                   {/* Mock Visual Funnel */}
-                   <div className="flex-1 bg-slate-50 rounded-t-2xl flex flex-col justify-end p-4 group hover:bg-indigo-50 transition-colors">
-                      <div className="bg-indigo-200 w-full rounded-t-lg transition-all group-hover:bg-indigo-400" style={{ height: '90%' }}></div>
-                      <p className="text-[10px] font-bold text-center mt-3 text-slate-400 uppercase tracking-tighter">Reach</p>
-                   </div>
-                   <div className="flex-1 bg-slate-50 rounded-t-2xl flex flex-col justify-end p-4 group hover:bg-blue-50 transition-colors">
-                      <div className="bg-blue-200 w-full rounded-t-lg transition-all group-hover:bg-blue-400" style={{ height: '45%' }}></div>
-                      <p className="text-[10px] font-bold text-center mt-3 text-slate-400 uppercase tracking-tighter">Engage</p>
-                   </div>
-                   <div className="flex-1 bg-slate-50 rounded-t-2xl flex flex-col justify-end p-4 group hover:bg-emerald-50 transition-colors">
-                      <div className="bg-emerald-200 w-full rounded-t-lg transition-all group-hover:bg-emerald-400" style={{ height: '15%' }}></div>
-                      <p className="text-[10px] font-bold text-center mt-3 text-slate-400 uppercase tracking-tighter">Convert</p>
-                   </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={mockTrendData}>
+                      <defs>
+                        <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Area type="monotone" dataKey="spend" stroke="#4f46e5" fillOpacity={1} fill="url(#colorSpend)" strokeWidth={3} />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 

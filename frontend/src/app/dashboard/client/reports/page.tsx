@@ -4,27 +4,33 @@ import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import RoleGuard from "@/components/RoleGuard";
-import { getReportRequests, requestCustomReport, exportReportPDF, ReportRequest } from "@/services/reportService";
+import { getReportRequests, requestCustomReport, exportReportPDF, ReportRequest, getReports, downloadReport } from "@/services/reportService";
 import { useAuth } from "@/context/AuthContext";
 
 export default function ClientReportsPage() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<ReportRequest[]>([]);
+  const [generatedReports, setGeneratedReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const fetchData = async () => {
+    try {
+      const [reqData, reportData] = await Promise.all([
+        getReportRequests(user?.workspaceId || undefined),
+        getReports(user?.workspaceId || undefined)
+      ]);
+      setRequests(reqData);
+      setGeneratedReports(reportData);
+    } catch (err) {
+      console.error("Error fetching reports:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchMyReports = async () => {
-      try {
-        const data = await getReportRequests(user?.workspaceId || undefined);
-        setRequests(data);
-      } catch (err) {
-        console.error("Error fetching reports:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (user) fetchMyReports();
+    if (user) fetchData();
   }, [user]);
 
   const handleRequestReport = async () => {
@@ -35,9 +41,7 @@ export default function ClientReportsPage() {
         workspaceId: user?.workspaceId
       });
       alert("Report request submitted!");
-      // Refresh list
-      const data = await getReportRequests(user?.workspaceId || undefined);
-      setRequests(data);
+      fetchData();
     } catch (err) {
       alert("Failed to request report");
     } finally {
@@ -48,6 +52,14 @@ export default function ClientReportsPage() {
   const handleDownloadLatest = async () => {
     try {
       await exportReportPDF(user?.workspaceId || undefined);
+    } catch (err) {
+      alert("Download failed");
+    }
+  };
+
+  const handleDownloadReport = async (url: string) => {
+    try {
+      await downloadReport(url);
     } catch (err) {
       alert("Download failed");
     }
@@ -82,46 +94,59 @@ export default function ClientReportsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-8">
               <div className="card">
-                <h3 className="text-lg font-bold text-slate-900 mb-6">Report History</h3>
-                
+                <h3 className="text-lg font-bold text-slate-900 mb-6">Archive Vault</h3>
                 <div className="space-y-4">
                   {loading ? (
                     <div className="text-center py-8 text-slate-400 italic">Syncing your secure report vault...</div>
-                  ) : requests.length > 0 ? (
-                    requests.map((req) => (
-                      <div key={req.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center group hover:bg-white hover:shadow-md transition-all">
+                  ) : generatedReports.length > 0 ? (
+                    generatedReports.map((report) => (
+                      <div key={report.id} className="p-4 bg-white rounded-2xl border border-slate-100 flex justify-between items-center group hover:border-indigo-200 transition-all">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-xl shadow-sm border border-slate-100">
-                            📄
+                          <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl">
+                            📊
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">{req.reportType.replace('_', ' ')}</p>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Requested {new Date(req.createdAt).toLocaleDateString()}</p>
+                            <p className="font-bold text-slate-900">{report.name}</p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Generated {new Date(report.createdAt).toLocaleDateString()}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-6">
-                          <div className="text-right">
-                             <p className={`text-[10px] font-black uppercase tracking-widest ${
-                               req.status === 'COMPLETED' ? 'text-green-500' : 'text-amber-500'
-                             }`}>{req.status}</p>
-                             {req.status === 'COMPLETED' && <button className="text-xs font-bold text-indigo-600 hover:underline">Download PDF</button>}
-                          </div>
-                        </div>
+                        <button 
+                          onClick={() => handleDownloadReport(report.url)}
+                          className="px-4 py-2 bg-slate-50 text-indigo-600 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all"
+                        >
+                          Download PDF
+                        </button>
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-16 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
-                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100 text-xl">
-                        📂
-                      </div>
-                      <h4 className="text-sm font-bold text-slate-900 mb-1">Your Report Vault is Empty</h4>
-                      <p className="text-xs text-slate-500 max-w-[240px] mx-auto">
-                        Once your first performance summary is generated, it will be securely archived here for download.
-                      </p>
-                    </div>
+                    <p className="text-center py-8 text-slate-400 text-sm">No generated reports available yet.</p>
                   )}
+                </div>
+              </div>
+
+              <div className="card border-dashed border-2">
+                <h3 className="text-lg font-bold text-slate-900 mb-6">Recent Requests</h3>
+                <div className="space-y-4">
+                  {requests.map((req) => (
+                    <div key={req.id} className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-xl border border-slate-100">
+                          📩
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">{req.reportType.replace('_', ' ')}</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Requested {new Date(req.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                         req.status === 'COMPLETED' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
+                       }`}>
+                        {req.status}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

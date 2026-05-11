@@ -6,6 +6,17 @@ import Header from "@/components/Header";
 import RoleGuard from "@/components/RoleGuard";
 import apiCall from "@/lib/api";
 
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+} from 'recharts';
+
+const mockPerformanceData = [
+  { name: 'Week 1', budget: 4000, spend: 2400 },
+  { name: 'Week 2', budget: 3000, spend: 1398 },
+  { name: 'Week 3', budget: 2000, spend: 9800 },
+  { name: 'Week 4', budget: 2780, spend: 3908 },
+];
+
 export default function TeamDashboard() {
   const [stats, setStats] = useState({
     totalClients: 0,
@@ -52,30 +63,47 @@ export default function TeamDashboard() {
               <StatCard label="Team Tasks" value={stats.teamTasks.toString()} icon="✅" color="emerald" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-               <div className="card">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-bold text-slate-900">Recent Tasks</h3>
-                    <button className="text-xs font-bold text-indigo-600">View All</button>
-                  </div>
-                  <div className="space-y-4">
-                    <TaskItem title="Upload April Reports" client="Global Tech" priority="high" />
-                    <TaskItem title="Audit Campaign Budget" client="Nike Europe" priority="medium" />
-                    <TaskItem title="Client Onboarding Call" client="New Media Ltd" priority="high" />
-                  </div>
-               </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+              <div className="lg:col-span-2 card">
+                <h3 className="font-bold text-slate-900 mb-6">Aggregate Campaign Performance</h3>
+                <div className="h-[250px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={mockPerformanceData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Line type="monotone" dataKey="spend" stroke="#6366f1" strokeWidth={3} dot={{ r: 4, fill: '#6366f1' }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
 
-                <div className="card">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-bold text-slate-900">Quick Actions</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <ActionButton icon="➕" label="New Campaign" color="indigo" onClick={() => window.location.href = '/dashboard/team/campaigns'} />
-                    <ActionButton icon="📝" label="New Report" color="blue" onClick={() => window.location.href = '/dashboard/team/reports'} />
-                    <ActionButton icon="📂" label="Client Docs" color="slate" onClick={() => {}} />
-                    <ActionButton icon="💬" label="Team Chat" color="emerald" onClick={() => {}} />
-                  </div>
-               </div>
+              <div className="card">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="font-bold text-slate-900">Quick Actions</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <ActionButton icon="➕" label="New Campaign" color="indigo" onClick={() => window.location.href = '/dashboard/team/campaigns'} />
+                  <ActionButton icon="📝" label="New Report" color="blue" onClick={() => window.location.href = '/dashboard/team/reports'} />
+                  <ActionButton icon="📂" label="Client Docs" color="slate" onClick={() => {}} />
+                  <ActionButton icon="💬" label="Team Chat" color="emerald" onClick={() => {}} />
+                </div>
+              </div>
+            </div>
+
+            <div className="card max-w-2xl">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-slate-900">Recent Tasks</h3>
+                <button className="text-xs font-bold text-indigo-600">View All</button>
+              </div>
+              <div className="space-y-4">
+                <TaskItem title="Upload April Reports" client="Global Tech" priority="high" />
+                <TaskItem title="Audit Campaign Budget" client="Nike Europe" priority="medium" />
+                <TaskItem title="Client Onboarding Call" client="New Media Ltd" priority="high" />
+              </div>
             </div>
           </main>
         </div>

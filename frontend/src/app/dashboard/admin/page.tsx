@@ -8,6 +8,11 @@ import RoleGuard from "@/components/RoleGuard";
 import { getDashboardSummary, getDashboardStats, exportReport, DashboardSummary, ChannelStat } from "@/services/dashboardService";
 import { useBranding } from "@/context/BrandingContext";
 
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  AreaChart, Area
+} from 'recharts';
+
 export default function AdminDashboard() {
   const router = useRouter();
   const { branding } = useBranding();
@@ -101,21 +106,23 @@ export default function AdminDashboard() {
               {/* Channel Performance Chart */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
                 <h3 className="text-lg font-bold mb-6">Channel Performance</h3>
-                <div className="space-y-6">
-                  {stats.map((stat) => (
-                    <div key={stat.channel}>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="capitalize font-medium">{stat.channel}</span>
-                        <span className="text-slate-500">${stat.spend.toLocaleString()}</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-indigo-500 rounded-full" 
-                          style={{ width: `${(stat.spend / (summary?.totalSpend || 1)) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="channel" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600, fill: '#64748b' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(value) => `$${value/1000}k`} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        cursor={{ fill: '#f8fafc' }}
+                      />
+                      <Bar dataKey="spend" radius={[6, 6, 0, 0]} barSize={40}>
+                        {stats.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? primaryColor : `${primaryColor}aa`} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
