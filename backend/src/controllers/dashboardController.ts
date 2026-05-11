@@ -32,6 +32,8 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       .from(campaigns)
       .where(targetWorkspaceId 
         ? and(eq(campaigns.tenantId, tenantId), eq(campaigns.workspaceId, targetWorkspaceId))
+        : role === 'team'
+        ? and(eq(campaigns.tenantId, tenantId), sql`exists (select 1 from clients where clients.workspace_id = campaigns.workspace_id and clients.assigned_team_member_id = ${req.user.id})`)
         : eq(campaigns.tenantId, tenantId)
       );
 
@@ -47,6 +49,8 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       .from(clients)
       .where(targetWorkspaceId 
         ? and(eq(clients.tenantId, tenantId), eq(clients.workspaceId, targetWorkspaceId))
+        : role === 'team'
+        ? and(eq(clients.tenantId, tenantId), eq(clients.assignedTeamMemberId, req.user.id))
         : eq(clients.tenantId, tenantId)
       );
 
@@ -56,7 +60,11 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       .from(tasks)
       .where(and(
         eq(tasks.tenantId, tenantId),
-        targetWorkspaceId ? eq(tasks.workspaceId, targetWorkspaceId) : sql`1=1`,
+        targetWorkspaceId 
+          ? eq(tasks.workspaceId, targetWorkspaceId) 
+          : role === 'team' 
+            ? sql`exists (select 1 from clients where clients.workspace_id = tasks.workspace_id and clients.assigned_team_member_id = ${req.user.id})` 
+            : sql`1=1`,
         sql`status != 'COMPLETED'`
       ));
 
@@ -97,6 +105,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       .from(campaigns)
       .where(targetWorkspaceId 
         ? and(eq(campaigns.tenantId, tenantId), eq(campaigns.workspaceId, targetWorkspaceId))
+        : role === 'team'
+        ? and(eq(campaigns.tenantId, tenantId), sql`exists (select 1 from clients where clients.workspace_id = campaigns.workspace_id and clients.assigned_team_member_id = ${req.user.id})`)
         : eq(campaigns.tenantId, tenantId)
       )
       .groupBy(campaigns.channel);

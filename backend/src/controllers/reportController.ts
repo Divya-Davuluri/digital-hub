@@ -249,6 +249,8 @@ export const getReportRequests = async (req: Request, res: Response) => {
     .leftJoin(clients, eq(reportRequests.clientId, clients.id))
     .where(targetWorkspaceId 
       ? and(eq(reportRequests.tenantId, tenantId), eq(reportRequests.workspaceId, targetWorkspaceId as string))
+      : role === 'team'
+      ? and(eq(reportRequests.tenantId, tenantId), eq(clients.assignedTeamMemberId, req.user.id))
       : eq(reportRequests.tenantId, tenantId)
     )
     .orderBy(sql`${reportRequests.createdAt} DESC`);

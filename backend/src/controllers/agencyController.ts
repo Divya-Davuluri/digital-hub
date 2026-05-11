@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { db } from '../db';
-import { clients, campaigns, users, workspaces, analytics, reports } from '../db/schema';
+import { clients, campaigns, users, workspaces, analytics, reports, reportRequests } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -210,6 +210,7 @@ export const getCampaigns = asyncHandler(async (req: any, res: Response) => {
     LEFT JOIN clients cl ON c.client_id = cl.id
     WHERE c.tenant_id = ${tenantId}
     ${targetWorkspaceId ? sql`AND c.workspace_id = ${targetWorkspaceId}` : sql``}
+    ${role === 'team' && !targetWorkspaceId ? sql`AND cl.assigned_team_member_id = ${req.user.id}` : sql``}
     ORDER BY c.created_at DESC
   `);
 
@@ -289,6 +290,8 @@ export const getAgencyStats = asyncHandler(async (req: any, res: Response) => {
   .leftJoin(campaigns, eq(campaigns.workspaceId, clients.workspaceId))
   .where(role === 'client' 
     ? and(eq(clients.tenantId, tenantId), eq(clients.workspaceId, workspaceId || '')) 
+    : role === 'team'
+    ? and(eq(clients.tenantId, tenantId), eq(clients.assignedTeamMemberId, req.user.id))
     : eq(clients.tenantId, tenantId)
   );
 
@@ -364,5 +367,18 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
     url: '#',
     type: 'PERFORMANCE',
     status: 'READY'
+  });
+
+  // 4. Create Starter Report Request so Client Reports page isn't empty
+  await db.insert(reportRequests).values({
+    id: uuidv4(),
+    tenantId,
+    workspaceId,
+    clientId,
+    reportType: 'MONTHLY_PERFORMANCE',
+    dateFrom: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    dateTo: now.toISOString().split('T')[0],
+    notes: 'Initial performance summary',
+    status: 'COMPLETED'
   });
 }
