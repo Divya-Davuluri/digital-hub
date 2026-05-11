@@ -278,9 +278,10 @@ export const deleteCampaign = asyncHandler(async (req: any, res: Response) => {
 // --- Analytics ---
 
 export const getAgencyStats = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId, role, workspaceId, id: userId } = req.user;
+  const { tenantId, role, id: userId } = req.user;
 
-  const [stats]: any = await db.select({
+  // 1. Basic Stats (Clients, Campaigns, Budget)
+  const [basicStats]: any = await db.select({
     totalClients: sql`count(distinct ${clients.id})`,
     totalCampaigns: sql`count(distinct ${campaigns.id})`,
     totalBudget: sql`coalesce(sum(${campaigns.budget}), 0)`,
@@ -288,23 +289,12 @@ export const getAgencyStats = asyncHandler(async (req: any, res: Response) => {
   })
   .from(clients)
   .leftJoin(campaigns, eq(campaigns.workspaceId, clients.workspaceId))
-  .where(role === 'client' 
-    ? and(eq(clients.tenantId, tenantId), eq(clients.workspaceId, workspaceId || '')) 
-    : role === 'team'
+  .where(role === 'team'
     ? and(eq(clients.tenantId, tenantId), eq(clients.assignedTeamMemberId, userId))
     : eq(clients.tenantId, tenantId)
   );
 
-  res.json(stats);
-});
-
-export const getAgencyStats = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId } = req.user;
-
-  // Get stats for the current tenant
-  const clientsCountResult = await db.select({ count: sql<number>`count(*)` }).from(workspaces).where(eq(workspaces.tenantId, tenantId));
-  const activeCampaignsCountResult = await db.select({ count: sql<number>`count(*)` }).from(campaigns).where(and(eq(campaigns.tenantId, tenantId), eq(campaigns.status, 'active')));
-  
+  // 2. Revenue & Growth Stats
   // Sum total revenue from transactions
   const totalRevenueResult = await db.select({ total: sql<number>`sum(amount)` }).from(transactions).where(eq(transactions.tenantId, tenantId));
   const totalRevenue = totalRevenueResult[0]?.total || 0;
@@ -326,10 +316,11 @@ export const getAgencyStats = asyncHandler(async (req: any, res: Response) => {
   }
 
   res.json({
+    ...basicStats,
     totalRevenue,
     growth: growth.toFixed(1),
-    clientsCount: clientsCountResult[0].count,
-    activeCampaigns: activeCampaignsCountResult[0].count,
+    clientsCount: basicStats.totalClients,
+    activeCampaigns: basicStats.activeCampaigns,
     period: new Date().toLocaleString('default', { month: 'long', year: 'numeric' })
   });
 });
