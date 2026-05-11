@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { campaigns, clients, workspaces, reportRequests } from '../db/schema';
+import { campaigns, clients, workspaces, reportRequests, reports } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import PDFDocument from 'pdfkit';
 import { v4 as uuidv4 } from 'uuid';
@@ -301,7 +301,6 @@ export const updateReportRequestStatus = async (req: Request, res: Response) => 
 export const getReports = async (req: Request, res: Response) => {
   try {
     const { tenantId, workspaceId: userWorkspaceId, role } = req.user as any;
-    const { reports: reportsTable } = require('../db/schema');
     const queryWorkspaceId = req.query.workspaceId;
 
     let targetWorkspaceId = queryWorkspaceId;
@@ -310,12 +309,12 @@ export const getReports = async (req: Request, res: Response) => {
     }
 
     const allReports = await db.select()
-      .from(reportsTable)
+      .from(reports)
       .where(targetWorkspaceId 
-        ? and(eq(reportsTable.tenantId, tenantId), eq(reportsTable.workspaceId, targetWorkspaceId as string))
-        : eq(reportsTable.tenantId, tenantId)
+        ? and(eq(reports.tenantId, tenantId), eq(reports.workspaceId, targetWorkspaceId as string))
+        : eq(reports.tenantId, tenantId)
       )
-      .orderBy(sql`${reportsTable.createdAt} DESC`);
+      .orderBy(sql`${reports.createdAt} DESC`);
 
     res.json(allReports);
   } catch (error) {

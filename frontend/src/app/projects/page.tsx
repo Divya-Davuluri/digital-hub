@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import apiCall from '@/lib/api';
@@ -21,12 +21,7 @@ export default function ProjectsPage() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchProjects();
-    fetchClients();
-  }, []);
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
       const data = await apiCall('/projects');
@@ -38,9 +33,9 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     try {
       const data = await apiCall('/projects/clients');
       const clientsList = data.clients || [];
@@ -50,7 +45,12 @@ export default function ProjectsPage() {
       console.error('[FETCH_CLIENTS_ERROR]', err);
       setClients([]);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchProjects();
+    fetchClients();
+  }, [fetchProjects, fetchClients]);
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();

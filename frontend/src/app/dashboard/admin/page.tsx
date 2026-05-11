@@ -8,8 +8,11 @@ import RoleGuard from "@/components/RoleGuard";
 import { getDashboardSummary, getDashboardStats, exportReport, DashboardSummary, ChannelStat } from "@/services/dashboardService";
 import { useBranding } from "@/context/BrandingContext";
 
+import dynamic from 'next/dynamic';
+
+const ResponsiveContainer = dynamic<any>(() => import('recharts').then(mod => mod.ResponsiveContainer) as any, { ssr: false });
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   AreaChart, Area
 } from 'recharts';
 

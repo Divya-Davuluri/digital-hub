@@ -1,6 +1,26 @@
+'use client';
+
+import { useEffect, useState } from "react";
+import Sidebar from "@/components/Sidebar";
+import Header from "@/components/Header";
+import RoleGuard from "@/components/RoleGuard";
+import apiCall from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import dynamic from 'next/dynamic';
+
+const ResponsiveContainer = dynamic<any>(() => import('recharts').then(mod => mod.ResponsiveContainer) as any, { ssr: false });
 import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip 
 } from 'recharts';
+
+interface AnalyticsSummary {
+  totalImpressions: number;
+  totalClicks: number;
+  totalSpend: number;
+  totalConversions: number;
+  avgRoas: number;
+  activeCampaigns: number;
+}
 
 const mockTrendData = [
   { name: 'Mon', spend: 400, conv: 24 },

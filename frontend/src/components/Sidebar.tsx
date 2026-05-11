@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useBranding } from '@/context/BrandingContext';
 
@@ -66,7 +67,14 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
     <aside className="w-[260px] h-screen bg-slate-900 border-r border-white/5 flex flex-col fixed left-0 top-0 z-50">
       <div className="p-6 flex items-center gap-3">
         {branding?.logoUrl ? (
-          <img src={branding.logoUrl} alt="Logo" className="h-10 w-auto object-contain" />
+          <Image 
+            src={branding.logoUrl} 
+            alt="Logo" 
+            width={120}
+            height={40}
+            className="h-10 w-auto object-contain" 
+            unoptimized
+          />
         ) : (
           <>
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20" style={{ backgroundColor: branding?.primaryColor }}>

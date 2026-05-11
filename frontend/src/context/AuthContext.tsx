@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import apiCall from '@/lib/api';
 
@@ -33,6 +33,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
 
+  const logout = useCallback(() => {
+    localStorage.clear();
+    setToken(null);
+    setUser(null);
+    router.push('/login');
+  }, [router]);
+
   useEffect(() => {
     // Load from storage on init
     const storedToken = localStorage.getItem('token');
@@ -54,7 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     setLoading(false);
-  }, []);
+  }, [router, pathname, logout]);
 
   const login = (data: { token: string; refreshToken: string; user: User }) => {
     if (!data.user) {
@@ -96,12 +103,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.clear();
-    setToken(null);
-    setUser(null);
-    router.push('/login');
-  };
 
   return (
     <AuthContext.Provider value={{ 

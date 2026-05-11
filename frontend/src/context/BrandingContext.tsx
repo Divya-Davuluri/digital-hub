@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import apiCall from '@/lib/api';
 
 interface Branding {
@@ -29,7 +29,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const fetchBranding = async () => {
+  const fetchBranding = useCallback(async () => {
     try {
       setLoading(true);
       // Step 3: Fetch from GET /api/admin/branding
@@ -55,11 +55,11 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchBranding();
-  }, []);
+  }, [fetchBranding]);
 
   return (
     <BrandingContext.Provider value={{ branding, loading, refreshBranding: fetchBranding }}>

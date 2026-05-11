@@ -6,8 +6,11 @@ import Header from "@/components/Header";
 import RoleGuard from "@/components/RoleGuard";
 import apiCall from "@/lib/api";
 
+import dynamic from 'next/dynamic';
+
+const ResponsiveContainer = dynamic<any>(() => import('recharts').then(mod => mod.ResponsiveContainer) as any, { ssr: false });
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip 
 } from 'recharts';
 
 const mockPerformanceData = [
