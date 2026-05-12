@@ -42,7 +42,7 @@ export default function ClientReportsPage() {
       });
       
       if (res && res.success === false) {
-        alert(`Failed to request report: ${res.message || res.error || 'Unknown error'}`);
+        alert(`Failed to request report: ${res.error || res.message || 'Unknown error'}`);
         return;
       }
       
