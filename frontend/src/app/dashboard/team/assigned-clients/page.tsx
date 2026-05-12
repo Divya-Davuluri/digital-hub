@@ -69,7 +69,7 @@ export default function TeamAssignedClientsPage() {
                     </div>
 
                     <button 
-                      onClick={() => window.location.href = `/dashboard/team/campaigns?workspaceId=${client.workspace_id}`}
+                      onClick={() => window.location.href = `/dashboard/campaigns?workspaceId=${client.workspace_id}`}
                       className="w-full py-3 bg-slate-900 text-white rounded-2xl text-xs font-bold hover:bg-slate-800 transition-colors"
                     >
                       View Campaigns

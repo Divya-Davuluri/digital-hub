@@ -13,7 +13,7 @@ export default function ClientDashboard() {
   useEffect(() => {
     const fetchCampaigns = async () => {
       try {
-        const data = await apiCall("/agency/campaigns");
+        const data = await apiCall("/campaigns");
         setCampaigns(Array.isArray(data) ? data : (data.campaigns || []));
       } catch (err) {
         console.error(err);

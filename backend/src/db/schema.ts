@@ -100,6 +100,53 @@ export const campaigns = sqliteTable('campaigns', {
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+export const adGroups = sqliteTable('ad_groups', {
+  id: text('id').primaryKey(),
+  campaignId: text('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  budget: integer('budget').notNull(),
+  status: text('status', { enum: ['active', 'paused', 'completed'] }).default('active'),
+  targeting: text('targeting'), // JSON string for flexibility
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const creatives = sqliteTable('creatives', {
+  id: text('id').primaryKey(),
+  adGroupId: text('ad_group_id').references(() => adGroups.id, { onDelete: 'cascade' }),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  type: text('type', { enum: ['image', 'video', 'carousel'] }).default('image'),
+  url: text('url').notNull(),
+  headline: text('headline'),
+  description: text('description'),
+  callToAction: text('call_to_action'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const campaignTemplates = sqliteTable('campaign_templates', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  channel: text('channel', { enum: ['google', 'facebook', 'instagram', 'linkedin', 'tiktok'] }).notNull(),
+  objective: text('objective'),
+  defaultBudget: integer('default_budget'),
+  defaultTargeting: text('default_targeting'), // JSON
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const campaignActivityLogs = sqliteTable('campaign_activity_logs', {
+  id: text('id').primaryKey(),
+  campaignId: text('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  action: text('action').notNull(), // 'CREATE', 'PAUSE', 'RESUME', 'UPDATE_BUDGET', etc.
+  details: text('details'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 export const analytics = sqliteTable('analytics', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),

@@ -36,8 +36,9 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
         { name: 'Overview', href: '/dashboard/admin', icon: '🏠' },
         { name: 'Manage Clients', href: '/dashboard/admin/clients', icon: '🏢' },
         { name: 'Agency Branding', href: '/dashboard/admin/branding', icon: '🎨' },
-        { name: 'Campaigns', href: '/dashboard/admin/campaigns', icon: '🚀' },
-        { name: 'Reports', href: '/dashboard/admin/reports', icon: '📈' },
+        { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
+        { name: 'Creative Assets', href: '/dashboard/creatives', icon: '🖼️' },
+        { name: 'Reports', href: '/dashboard/reports', icon: '📈' },
         { name: 'Settings', href: '/dashboard/admin/settings', icon: '⚙️' },
       ];
     }
@@ -46,15 +47,16 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
       return [
         { name: 'Overview', href: '/dashboard/team', icon: '🏠' },
         { name: 'Assigned Clients', href: '/dashboard/team/assigned-clients', icon: '💼' },
-        { name: 'Campaigns', href: '/dashboard/team/campaigns', icon: '🚀' },
-        { name: 'Reports', href: '/dashboard/team/reports', icon: '📈' },
+        { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
+        { name: 'Creative Assets', href: '/dashboard/creatives', icon: '🖼️' },
+        { name: 'Reports', href: '/dashboard/reports', icon: '📈' },
       ];
     }
 
     // Client Role
     return [
       { name: 'Overview', href: '/dashboard/client', icon: '🏠' },
-      { name: 'Campaign Status', href: '/dashboard/client/campaign-status', icon: '📊' },
+      { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
       { name: 'Reports', href: '/dashboard/client/reports', icon: '📄' },
       { name: 'Analytics', href: '/dashboard/client/analytics', icon: '📈' },
     ];

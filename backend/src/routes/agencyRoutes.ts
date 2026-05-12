@@ -16,9 +16,6 @@ router.get('/clients', authMiddleware, authorize('admin', 'team'), getClients);
 router.post('/clients', authMiddleware, authorize('admin', 'team'), createClient);
 router.patch('/clients/:id', authMiddleware, authorize('admin', 'team'), updateClient);
 router.delete('/clients/:id', authMiddleware, authorize('admin', 'team'), deleteClient);
-router.get('/campaigns', authMiddleware, authorize('admin', 'team', 'client'), getCampaigns);
-router.post('/campaigns', authMiddleware, authorize('admin', 'team'), createCampaign);
-router.patch('/campaigns/:id', authMiddleware, authorize('admin', 'team'), updateCampaign);
-router.delete('/campaigns/:id', authMiddleware, authorize('admin', 'team'), deleteCampaign);
+router.delete('/clients/:id', authMiddleware, authorize('admin', 'team'), deleteClient);
 
 export default router;

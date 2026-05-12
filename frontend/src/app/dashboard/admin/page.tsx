@@ -135,7 +135,7 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <ActionCard title="Add Client" icon="👥" onClick={() => router.push('/dashboard/admin/clients')} />
                   <ActionCard title="Branding" icon="🎨" onClick={() => router.push('/dashboard/admin/branding')} />
-                  <ActionCard title="Campaigns" icon="🚀" onClick={() => router.push('/dashboard/admin/campaigns')} />
+                  <ActionCard title="Campaigns" icon="🚀" onClick={() => router.push('/dashboard/campaigns')} />
                   <ActionCard title="Settings" icon="⚙️" onClick={() => router.push('/dashboard/admin/settings')} />
                 </div>
               </div>

@@ -27,7 +27,7 @@ export default function TeamCampaignsPage() {
 
   const fetchTeamCampaigns = async () => {
     try {
-      const data = await getCampaigns(user?.workspaceId || undefined);
+      const data = await apiCall("/campaigns");
       setCampaigns(data);
     } catch (err) {
       console.error("Error fetching campaigns:", err);
@@ -56,7 +56,7 @@ export default function TeamCampaignsPage() {
     e.preventDefault();
     try {
       if (editingCampaign) {
-        await apiCall(`/agency/campaigns/${editingCampaign.id}`, {
+        await apiCall(`/campaigns/${editingCampaign.id}`, {
           method: 'PATCH',
           body: JSON.stringify({
             ...formData,
@@ -64,7 +64,7 @@ export default function TeamCampaignsPage() {
           })
         });
       } else {
-        await apiCall('/agency/campaigns', {
+        await apiCall('/campaigns', {
           method: 'POST',
           body: JSON.stringify({
             ...formData,

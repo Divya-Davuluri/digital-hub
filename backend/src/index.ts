@@ -27,6 +27,7 @@ import notificationRoutes from './routes/notificationRoutes';
 import reportRoutes from './routes/reportRoutes';
 import documentRoutes from './routes/documentRoutes';
 import settingsRoutes from './routes/settingsRoutes';
+import campaignRoutes from './routes/campaignRoutes';
 
 
 import { authMiddleware, authorize } from './middleware/authMiddleware';
@@ -111,6 +112,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/branding', brandingRoutes);
 app.use('/api/admin/branding', adminBrandingRoutes);
+app.use('/api/campaigns', campaignRoutes);
 
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);

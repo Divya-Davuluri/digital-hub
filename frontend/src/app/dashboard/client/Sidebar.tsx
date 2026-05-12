@@ -29,7 +29,7 @@ export default function Sidebar({ role = 'admin' }: SidebarProps) {
       return [
         ...common,
         { name: 'Assigned Clients', href: '/dashboard/team/clients', icon: '💼' },
-        { name: 'Campaigns', href: '/dashboard/team/campaigns', icon: '🚀' },
+        { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
         { name: 'Tasks', href: '/dashboard/team/tasks', icon: '✅' },
       ];
     }

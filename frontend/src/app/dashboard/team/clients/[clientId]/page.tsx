@@ -22,7 +22,7 @@ export default function ClientDetailsPage() {
       try {
         const [clientData, campaignsData, tasksData] = await Promise.all([
           apiCall(`/clients/${clientId}`),
-          apiCall(`/agency/campaigns?clientId=${clientId}`),
+          apiCall(`/campaigns?clientId=${clientId}`),
           apiCall(`/team/tasks`)
         ]);
         setClient(clientData);
