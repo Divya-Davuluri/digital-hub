@@ -12,6 +12,8 @@ import { getCookieOptions } from './config/cookies';
 import { configurePassport } from './config/passport';
 import { tenantMiddleware } from './middleware/tenantMiddleware';
 import { errorHandler } from './middleware/errorHandler';
+import { sql } from 'drizzle-orm';
+import { db } from './db';
 
 // Import Routes
 import authRoutes from './routes/authRoutes';
@@ -133,8 +135,16 @@ app.use('/api/*', (req: Request, res: Response) => {
 app.use(errorHandler);
 
 // --- Server Lifecycle ---
-const server = app.listen(config.port, '0.0.0.0', () => {
+const server = app.listen(config.port, '0.0.0.0', async () => {
   console.log(`🚀 BACKEND READY: Port ${config.port} | Env: ${config.nodeEnv}`);
+  
+  // Verify DB Connectivity on start
+  try {
+    const result = await db.run(sql`SELECT 1`);
+    console.log('✅ DATABASE CONNECTED: Latency check successful.');
+  } catch (err: any) {
+    console.error('❌ DATABASE CONNECTION FAILED:', err.message);
+  }
 });
 
 // Graceful Shutdown
