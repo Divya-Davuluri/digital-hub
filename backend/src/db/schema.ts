@@ -1,4 +1,4 @@
-import { AnySQLiteColumn, sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { AnySQLiteColumn, sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -135,7 +135,49 @@ export const campaignTemplates = sqliteTable('campaign_templates', {
   objective: text('objective'),
   defaultBudget: integer('default_budget'),
   defaultTargeting: text('default_targeting'), // JSON
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// --- DAY 9: BUDGET POOLS & AUTOMATION ---
+
+export const budgetPools = sqliteTable('budget_pools', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  name: text('name').notNull(),
+  totalBudget: real('total_budget').notNull(),
+  spent: real('spent').default(0),
+  remaining: real('remaining').default(0),
+  currency: text('currency').default('USD'),
+  status: text('status', { enum: ['active', 'exhausted', 'paused'] }).default('active'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const automationRules = sqliteTable('automation_rules', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  targetType: text('target_type', { enum: ['campaign', 'ad_group', 'pool'] }).notNull(),
+  targetId: text('target_id').notNull(), // ID of the campaign/ad_group/pool
+  name: text('name').notNull(),
+  triggerMetric: text('trigger_metric', { enum: ['spend', 'cpa', 'roas', 'clicks', 'impressions'] }).notNull(),
+  operator: text('operator', { enum: ['>', '<', '>=', '<='] }).notNull(),
+  threshold: real('threshold').notNull(),
+  action: text('action', { enum: ['pause', 'scale_up', 'scale_down', 'notify'] }).notNull(),
+  actionValue: real('action_value'), // e.g., 20 for 20% increase
+  isActive: integer('is_active').default(1),
+  lastRunAt: text('last_run_at'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const spendingForecasts = sqliteTable('spending_forecasts', {
+  id: text('id').primaryKey(),
+  targetId: text('target_id').notNull(),
+  forecastDate: text('forecast_date').notNull(),
+  predictedSpend: real('predicted_spend').notNull(),
+  confidenceInterval: real('confidence_interval').default(0.95),
+  metadata: text('metadata'), // JSON for extra data points
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const campaignActivityLogs = sqliteTable('campaign_activity_logs', {
