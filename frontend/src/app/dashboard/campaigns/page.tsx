@@ -27,10 +27,12 @@ export default function CampaignsPage() {
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       const data = await getCampaigns(user?.role === 'client' ? user.workspaceId : undefined);
-      setCampaigns(data);
+      setCampaigns(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error fetching campaigns:", err);
+      setCampaigns([]);
     } finally {
       setLoading(false);
     }
@@ -77,6 +79,27 @@ export default function CampaignsPage() {
       conversions: acc.conversions + (c.conversions || 0),
     }), { spend: 0, impressions: 0, clicks: 0, conversions: 0 });
   }, [filteredCampaigns]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-slate-50">
+        <Sidebar />
+        <div className="flex-1 ml-[260px]">
+          <Header />
+          <div className="p-8 animate-pulse">
+            <div className="h-20 bg-white rounded-3xl w-1/3 mb-8" />
+            <div className="grid grid-cols-4 gap-6 mb-8">
+              <div className="h-32 bg-white rounded-3xl" />
+              <div className="h-32 bg-white rounded-3xl" />
+              <div className="h-32 bg-white rounded-3xl" />
+              <div className="h-32 bg-white rounded-3xl" />
+            </div>
+            <div className="h-[400px] bg-white rounded-3xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-50">

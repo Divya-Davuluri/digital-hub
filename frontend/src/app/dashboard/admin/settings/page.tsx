@@ -21,11 +21,14 @@ export default function AdminSettingsPage() {
     const fetchData = async () => {
       try {
         const [profileData, workspacesData] = await Promise.all([
-          apiCall('/settings/profile'),
-          apiCall('/settings/workspaces')
+          apiCall('/settings/profile').catch(() => ({ name: '', email: '' })),
+          apiCall('/settings/workspaces').catch(() => [])
         ]);
-        setProfile({ name: profileData.name, email: profileData.email });
-        setWorkspaces(workspacesData);
+        setProfile({ 
+          name: profileData?.name || '', 
+          email: profileData?.email || '' 
+        });
+        setWorkspaces(Array.isArray(workspacesData) ? workspacesData : []);
       } catch (err) {
         console.error("Load settings failed", err);
       } finally {

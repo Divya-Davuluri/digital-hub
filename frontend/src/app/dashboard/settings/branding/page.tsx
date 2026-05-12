@@ -80,6 +80,24 @@ export default function BrandingSettingsPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-slate-50">
+        <Sidebar />
+        <div className="flex-1 ml-[260px]">
+          <Header />
+          <div className="p-8 animate-pulse space-y-8">
+            <div className="h-20 bg-white rounded-3xl w-1/3" />
+            <div className="grid grid-cols-3 gap-8">
+              <div className="col-span-2 h-[600px] bg-white rounded-3xl" />
+              <div className="h-[600px] bg-white rounded-3xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <RoleGuard allowedRoles={['admin']}>
       <div className="flex min-h-screen bg-slate-50">
@@ -272,7 +290,7 @@ export default function BrandingSettingsPage() {
                   </div>
                   
                   <div className="space-y-4">
-                    {domains.map(d => (
+                    {Array.isArray(domains) && domains.map(d => (
                       <div key={d.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                         <div className="flex justify-between items-start mb-1">
                           <span className="text-sm font-bold text-slate-900">{d.domain}</span>
