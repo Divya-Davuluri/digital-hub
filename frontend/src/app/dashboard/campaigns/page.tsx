@@ -26,6 +26,8 @@ export default function CampaignsPage() {
   const [platformFilter, setPlatformFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [view, setView] = useState<'table' | 'grid'>('table');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const fetchData = async () => {
     try {
@@ -57,6 +59,13 @@ export default function CampaignsPage() {
       return matchesSearch && matchesStatus && matchesPlatform;
     });
   }, [campaigns, searchTerm, statusFilter, platformFilter]);
+
+  const paginatedCampaigns = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredCampaigns.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredCampaigns, currentPage]);
+
+  const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
 
   const handleBulkAction = async (action: 'active' | 'paused' | 'delete') => {
     if (selectedIds.length === 0) return;
@@ -289,8 +298,8 @@ export default function CampaignsPage() {
                           <td colSpan={6} className="px-6 py-8"><div className="h-4 bg-slate-100 rounded w-full" /></td>
                         </tr>
                       ))
-                    ) : filteredCampaigns.length > 0 ? (
-                      filteredCampaigns.map((c) => (
+                    ) : paginatedCampaigns.length > 0 ? (
+                      paginatedCampaigns.map((c) => (
                         <tr key={c.id} className={`hover:bg-slate-50/80 transition-all ${selectedIds.includes(c.id) ? 'bg-indigo-50/30' : ''}`}>
                           <td className="px-6 py-5">
                             <input 
@@ -395,10 +404,24 @@ export default function CampaignsPage() {
                 {/* Pagination */}
                 {!loading && filteredCampaigns.length > 0 && (
                   <div className="px-6 py-5 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-500">Showing 1 to {filteredCampaigns.length} of {filteredCampaigns.length} results</span>
+                    <span className="text-xs font-bold text-slate-500">
+                      Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredCampaigns.length)} of {filteredCampaigns.length} results
+                    </span>
                     <div className="flex gap-2">
-                      <button className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-400 cursor-not-allowed">Previous</button>
-                      <button className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 shadow-sm hover:bg-slate-50 transition-all">Next</button>
+                      <button 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className={`px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold transition-all ${currentPage === 1 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-900 shadow-sm hover:bg-slate-50'}`}
+                      >
+                        Previous
+                      </button>
+                      <button 
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className={`px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold transition-all ${currentPage === totalPages ? 'text-slate-300 cursor-not-allowed' : 'text-slate-900 shadow-sm hover:bg-slate-50'}`}
+                      >
+                        Next
+                      </button>
                     </div>
                   </div>
                 )}
