@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: "All-in-one platform for marketing agencies",
 };
 
+import { Toaster } from 'react-hot-toast';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -22,6 +24,7 @@ export default function RootLayout({
             <ProtectedRoute>
               {children}
             </ProtectedRoute>
+            <Toaster position="top-right" />
           </BrandingProvider>
         </AuthProvider>
       </body>

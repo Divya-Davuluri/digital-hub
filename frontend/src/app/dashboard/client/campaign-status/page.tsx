@@ -80,13 +80,13 @@ export default function ClientCampaignStatusPage() {
                       <div className="bg-slate-900 p-8 md:w-80 flex flex-col justify-center text-white">
                          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">Budget Utilization</p>
                          <div className="flex justify-between items-end mb-2">
-                            <span className="text-2xl font-bold">${c.spend.toLocaleString()}</span>
+                            <span className="text-2xl font-bold">${c.spent.toLocaleString()}</span>
                             <span className="text-xs text-white/60 mb-1">of ${c.budget.toLocaleString()}</span>
                          </div>
                          <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
                             <div 
                               className="h-full bg-indigo-500 rounded-full" 
-                              style={{ width: `${Math.min((c.spend / c.budget) * 100, 100)}%` }}
+                              style={{ width: `${Math.min((c.spent / c.budget) * 100, 100)}%` }}
                             ></div>
                          </div>
                          <button 

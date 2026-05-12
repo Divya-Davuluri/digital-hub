@@ -39,7 +39,7 @@ export const getCampaigns = asyncHandler(async (req: any, res: Response) => {
     return { ...c, adGroups: groups };
   }));
 
-  res.json(enhanced);
+  res.json({ success: true, campaigns: enhanced });
 });
 
 /**
@@ -48,80 +48,101 @@ export const getCampaigns = asyncHandler(async (req: any, res: Response) => {
  */
 export const createCampaign = asyncHandler(async (req: any, res: Response) => {
   const { tenantId, role, id: userId, workspaceId: userWorkspaceId } = req.user;
+  console.log('[CAMPAIGN_CREATE_REQUEST]', { userId, role, tenantId, body: req.body });
+
   const { 
     name, budget, channel, platform, startDate, endDate, 
     workspaceId: bodyWorkspaceId,
     adGroups: bodyAdGroups 
   } = req.body;
 
-  const targetWorkspaceId = role === 'client' ? userWorkspaceId : (bodyWorkspaceId || userWorkspaceId);
-  if (!targetWorkspaceId) throw new AppError('Workspace context required', 400);
+  let targetWorkspaceId = role === 'client' ? userWorkspaceId : (bodyWorkspaceId || userWorkspaceId);
+  
+  if (!targetWorkspaceId && role === 'admin') {
+    const firstWorkspace = await db.query.workspaces.findFirst({
+      where: eq(workspaces.tenantId, tenantId)
+    });
+    targetWorkspaceId = firstWorkspace?.id;
+  }
+
+  if (!targetWorkspaceId) throw new AppError('Workspace context required. Please create a workspace first.', 400);
 
   const campaignId = uuidv4();
+  const firstCreative = bodyAdGroups?.[0]?.creatives?.[0];
 
-  // 1. Create Campaign with ALL fields
-  await db.insert(campaigns).values({
-    id: campaignId,
-    tenantId,
-    workspaceId: targetWorkspaceId,
-    name,
-    budget,
-    channel: platform || channel || 'google',
-    platform: platform || 'Meta',
-    startDate,
-    endDate,
-    status: 'ACTIVE',
-    createdBy: userId,
-    spent: 0,
-    impressions: 0,
-    clicks: 0,
-    conversions: 0
-  });
+  try {
+    // 1. Create Campaign
+    await db.insert(campaigns).values({
+      id: campaignId,
+      tenantId,
+      workspaceId: targetWorkspaceId,
+      name,
+      budget,
+      channel: platform || channel || 'google',
+      platform: platform || 'Meta',
+      startDate,
+      endDate,
+      status: 'ACTIVE',
+      headline: firstCreative?.headline || '',
+      cta: firstCreative?.callToAction || firstCreative?.url || 'Learn More',
+      creativeUrl: firstCreative?.url || '',
+      createdBy: userId,
+      spent: 0,
+      impressions: 0,
+      clicks: 0,
+      conversions: 0,
+      ctr: 0
+    });
 
-  // 2. Create Ad Groups & Creatives if provided
-  if (Array.isArray(bodyAdGroups)) {
-    for (const group of bodyAdGroups) {
-      const adGroupId = uuidv4();
-      await db.insert(adGroups).values({
-        id: adGroupId,
-        campaignId,
-        tenantId,
-        workspaceId: targetWorkspaceId,
-        name: group.name,
-        budget: group.budget || 0,
-        targeting: JSON.stringify(group.targeting || {}),
-        status: 'active'
-      });
+    // 2. Create Ad Groups & Creatives
+    if (Array.isArray(bodyAdGroups)) {
+      for (const group of bodyAdGroups) {
+        const adGroupId = uuidv4();
+        await db.insert(adGroups).values({
+          id: adGroupId,
+          campaignId,
+          tenantId,
+          workspaceId: targetWorkspaceId,
+          name: group.name || 'Default Ad Group',
+          budget: group.budget || budget || 0,
+          targeting: JSON.stringify(group.targeting || {}),
+          status: 'active'
+        });
 
-      if (Array.isArray(group.creatives)) {
-        for (const creative of group.creatives) {
-          await db.insert(creatives).values({
-            id: uuidv4(),
-            adGroupId,
-            tenantId,
-            workspaceId: targetWorkspaceId,
-            name: creative.name,
-            type: creative.type || 'image',
-            url: creative.url,
-            headline: creative.headline,
-            description: creative.description,
-            callToAction: creative.callToAction
-          });
+        if (Array.isArray(group.creatives)) {
+          for (const creative of group.creatives) {
+            await db.insert(creatives).values({
+              id: uuidv4(),
+              adGroupId,
+              tenantId,
+              workspaceId: targetWorkspaceId,
+              name: creative.name || 'Ad Creative',
+              type: creative.type || 'image',
+              url: creative.url || '',
+              headline: creative.headline || '',
+              description: creative.description || '',
+              callToAction: creative.callToAction || creative.url || 'Learn More'
+            });
+          }
         }
       }
     }
+
+    // 3. Log Activity
+    await db.insert(campaignActivityLogs).values({
+      id: uuidv4(),
+      campaignId,
+      userId,
+      action: 'CREATE',
+      details: `Campaign "${name}" created with ${bodyAdGroups?.length || 0} ad groups.`
+    });
+
+    console.log('[CAMPAIGN_CREATE_SUCCESS]', { campaignId, name });
+    res.status(201).json({ success: true, id: campaignId });
+  } catch (err: any) {
+    console.error('[CAMPAIGN_CREATE_ERROR]', err);
+    throw new AppError(`Failed to save campaign: ${err.message}`, 500);
   }
-
-  // 3. Log Activity
-  await db.insert(campaignActivityLogs).values({
-    id: uuidv4(),
-    campaignId,
-    userId,
-    action: 'CREATE',
-    details: `Campaign "${name}" created with ${bodyAdGroups?.length || 0} ad groups.`
-  });
-
-  res.status(201).json({ success: true, id: campaignId });
 });
 
 /**

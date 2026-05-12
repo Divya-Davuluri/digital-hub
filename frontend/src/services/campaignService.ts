@@ -6,12 +6,17 @@ export interface Campaign {
   clientId?: string;
   clientName?: string;
   budget: number;
-  channel: 'google' | 'facebook' | 'instagram' | 'linkedin' | 'tiktok';
-  status: 'active' | 'paused' | 'completed' | 'review';
+  spent: number;
+  channel: string;
+  platform?: string;
+  status: string;
   impressions: number;
   clicks: number;
   conversions: number;
-  spend: number;
+  ctr?: number;
+  headline?: string;
+  cta?: string;
+  creativeUrl?: string;
   startDate?: string;
   endDate?: string;
   createdAt: string;
@@ -19,7 +24,8 @@ export interface Campaign {
 
 export const getCampaigns = async (workspaceId?: string): Promise<Campaign[]> => {
   const url = workspaceId ? `/campaigns?workspaceId=${workspaceId}` : '/campaigns';
-  return apiCall(url);
+  const data = await apiCall(url);
+  return data.campaigns || [];
 };
 
 export const createCampaign = async (data: any): Promise<any> => {

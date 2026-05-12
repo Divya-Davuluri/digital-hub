@@ -95,12 +95,17 @@ export const campaigns = sqliteTable('campaigns', {
   impressions: integer('impressions').default(0),
   clicks: integer('clicks').default(0),
   conversions: integer('conversions').default(0),
+  ctr: real('ctr').default(0),
   status: text('status').default('ACTIVE'),
   startDate: text('start_date'),
   endDate: text('end_date'),
+  headline: text('headline'),
+  cta: text('cta'),
+  creativeUrl: text('creative_url'),
   createdBy: text('created_by'),
   assignedTeamMemberId: text('assigned_team_member_id'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const adGroups = sqliteTable('ad_groups', {
