@@ -29,7 +29,7 @@ export default function CampaignsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const data = await getCampaigns(user?.role === 'client' ? user.workspaceId : undefined);
+      const data = await getCampaigns(user?.role === 'client' ? user.workspaceId || undefined : undefined);
       setCampaigns(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error fetching campaigns:", err);
