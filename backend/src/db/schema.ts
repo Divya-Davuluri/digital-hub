@@ -229,9 +229,9 @@ export const analytics = sqliteTable('analytics', {
   clicks: integer('clicks').default(0),
   impressions: integer('impressions').default(0),
   conversions: integer('conversions').default(0),
-  spend: integer('spend').default(0),
-  totalSpend: integer('total_spend').default(0),
-  roas: integer('roas').default(0),
+  spent: real('spent').default(0),
+  totalSpent: real('total_spent').default(0),
+  roas: real('roas').default(0),
 });
 
 export const reports = sqliteTable('reports', {
@@ -242,9 +242,9 @@ export const reports = sqliteTable('reports', {
   url: text('url').notNull(),
   type: text('type').default('PERFORMANCE'),
   period: text('period'),
-  spend: integer('spend').default(0),
+  spent: real('spent').default(0),
   conversions: integer('conversions').default(0),
-  roas: integer('roas').default(0),
+  roas: real('roas').default(0),
   status: text('status').default('READY'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

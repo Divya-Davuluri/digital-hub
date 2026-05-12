@@ -358,7 +358,7 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
       name: 'Summer Growth Campaign',
       channel: 'google',
       budget: 5000,
-      spend: 1240,
+      spent: 1240,
       impressions: 45000,
       clicks: 1200,
       conversions: 85,
@@ -373,7 +373,7 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
       name: 'Social Brand Awareness',
       channel: 'facebook',
       budget: 2500,
-      spend: 850,
+      spent: 850,
       impressions: 125000,
       clicks: 3400,
       conversions: 12,
@@ -395,8 +395,8 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
       clicks: Math.floor(Math.random() * 200),
       impressions: Math.floor(Math.random() * 10000),
       conversions: Math.floor(Math.random() * 20),
-      spend: Math.floor(Math.random() * 500),
-      totalSpend: Math.floor(Math.random() * 5000), // New field
+      spent: Math.floor(Math.random() * 500),
+      totalSpent: Math.floor(Math.random() * 5000), // Updated field
       roas: Math.floor(Math.random() * 10) + 2, // New field
     });
   }
@@ -410,10 +410,10 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
     name: 'Initial Strategy & Setup Report',
     url: '#',
     type: 'PERFORMANCE',
-    period: 'April 2026', // New field
-    spend: 2090, // New field
-    conversions: 97, // New field
-    roas: 4, // New field
+    period: 'April 2026', 
+    spent: 2090, 
+    conversions: 97, 
+    roas: 4, 
     status: 'READY'
   });
 
