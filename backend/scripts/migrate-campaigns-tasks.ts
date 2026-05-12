@@ -5,7 +5,7 @@ async function migrate() {
   console.log('Running DB migrations...');
   try {
     const queries = [
-      `ALTER TABLE campaigns ADD COLUMN spent REAL DEFAULT 0;`,
+      `ALTER TABLE campaigns ADD COLUMN spend REAL DEFAULT 0;`,
       `ALTER TABLE campaigns ADD COLUMN impressions INTEGER DEFAULT 0;`,
       `ALTER TABLE campaigns ADD COLUMN clicks INTEGER DEFAULT 0;`,
       `ALTER TABLE campaigns ADD COLUMN conversions INTEGER DEFAULT 0;`,

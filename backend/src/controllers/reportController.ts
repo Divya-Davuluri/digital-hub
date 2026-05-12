@@ -14,7 +14,7 @@ export const exportReport = async (req: Request, res: Response) => {
     const { tenantId, workspaceId, role } = req.user as any;
     const { format, clientId, workspaceId: queryWorkspaceId } = req.query;
     
-    const targetWorkspaceId = workspaceId || queryWorkspaceId;
+    const targetWorkspaceId = role === 'client' ? workspaceId : (workspaceId || queryWorkspaceId);
 
     if (!targetWorkspaceId && role === 'client') {
       throw new AppError('Workspace context required', 403);
@@ -65,7 +65,7 @@ export const exportReport = async (req: Request, res: Response) => {
 export const exportClientPDF = async (req: Request, res: Response) => {
   try {
     const { tenantId, workspaceId, role } = req.user as any;
-    const targetWorkspaceId = workspaceId || req.query.workspaceId;
+    const targetWorkspaceId = role === 'client' ? workspaceId : (workspaceId || req.query.workspaceId);
 
     if (!targetWorkspaceId && role === 'client') throw new AppError('Workspace context required', 403);
 
@@ -167,7 +167,7 @@ export const exportClientPDF = async (req: Request, res: Response) => {
  */
 export const requestCustomReport = async (req: Request, res: Response) => {
   try {
-    const { tenantId, workspaceId, role } = req.user as any;
+    const { id: userId, tenantId, workspaceId, role, name: userName, email: userEmail } = req.user as any;
     const { reportType, dateFrom, dateTo, notes, clientId } = req.body;
 
     let targetWorkspaceId = workspaceId || req.body.workspaceId;
@@ -178,11 +178,11 @@ export const requestCustomReport = async (req: Request, res: Response) => {
       await db.insert(workspaces).values({
         id: targetWorkspaceId,
         tenantId,
-        name: `${req.user?.name || 'Client'}'s Workspace`,
+        name: `${userName || 'Client'}'s Workspace`,
         slug: `workspace-${Date.now()}`
       });
       // Update the user's workspace
-      await db.update(users).set({ workspaceId: targetWorkspaceId }).where(eq(users.id, req.user.id));
+      await db.update(users).set({ workspaceId: targetWorkspaceId }).where(eq(users.id, userId));
     }
 
     if (!targetWorkspaceId) {
@@ -210,7 +210,7 @@ export const requestCustomReport = async (req: Request, res: Response) => {
           tenantId,
           workspaceId: targetWorkspaceId,
           name: 'Auto-generated Client',
-          email: req.user?.email || 'client@example.com',
+          email: userEmail || 'client@example.com',
           status: 'active'
         });
         finalClientId = newClientId;
@@ -258,8 +258,10 @@ export const getReportRequests = async (req: Request, res: Response) => {
     const { tenantId, workspaceId: userWorkspaceId, role, id: userId } = req.user as any;
     const queryWorkspaceId = req.query.workspaceId;
 
-    // Admins see all unless they specify a workspace
-    let targetWorkspaceId = queryWorkspaceId;
+    // Clients only see their own workspace
+    let targetWorkspaceId = role === 'client' ? userWorkspaceId : queryWorkspaceId;
+    
+    // Admins see all unless they specify a workspace, Team members default to their assigned
     if (!targetWorkspaceId && role !== 'admin') {
       targetWorkspaceId = userWorkspaceId;
     }
@@ -332,7 +334,9 @@ export const getReports = async (req: Request, res: Response) => {
     const { tenantId, workspaceId: userWorkspaceId, role } = req.user as any;
     const queryWorkspaceId = req.query.workspaceId;
 
-    let targetWorkspaceId = queryWorkspaceId;
+    // Clients only see their own workspace
+    let targetWorkspaceId = role === 'client' ? userWorkspaceId : queryWorkspaceId;
+
     if (!targetWorkspaceId && role !== 'admin') {
       targetWorkspaceId = userWorkspaceId;
     }

@@ -10,8 +10,8 @@ import { eq, sql, and } from 'drizzle-orm';
 export const getDashboardSummary = async (req: Request, res: Response) => {
   try {
     const { tenantId, workspaceId, role, id: userId } = req.user as any;
-    // Admins see everything in the tenant by default, Clients are restricted to their workspace
-    const targetWorkspaceId = role === 'admin' ? (req.query.workspaceId as string) : (workspaceId || req.query.workspaceId as string);
+    // STRICT ISOLATION: Clients strictly use their own workspaceId. Admins can query any. Team members default to their own.
+    const targetWorkspaceId = role === 'client' ? workspaceId : (role === 'admin' ? (req.query.workspaceId as string) : (workspaceId || req.query.workspaceId as string));
     
     if (!tenantId) return res.status(400).json({ message: 'Tenant context missing' });
     
@@ -88,7 +88,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
     const { tenantId, workspaceId, role, id: userId } = req.user as any;
-    const targetWorkspaceId = role === 'admin' ? (req.query.workspaceId as string) : (workspaceId || req.query.workspaceId as string);
+    const targetWorkspaceId = role === 'client' ? workspaceId : (role === 'admin' ? (req.query.workspaceId as string) : (workspaceId || req.query.workspaceId as string));
 
     if (!tenantId) return res.status(400).json({ message: 'Tenant context missing' });
     if (role === 'client' && !targetWorkspaceId) {
