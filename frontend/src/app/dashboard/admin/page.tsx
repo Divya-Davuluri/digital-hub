@@ -99,10 +99,10 @@ export default function AdminDashboard() {
 
             {/* KPI Summary Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <KpiCard title="Total Spend" value={`$${summary?.totalSpend.toLocaleString()}`} trend="+12.5%" />
-              <KpiCard title="Conversions" value={summary?.totalConversions.toLocaleString()} trend="+8.2%" />
-              <KpiCard title="Avg ROAS" value={`${summary?.avgRoas.toFixed(2)}x`} trend="+4.1%" />
-              <KpiCard title="Active Campaigns" value={summary?.activeCampaigns} trend="Steady" />
+              <KpiCard title="Total Spend" value={`$${(summary?.totalSpend || 0).toLocaleString()}`} trend="+12.5%" />
+              <KpiCard title="Conversions" value={(summary?.totalConversions || 0).toLocaleString()} trend="+8.2%" />
+              <KpiCard title="Avg ROAS" value={`${(summary?.avgRoas || 0).toFixed(2)}x`} trend="+4.1%" />
+              <KpiCard title="Active Campaigns" value={summary?.activeCampaigns || 0} trend="Steady" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <ActionCard title="Add Client" icon="👥" onClick={() => router.push('/dashboard/admin/clients')} />
                   <ActionCard title="Branding" icon="🎨" onClick={() => router.push('/dashboard/admin/branding')} />
-                  <ActionCard title="Campaigns" icon="🚀" onClick={() => router.push('/dashboard/campaigns')} />
+                  <ActionCard title="Campaigns" icon="🚀" onClick={() => router.push('/dashboard/admin/campaigns')} />
                   <ActionCard title="Settings" icon="⚙️" onClick={() => router.push('/dashboard/admin/settings')} />
                 </div>
               </div>

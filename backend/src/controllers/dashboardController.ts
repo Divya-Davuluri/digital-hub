@@ -25,7 +25,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       .select({
         totalImpressions: sql<number>`sum(${campaigns.impressions})`,
         totalClicks: sql<number>`sum(${campaigns.clicks})`,
-        totalSpend: sql<number>`sum(${campaigns.spend})`,
+        totalSpend: sql<number>`sum(${campaigns.spent})`,
         totalConversions: sql<number>`sum(${campaigns.conversions})`,
         count: sql<number>`count(*)`,
       })
