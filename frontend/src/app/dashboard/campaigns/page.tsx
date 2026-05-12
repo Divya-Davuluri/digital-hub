@@ -9,10 +9,11 @@ import { useAuth } from "@/context/AuthContext";
 import { 
   Plus, Search, Filter, MoreHorizontal, Pause, Play, Trash2, Target,
   Download, ExternalLink, BarChart2, TrendingUp, Users, DollarSign,
-  ArrowUpRight, ArrowDownRight, MoreVertical
+  ArrowUpRight, ArrowDownRight, MoreVertical, RefreshCcw
 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import toast from 'react-hot-toast';
 import AutomationCenter from "@/components/campaigns/AutomationCenter";
 
 export default function CampaignsPage() {
@@ -74,6 +75,36 @@ export default function CampaignsPage() {
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handleStatusToggle = async (id: string, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'paused' : 'active';
+      await updateCampaignStatus(id, newStatus);
+      toast.success(`Campaign ${newStatus === 'active' ? 'resumed' : 'paused'}`);
+      fetchData();
+    } catch (err) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  const handleDownload = () => {
+    if (filteredCampaigns.length === 0) return;
+    
+    const headers = ['Name', 'Platform', 'Client', 'Budget', 'Spent', 'Impressions', 'Clicks', 'Conversions', 'Status'];
+    const rows = filteredCampaigns.map(c => [
+      c.name, c.platform || c.channel, c.clientName || 'Direct',
+      c.budget, c.spent, c.impressions, c.clicks, c.conversions, c.status
+    ]);
+    
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `campaigns-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    toast.success("Report downloaded!");
   };
 
   const totals = useMemo(() => {
@@ -220,7 +251,12 @@ export default function CampaignsPage() {
                       <button onClick={() => handleBulkAction('delete')} className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button>
                     </div>
                   )}
-                  <button className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 transition-all"><Download size={18} /></button>
+                  <button 
+                    onClick={handleDownload}
+                    className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 transition-all"
+                  >
+                    <Download size={18} />
+                  </button>
                 </div>
               </div>
 
@@ -302,19 +338,34 @@ export default function CampaignsPage() {
                             </div>
                           </td>
                           <td className="px-6 py-5">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                              c.status === 'active' ? 'bg-green-50 text-green-600 border border-green-100' : 
-                              c.status === 'paused' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                              'bg-slate-50 text-slate-500 border border-slate-100'
-                            }`}>
+                            <button 
+                              onClick={() => handleStatusToggle(c.id, c.status)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${
+                                c.status === 'active' ? 'bg-green-50 text-green-600 border border-green-100' : 
+                                c.status === 'paused' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                'bg-slate-50 text-slate-500 border border-slate-100'
+                              }`}
+                            >
                               <div className={`w-1.5 h-1.5 rounded-full ${c.status === 'active' ? 'bg-green-500' : 'bg-slate-400'}`} />
                               {c.status}
-                            </span>
+                            </button>
                           </td>
                           <td className="px-6 py-5 text-right">
                             <div className="flex justify-end gap-2">
-                              <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><ExternalLink size={16} /></button>
-                              <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"><MoreVertical size={16} /></button>
+                              <button 
+                                onClick={() => handleStatusToggle(c.id, c.status)}
+                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                title={c.status === 'active' ? 'Pause' : 'Resume'}
+                              >
+                                {c.status === 'active' ? <Pause size={16} /> : <Play size={16} />}
+                              </button>
+                              <button 
+                                onClick={() => fetchData()}
+                                className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
+                                title="Refresh Row"
+                              >
+                                <RefreshCcw size={16} />
+                              </button>
                             </div>
                           </td>
                         </tr>
