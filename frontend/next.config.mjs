@@ -4,8 +4,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 
-          'https://digital-hub-3h88.onrender.com/api/:path*'
+        destination: 'https://digital-hub-3h88.onrender.com/api/:path*'
       }
     ]
   },
@@ -13,12 +12,6 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: '**' }
     ]
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   }
 };
 
