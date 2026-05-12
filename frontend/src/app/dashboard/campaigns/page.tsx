@@ -78,11 +78,11 @@ export default function CampaignsPage() {
 
   const totals = useMemo(() => {
     return filteredCampaigns.reduce((acc, c) => ({
-      spend: acc.spend + (c.spend || 0),
+      spent: acc.spent + (c.spent || 0),
       impressions: acc.impressions + (c.impressions || 0),
       clicks: acc.clicks + (c.clicks || 0),
       conversions: acc.conversions + (c.conversions || 0),
-    }), { spend: 0, impressions: 0, clicks: 0, conversions: 0 });
+    }), { spent: 0, impressions: 0, clicks: 0, conversions: 0 });
   }, [filteredCampaigns]);
 
   if (loading) {
@@ -151,7 +151,7 @@ export default function CampaignsPage() {
               {/* KPI Grid */}
               <div className="grid grid-cols-4 gap-6 mb-8">
                 {[
-                  { label: 'Total Spend', value: `$${totals.spend.toLocaleString()}`, icon: DollarSign, color: 'text-indigo-600', bg: 'bg-indigo-50', trend: '+12.5%', trendUp: true },
+                  { label: 'Total Spend', value: `$${totals.spent.toLocaleString()}`, icon: DollarSign, color: 'text-indigo-600', bg: 'bg-indigo-50', trend: '+12.5%', trendUp: true },
                   { label: 'Impressions', value: totals.impressions.toLocaleString(), icon: BarChart2, color: 'text-blue-600', bg: 'bg-blue-50', trend: '+5.2%', trendUp: true },
                   { label: 'Clicks', value: totals.clicks.toLocaleString(), icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '-2.1%', trendUp: false },
                   { label: 'Conversions', value: totals.conversions.toLocaleString(), icon: Target, color: 'text-amber-600', bg: 'bg-amber-50', trend: '+8.4%', trendUp: true },
@@ -282,13 +282,13 @@ export default function CampaignsPage() {
                           <td className="px-6 py-5">
                             <div className="max-w-[140px]">
                               <div className="flex justify-between text-[10px] font-bold mb-1.5">
-                                <span className="text-slate-900">${c.spend?.toLocaleString()}</span>
+                                <span className="text-slate-900">${c.spent?.toLocaleString()}</span>
                                 <span className="text-slate-400">/ ${c.budget?.toLocaleString()}</span>
                               </div>
                               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                                 <div 
                                   className="h-full bg-indigo-600 rounded-full" 
-                                  style={{ width: `${Math.min(((c.spend || 0) / (c.budget || 1)) * 100, 100)}%` }} 
+                                  style={{ width: `${Math.min(((c.spent || 0) / (c.budget || 1)) * 100, 100)}%` }} 
                                 />
                               </div>
                             </div>
@@ -298,7 +298,7 @@ export default function CampaignsPage() {
                               <div className="text-[10px] font-bold text-slate-400 uppercase">CTR</div>
                               <div className="text-[10px] font-black text-slate-900">{((c.clicks / (c.impressions || 1)) * 100).toFixed(2)}%</div>
                               <div className="text-[10px] font-bold text-slate-400 uppercase">CPC</div>
-                              <div className="text-[10px] font-black text-slate-900">${((c.spend || 0) / (c.clicks || 1)).toFixed(2)}</div>
+                              <div className="text-[10px] font-black text-slate-900">${((c.spent || 0) / (c.clicks || 1)).toFixed(2)}</div>
                             </div>
                           </td>
                           <td className="px-6 py-5">
