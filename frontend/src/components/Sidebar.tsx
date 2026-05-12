@@ -35,9 +35,9 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
       return [
         { name: 'Overview', href: '/dashboard/admin', icon: '🏠' },
         { name: 'Manage Clients', href: '/dashboard/admin/clients', icon: '🏢' },
-        { name: 'Agency Branding', href: '/dashboard/admin/branding', icon: '🎨' },
         { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
         { name: 'Creative Assets', href: '/dashboard/creatives', icon: '🖼️' },
+        { name: 'White-Labeling', href: '/dashboard/settings/branding', icon: '🎨' },
         { name: 'Reports', href: '/dashboard/reports', icon: '📈' },
         { name: 'Settings', href: '/dashboard/admin/settings', icon: '⚙️' },
       ];

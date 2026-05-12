@@ -1,111 +1,94 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { workspaces, tenantBranding } from '../db/schema';
+import { workspaces, customBranding, customDomains } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
+import { asyncHandler } from '../utils/errors';
 
 /**
  * GET /api/branding
- * Fetches branding for the current workspace context.
+ * Fetches branding based on the current domain or authenticated user.
  */
-export const getBranding = async (req: Request, res: Response) => {
-  try {
-    const { tenantId, workspaceId, role } = req.user as any;
-    const targetWorkspaceId = workspaceId || req.query.workspaceId;
+export const getBranding = asyncHandler(async (req: any, res: Response) => {
+  const host = req.get('host');
+  const { tenantId: userTenantId } = req.user || {};
+  
+  let tenantId = userTenantId;
 
-    if (!tenantId) {
-      return res.json({ 
-        primaryColor: '#4f46e5', 
-        secondaryColor: '#10b981',
-        logoUrl: '',
-        subdomain: '',
-      });
-    }
-
-    // 1. Fetch Tenant Branding (Agency-wide)
-    const branding = await db.query.tenantBranding.findFirst({
-      where: eq(tenantBranding.tenantId, tenantId),
+  // 1. Domain-based detection (if not authenticated or checking for white-label)
+  if (!tenantId && host) {
+    const domainRecord = await db.query.customDomains.findFirst({
+      where: and(eq(customDomains.domain, host), eq(customDomains.status, 'active'))
     });
-
-    // 2. Fetch Workspace Branding (if context provided)
-    let workspaceBranding = null;
-    if (targetWorkspaceId) {
-      workspaceBranding = await db.query.workspaces.findFirst({
-        where: and(eq(workspaces.id, targetWorkspaceId), eq(workspaces.tenantId, tenantId)),
-      });
-    }
-
-    // Return combined branding (Workspace overrides Tenant)
-    res.json({
-      primaryColor: workspaceBranding?.primaryColor || branding?.primaryColor || '#4f46e5',
-      secondaryColor: branding?.secondaryColor || '#10b981',
-      logoUrl: branding?.logoUrl || '',
-      logo: workspaceBranding?.logo || branding?.logoUrl || '', // Compatibility
-      subdomain: branding?.subdomain || '',
-      name: workspaceBranding?.name || 'My Agency'
-    });
-    
-  } catch (error) {
-    console.error('[GET_BRANDING_ERROR]', error);
-    res.status(500).json({ message: 'Error fetching branding' });
+    if (domainRecord) tenantId = domainRecord.tenantId;
   }
-};
+
+  // 2. Fetch Branding
+  if (!tenantId) {
+    return res.json({ 
+      agencyName: 'Digital Marketing Hub',
+      primaryColor: '#6366f1', 
+      secondaryColor: '#4f46e5',
+      logoUrl: '/logo.png',
+      removePoweredBy: 0
+    });
+  }
+
+  const branding = await db.query.customBranding.findFirst({
+    where: eq(customBranding.tenantId, tenantId),
+  });
+
+  res.json({
+    agencyName: branding?.agencyName || 'Digital Marketing Hub',
+    primaryColor: branding?.primaryColor || '#6366f1',
+    secondaryColor: branding?.secondaryColor || '#4f46e5',
+    logoUrl: branding?.logoUrl || '',
+    faviconUrl: branding?.faviconUrl || '',
+    customCss: branding?.customCss || '',
+    removePoweredBy: branding?.removePoweredBy || 0,
+    footerText: branding?.footerText || ''
+  });
+});
 
 /**
  * POST /api/branding
- * Updates branding for a specific workspace.
+ * Updates deep branding for the tenant.
  */
-export const updateBranding = async (req: Request, res: Response) => {
-  try {
-    const { tenantId, workspaceId: tokenWorkspaceId } = req.user as any;
-    const { logo, logoUrl, primaryColor, secondaryColor, subdomain, workspaceId: bodyWorkspaceId } = req.body;
-    
-    const targetWorkspaceId = tokenWorkspaceId || bodyWorkspaceId;
+export const updateBranding = asyncHandler(async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const data = req.body;
 
-    if (!tenantId) {
-      return res.status(401).json({ message: 'Unauthorized: Tenant context required' });
-    }
+  const existing = await db.query.customBranding.findFirst({
+    where: eq(customBranding.tenantId, tenantId),
+  });
 
-    // 1. Update Tenant Branding
-    const existingBranding = await db.query.tenantBranding.findFirst({
-      where: eq(tenantBranding.tenantId, tenantId),
+  if (existing) {
+    await db.update(customBranding)
+      .set({ 
+        ...data, 
+        updatedAt: new Date().toISOString() 
+      })
+      .where(eq(customBranding.tenantId, tenantId));
+  } else {
+    await db.insert(customBranding).values({
+      id: uuidv4(),
+      tenantId,
+      ...data
     });
-
-    if (existingBranding) {
-      await db.update(tenantBranding)
-        .set({ 
-          logoUrl: logoUrl || logo, 
-          primaryColor, 
-          secondaryColor, 
-          subdomain, 
-          updatedAt: new Date().toISOString() 
-        })
-        .where(eq(tenantBranding.tenantId, tenantId));
-    } else {
-      const { v4: uuidv4 } = require('uuid');
-      await db.insert(tenantBranding).values({
-        id: uuidv4(),
-        tenantId,
-        logoUrl: logoUrl || logo,
-        primaryColor: primaryColor || '#4f46e5',
-        secondaryColor: secondaryColor || '#10b981',
-        subdomain,
-      });
-    }
-
-    // 2. Update Workspace Branding if in workspace context
-    if (targetWorkspaceId) {
-      await db.update(workspaces)
-        .set({ 
-          logo: logo || logoUrl, 
-          primaryColor, 
-          updatedAt: new Date().toISOString() 
-        })
-        .where(and(eq(workspaces.id, targetWorkspaceId), eq(workspaces.tenantId, tenantId)));
-    }
-
-    res.json({ success: true, message: 'Branding updated successfully' });
-  } catch (error: any) {
-    console.error('[UPDATE_BRANDING_ERROR]', error);
-    res.status(500).json({ message: 'Error updating branding' });
   }
-};
+
+  res.json({ success: true, message: 'Branding updated successfully' });
+});
+
+/**
+ * GET /api/branding/domain
+ * Fetch custom domain status for the tenant.
+ */
+export const getDomainStatus = asyncHandler(async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const domains = await db.query.customDomains.findMany({
+    where: eq(customDomains.tenantId, tenantId)
+  });
+  res.json(domains);
+});
+

@@ -4,10 +4,13 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import apiCall from '@/lib/api';
 
 interface Branding {
+  agencyName: string;
   primaryColor: string;
   secondaryColor: string;
   logoUrl: string;
-  subdomain: string;
+  faviconUrl: string;
+  customCss: string;
+  removePoweredBy: number;
 }
 
 interface BrandingContextType {
@@ -24,28 +27,46 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const applyBranding = (data: Branding) => {
     if (typeof document !== 'undefined') {
-      document.body.style.setProperty('--primary-color', data.primaryColor || '#4f46e5');
-      document.body.style.setProperty('--secondary-color', data.secondaryColor || '#10b981');
+      const root = document.documentElement;
+      root.style.setProperty('--primary-color', data.primaryColor || '#6366f1');
+      root.style.setProperty('--secondary-color', data.secondaryColor || '#4f46e5');
+      
+      // Apply Favicon
+      if (data.faviconUrl) {
+        let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'icon';
+          document.getElementsByTagName('head')[0].appendChild(link);
+        }
+        link.href = data.faviconUrl;
+      }
+
+      // Apply Custom CSS
+      if (data.customCss) {
+        let style: HTMLStyleElement | null = document.querySelector("#custom-branding-css");
+        if (!style) {
+          style = document.createElement('style');
+          style.id = 'custom-branding-css';
+          document.head.appendChild(style);
+        }
+        style.innerHTML = data.customCss;
+      }
     }
   };
 
   const fetchBranding = useCallback(async () => {
     try {
       setLoading(true);
-      // Step 3: Fetch from GET /api/admin/branding
-      // Note: We use /api/branding for public (login) and /api/admin/branding for admin
-      // But for simplicity in the context, we'll try admin first, fallback to public
-      const data = await apiCall('/admin/branding').catch(() => apiCall('/branding'));
+      // Fetch public branding (which uses domain detection on backend)
+      const data = await apiCall('/branding');
       
       setBranding(data);
       applyBranding(data);
       
-      // Save to localStorage as backup
       localStorage.setItem('branding', JSON.stringify(data));
     } catch (error) {
       console.error('Failed to fetch branding:', error);
-      
-      // Fallback to localStorage
       const cached = localStorage.getItem('branding');
       if (cached) {
         const data = JSON.parse(cached);
