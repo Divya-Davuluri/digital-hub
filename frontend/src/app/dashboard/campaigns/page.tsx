@@ -12,6 +12,7 @@ import {
   ArrowUpRight, ArrowDownRight, MoreVertical
 } from "lucide-react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import AutomationCenter from "@/components/campaigns/AutomationCenter";
 
 export default function CampaignsPage() {
