@@ -20,16 +20,20 @@ export default function AutomationCenter() {
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       const [pData, rData, fData] = await Promise.all([
-        getBudgetPools(),
-        getAutomationRules(),
-        getForecast('global')
+        getBudgetPools().catch(() => []),
+        getAutomationRules().catch(() => []),
+        getForecast('global').catch(() => [])
       ]);
-      setPools(pData);
-      setRules(rData);
-      setForecast(fData);
+      setPools(Array.isArray(pData) ? pData : []);
+      setRules(Array.isArray(rData) ? rData : []);
+      setForecast(Array.isArray(fData) ? fData : []);
     } catch (err) {
       console.error("Failed to fetch automation data", err);
+      setPools([]);
+      setRules([]);
+      setForecast([]);
     } finally {
       setLoading(false);
     }
@@ -57,6 +61,18 @@ export default function AutomationCenter() {
       alert("Failed to toggle rule");
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-8 animate-pulse">
+        <div className="h-[400px] bg-white rounded-3xl" />
+        <div className="grid grid-cols-3 gap-8">
+          <div className="h-64 bg-white rounded-3xl" />
+          <div className="col-span-2 h-64 bg-white rounded-3xl" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

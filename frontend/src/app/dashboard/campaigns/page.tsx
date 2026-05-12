@@ -43,9 +43,13 @@ export default function CampaignsPage() {
   }, [user]);
 
   const filteredCampaigns = useMemo(() => {
+    if (!Array.isArray(campaigns)) return [];
     return campaigns.filter(c => {
-      const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           c.clientName?.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!c) return false;
+      const name = c.name || "";
+      const clientName = c.clientName || "";
+      const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           clientName.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === "all" || c.status === statusFilter;
       const matchesPlatform = platformFilter === "all" || c.channel === platformFilter;
       return matchesSearch && matchesStatus && matchesPlatform;
