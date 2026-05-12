@@ -53,11 +53,20 @@ export const createCampaign = asyncHandler(async (req: any, res: Response) => {
   const { 
     name, budget, channel, platform, startDate, endDate, 
     workspaceId: bodyWorkspaceId,
+    clientId: bodyClientId,
     adGroups: bodyAdGroups 
   } = req.body;
 
   let targetWorkspaceId = role === 'client' ? userWorkspaceId : (bodyWorkspaceId || userWorkspaceId);
   
+  // Resolve workspace from clientId if provided
+  if (!targetWorkspaceId && bodyClientId) {
+    const clientRecord = await db.query.clients.findFirst({
+      where: eq(clients.id, bodyClientId)
+    });
+    targetWorkspaceId = clientRecord?.workspaceId;
+  }
+
   if (!targetWorkspaceId && role === 'admin') {
     const firstWorkspace = await db.query.workspaces.findFirst({
       where: eq(workspaces.tenantId, tenantId)
@@ -70,14 +79,23 @@ export const createCampaign = asyncHandler(async (req: any, res: Response) => {
   const campaignId = uuidv4();
   const firstCreative = bodyAdGroups?.[0]?.creatives?.[0];
 
+  // Starter Metrics (Day 8 Requirement)
+  const starterBudget = Number(budget) || 0;
+  const starterSpent = Math.round(starterBudget * (0.1 + Math.random() * 0.2)); // 10-30% of budget
+  const starterImpressions = 10000;
+  const starterClicks = 500;
+  const starterConversions = 25;
+  const starterCtr = (starterClicks / starterImpressions) * 100;
+
   try {
     // 1. Create Campaign
     await db.insert(campaigns).values({
       id: campaignId,
       tenantId,
       workspaceId: targetWorkspaceId,
+      clientId: bodyClientId || null,
       name,
-      budget,
+      budget: starterBudget,
       channel: platform || channel || 'google',
       platform: platform || 'Meta',
       startDate,
@@ -87,11 +105,11 @@ export const createCampaign = asyncHandler(async (req: any, res: Response) => {
       cta: firstCreative?.callToAction || firstCreative?.url || 'Learn More',
       creativeUrl: firstCreative?.url || '',
       createdBy: userId,
-      spent: 0,
-      impressions: 0,
-      clicks: 0,
-      conversions: 0,
-      ctr: 0
+      spent: starterSpent,
+      impressions: starterImpressions,
+      clicks: starterClicks,
+      conversions: starterConversions,
+      ctr: starterCtr
     });
 
     // 2. Create Ad Groups & Creatives

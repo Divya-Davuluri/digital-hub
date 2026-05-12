@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 interface Campaign {
   id: string;
   name: string;
-  client_name: string;
+  clientName: string;
   status: string;
   budget: number;
   spent: number;
@@ -38,7 +38,7 @@ export default function AdminCampaigns() {
 
   const [formData, setFormData] = useState({
     name: '',
-    clientName: '',
+    clientId: '',
     budget: '',
     platform: 'Meta',
     status: 'ACTIVE',
@@ -56,16 +56,31 @@ export default function AdminCampaigns() {
     );
   };
 
+  const [clients, setClients] = useState<any[]>([]);
+
   useEffect(() => {
     fetchCampaigns();
+    fetchClients();
   }, []);
+
+  const fetchClients = async () => {
+    try {
+      const res = await fetch('/api/admin/clients', {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      const data = await res.json();
+      setClients(data.clients || []);
+    } catch (err) {
+      console.error('Failed to fetch clients');
+    }
+  };
 
   const fetchCampaigns = async () => {
     try {
       setLoading(true);
       setError('');
       const res = await fetch(
-        '/api/admin/campaigns',
+        '/api/campaigns',
         {
           headers: {
             Authorization: 
@@ -86,48 +101,39 @@ export default function AdminCampaigns() {
   };
 
   const handleCreate = async () => {
-    if (!formData.name.trim()) {
-      setModalError(
-        'Campaign name is required'
-      );
+    if (!formData.name.trim() || !formData.clientId) {
+      setModalError('Campaign name and client selection are required');
       return;
     }
     try {
       setCreating(true);
       setModalError('');
-      const res = await fetch(
-        '/api/admin/campaigns',
-        {
-          method: 'POST',
-          headers: {
-            Authorization:
-              `Bearer ${getToken()}`,
-            'Content-Type': 
-              'application/json'
-          },
-          body: JSON.stringify({
-            name: formData.name,
-            clientName: formData.clientName,
-            budget: formData.budget,
-            platform: formData.platform,
-            status: formData.status,
-            startDate: formData.startDate,
-            endDate: formData.endDate
-          })
-        }
-      );
+      const res = await fetch('/api/campaigns', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          clientId: formData.clientId,
+          budget: Number(formData.budget),
+          platform: formData.platform,
+          status: formData.status,
+          startDate: formData.startDate,
+          endDate: formData.endDate
+        })
+      });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(
-          data.error || 
-          'Failed to create campaign'
-        );
+        throw new Error(data.error || 'Failed to create campaign');
       }
-      setCampaigns((prev: Campaign[]) =>
-        [data.campaign, ...prev]);
+      
+      // Auto refresh list
+      fetchCampaigns();
       setShowModal(false);
       setFormData({
-        name: '', clientName: '',
+        name: '', clientId: '',
         budget: '', platform: 'Meta',
         status: 'ACTIVE',
         startDate: '', endDate: ''
@@ -203,7 +209,7 @@ export default function AdminCampaigns() {
           .includes(
             searchTerm.toLowerCase()
           ) ||
-        c.client_name?.toLowerCase()
+        c.clientName?.toLowerCase()
           .includes(
             searchTerm.toLowerCase()
           );
@@ -566,7 +572,7 @@ export default function AdminCampaigns() {
                       color: '#6b7280',
                       fontSize: '13px'
                     }}>
-                      {campaign.client_name
+                      {campaign.clientName
                         || '—'}
                     </td>
                     <td style={{
@@ -791,20 +797,28 @@ export default function AdminCampaigns() {
               </div>
             )}
 
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>
+                Select Client *
+              </label>
+              <select
+                value={formData.clientId}
+                onChange={e => setFormData({ ...formData, clientId: e.target.value })}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', background: 'white' }}
+              >
+                <option value="">-- Choose Client --</option>
+                {clients.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
             {[
               {
                 label: 'Campaign Name *',
                 key: 'name',
                 type: 'text',
-                placeholder:
-                  'e.g. Summer Sale 2026'
-              },
-              {
-                label: 'Client Name',
-                key: 'clientName',
-                type: 'text',
-                placeholder:
-                  'e.g. Nike Marketing'
+                placeholder: 'e.g. Summer Sale 2026'
               },
               {
                 label: 'Total Budget ($)',
