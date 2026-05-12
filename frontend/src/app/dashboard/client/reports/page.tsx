@@ -36,10 +36,16 @@ export default function ClientReportsPage() {
   const handleRequestReport = async () => {
     setSubmitting(true);
     try {
-      await requestCustomReport({
+      const res = await requestCustomReport({
         reportType: 'MONTHLY_PERFORMANCE',
         workspaceId: user?.workspaceId
       });
+      
+      if (res && res.success === false) {
+        alert(`Failed to request report: ${res.message || res.error || 'Unknown error'}`);
+        return;
+      }
+      
       alert("Report request submitted!");
       fetchData();
     } catch (err) {

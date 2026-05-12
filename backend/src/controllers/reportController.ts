@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { campaigns, clients, workspaces, reportRequests, reports } from '../db/schema';
+import { campaigns, clients, workspaces, reportRequests, reports, users } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import PDFDocument from 'pdfkit';
 import { v4 as uuidv4 } from 'uuid';
@@ -170,8 +170,25 @@ export const requestCustomReport = async (req: Request, res: Response) => {
     const { tenantId, workspaceId, role } = req.user as any;
     const { reportType, dateFrom, dateTo, notes, clientId } = req.body;
 
-    if (!workspaceId && role === 'client') throw new AppError('Workspace context required', 403);
-    const targetWorkspaceId = workspaceId || req.body.workspaceId;
+    let targetWorkspaceId = workspaceId || req.body.workspaceId;
+
+    // Auto-provision workspace if the client doesn't have one
+    if (!targetWorkspaceId && role === 'client') {
+      targetWorkspaceId = uuidv4();
+      await db.insert(workspaces).values({
+        id: targetWorkspaceId,
+        tenantId,
+        name: `${req.user?.name || 'Client'}'s Workspace`,
+        slug: `workspace-${Date.now()}`
+      });
+      // Update the user's workspace
+      await db.update(users).set({ workspaceId: targetWorkspaceId }).where(eq(users.id, req.user.id));
+    }
+
+    if (!targetWorkspaceId) {
+      throw new AppError('Workspace context required', 400);
+    }
+    
     const targetClientId = clientId || req.body.clientId;
 
     if (!reportType) return res.status(400).json({ message: 'Report type is required' });
@@ -185,11 +202,23 @@ export const requestCustomReport = async (req: Request, res: Response) => {
       });
       if (clientRecord) {
         finalClientId = clientRecord.id;
+      } else {
+        // Auto-create a dummy client record for this workspace to satisfy foreign key constraints
+        const newClientId = uuidv4();
+        await db.insert(clients).values({
+          id: newClientId,
+          tenantId,
+          workspaceId: targetWorkspaceId,
+          name: 'Auto-generated Client',
+          email: req.user?.email || 'client@example.com',
+          status: 'active'
+        });
+        finalClientId = newClientId;
       }
     }
 
     if (!finalClientId) {
-      throw new AppError('Client context not found', 400);
+      throw new AppError('Client context not found. Please ensure your account is linked to a client profile.', 400);
     }
 
     await db.insert(reportRequests).values({
