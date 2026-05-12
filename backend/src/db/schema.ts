@@ -180,6 +180,34 @@ export const spendingForecasts = sqliteTable('spending_forecasts', {
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
+// --- DAY 10: WHITE-LABELING & CUSTOM DOMAINS ---
+
+export const customBranding = sqliteTable('custom_branding', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().unique(),
+  agencyName: text('agency_name'),
+  logoUrl: text('logo_url'),
+  faviconUrl: text('favicon_url'),
+  primaryColor: text('primary_color').default('#6366f1'),
+  secondaryColor: text('secondary_color').default('#4f46e5'),
+  customCss: text('custom_css'),
+  supportEmail: text('support_email'),
+  removePoweredBy: integer('remove_powered_by').default(0),
+  footerText: text('footer_text'),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const customDomains = sqliteTable('custom_domains', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  domain: text('domain').notNull().unique(),
+  status: text('status', { enum: ['pending', 'active', 'failed'] }).default('pending'),
+  isVerified: integer('is_verified').default(0),
+  sslStatus: text('ssl_status').default('none'),
+  lastCheckedAt: text('last_checked_at'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const campaignActivityLogs = sqliteTable('campaign_activity_logs', {
   id: text('id').primaryKey(),
   campaignId: text('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
