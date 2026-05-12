@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Rocket, Target, Users, Image as ImageIcon, CheckCircle, 
   ChevronRight, ChevronLeft, Send, Search, Layout, Globe,
-  Share2, MessageCircle
+  Share2, MessageCircle, Upload
 } from 'lucide-react';
 import { createCampaign, getCampaignTemplates } from '@/services/campaignService';
 import { useRouter } from 'next/navigation';
@@ -34,6 +34,7 @@ const CHANNELS = [
 
 export default function CampaignWizard() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -266,13 +267,34 @@ export default function CampaignWizard() {
 
             {step === 3 && (
               <div className="space-y-6">
-                <div className="p-8 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center text-center bg-slate-50/30">
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-sm mb-4">
-                    🖼️
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  className="hidden" 
+                  accept="image/*,video/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const newAdGroups = [...formData.adGroups];
+                      newAdGroups[0].creatives[0].name = file.name;
+                      setFormData({ ...formData, adGroups: newAdGroups });
+                    }
+                  }}
+                />
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-8 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center text-center bg-slate-50/30 cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/20 transition-all group"
+                >
+                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-sm mb-4 group-hover:scale-110 transition-transform">
+                    {formData.adGroups[0].creatives[0].name !== 'Main Creative' ? '✅' : '🖼️'}
                   </div>
-                  <h4 className="font-bold text-slate-900 mb-1">Drag & Drop Creatives</h4>
+                  <h4 className="font-bold text-slate-900 mb-1">
+                    {formData.adGroups[0].creatives[0].name !== 'Main Creative' 
+                      ? formData.adGroups[0].creatives[0].name 
+                      : 'Drag & Drop Creatives'}
+                  </h4>
                   <p className="text-sm text-slate-500 mb-4">Upload images or videos for your ads. (Max 10MB)</p>
-                  <button className="px-6 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
+                  <button className="px-6 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 shadow-sm group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all">
                     Choose Files
                   </button>
                 </div>
@@ -282,17 +304,31 @@ export default function CampaignWizard() {
                     <label className="block text-sm font-bold text-slate-700 mb-2">Headline</label>
                     <input 
                       type="text" 
+                      value={formData.adGroups[0].creatives[0].headline}
+                      onChange={(e) => {
+                        const newAdGroups = [...formData.adGroups];
+                        newAdGroups[0].creatives[0].headline = e.target.value;
+                        setFormData({ ...formData, adGroups: newAdGroups });
+                      }}
                       placeholder="e.g. Best SaaS Marketing Tool"
                       className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Call to Action</label>
-                    <select className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-                      <option>Learn More</option>
-                      <option>Sign Up</option>
-                      <option>Get Quote</option>
-                      <option>Download</option>
+                    <select 
+                      value={formData.adGroups[0].creatives[0].url} // Reusing URL for CTA enum in this simplified UI
+                      onChange={(e) => {
+                        const newAdGroups = [...formData.adGroups];
+                        newAdGroups[0].creatives[0].url = e.target.value;
+                        setFormData({ ...formData, adGroups: newAdGroups });
+                      }}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                      <option value="learn_more">Learn More</option>
+                      <option value="sign_up">Sign Up</option>
+                      <option value="get_quote">Get Quote</option>
+                      <option value="download">Download</option>
                     </select>
                   </div>
                 </div>
