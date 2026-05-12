@@ -27,7 +27,7 @@ export default function CampaignsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [view, setView] = useState<'table' | 'grid'>('table');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 2;
 
   const fetchData = async () => {
     try {
