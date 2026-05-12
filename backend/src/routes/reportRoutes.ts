@@ -22,7 +22,7 @@ router.get('/', authMiddleware, authorize('admin', 'team', 'client'), (req: any,
   const { getReports } = require('../controllers/reportController');
   return getReports(req, res);
 });
-router.get('/requests', authMiddleware, authorize('admin', 'team'), getReportRequests);
+router.get('/requests', authMiddleware, authorize('admin', 'team', 'client'), getReportRequests);
 router.patch('/requests/:id', authMiddleware, authorize('admin', 'team'), updateReportRequestStatus);
 
 export default router;
