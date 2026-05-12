@@ -12,10 +12,16 @@ export const getCampaigns = asyncHandler(async (req: any, res: Response) => {
   const { tenantId, role, workspaceId: userWorkspaceId, id: userId } = req.user;
   const { workspaceId: queryWorkspaceId, status, channel } = req.query;
 
-  let targetWorkspaceId = role === 'client' ? userWorkspaceId : (queryWorkspaceId || userWorkspaceId);
+  // STRICT ISOLATION: Admins see all unless filtered. Others see their own.
+  let targetWorkspaceId = role === 'admin' ? (queryWorkspaceId as string) : (userWorkspaceId || queryWorkspaceId as string);
 
   let whereConditions = [eq(campaigns.tenantId, tenantId)];
   if (targetWorkspaceId) whereConditions.push(eq(campaigns.workspaceId, targetWorkspaceId));
+  
+  if (role === 'team' && !targetWorkspaceId) {
+    whereConditions.push(sql`exists (select 1 from clients where clients.workspace_id = campaigns.workspace_id and clients.assigned_team_member_id = ${userId})`);
+  }
+
   if (status) whereConditions.push(eq(campaigns.status, status as any));
   if (channel) whereConditions.push(eq(campaigns.channel, channel as any));
 
@@ -43,7 +49,7 @@ export const getCampaigns = asyncHandler(async (req: any, res: Response) => {
 export const createCampaign = asyncHandler(async (req: any, res: Response) => {
   const { tenantId, role, id: userId, workspaceId: userWorkspaceId } = req.user;
   const { 
-    name, budget, channel, startDate, endDate, 
+    name, budget, channel, platform, startDate, endDate, 
     workspaceId: bodyWorkspaceId,
     adGroups: bodyAdGroups 
   } = req.body;
@@ -53,17 +59,23 @@ export const createCampaign = asyncHandler(async (req: any, res: Response) => {
 
   const campaignId = uuidv4();
 
-  // 1. Create Campaign
+  // 1. Create Campaign with ALL fields
   await db.insert(campaigns).values({
     id: campaignId,
     tenantId,
     workspaceId: targetWorkspaceId,
     name,
     budget,
-    channel,
+    channel: platform || channel || 'google',
+    platform: platform || 'Meta',
     startDate,
     endDate,
-    status: 'active'
+    status: 'ACTIVE',
+    createdBy: userId,
+    spent: 0,
+    impressions: 0,
+    clicks: 0,
+    conversions: 0
   });
 
   // 2. Create Ad Groups & Creatives if provided

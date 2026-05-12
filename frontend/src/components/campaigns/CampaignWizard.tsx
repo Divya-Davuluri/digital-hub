@@ -71,10 +71,13 @@ export default function CampaignWizard() {
   const handlePublish = async () => {
     setLoading(true);
     try {
+      // Ensure the first creative has the right data from the form
       await createCampaign(formData);
-      router.push('/dashboard/campaigns');
+      router.push('/dashboard/admin/campaigns');
+      router.refresh();
     } catch (err) {
-      alert("Failed to publish campaign");
+      console.error("Publish Error:", err);
+      alert("Failed to publish campaign. Please check your connection.");
     } finally {
       setLoading(false);
     }
