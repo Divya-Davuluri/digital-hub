@@ -13,10 +13,10 @@ const ANALYTICS_DATA = {
     { label: 'ROI', value: '420%', growth: '+22.1%', trend: 'up' },
   ],
   campaigns: [
-    { id: 1, name: 'Spring Sale 2026', platform: 'Meta Ads', spend: '$4,500', conv: 412, roas: '4.2x' },
-    { id: 2, name: 'Brand Awareness', platform: 'Google Ads', spend: '$8,200', conv: 284, roas: '2.1x' },
-    { id: 3, name: 'Retargeting Q2', platform: 'Meta Ads', spend: '$2,100', conv: 356, roas: '6.8x' },
-    { id: 4, name: 'Product Launch', platform: 'LinkedIn', spend: '$12,000', conv: 112, roas: '1.5x' },
+    { id: 1, name: 'Spring Sale 2026', platform: 'Meta Ads', spent: '$4,500', conv: 412, roas: '4.2x' },
+    { id: 2, name: 'Brand Awareness', platform: 'Google Ads', spent: '$8,200', conv: 284, roas: '2.1x' },
+    { id: 3, name: 'Retargeting Q2', platform: 'Meta Ads', spent: '$2,100', conv: 356, roas: '6.8x' },
+    { id: 4, name: 'Product Launch', platform: 'LinkedIn', spent: '$12,000', conv: 112, roas: '1.5x' },
   ],
   trafficSources: [
     { source: 'Organic Search', percentage: 45, color: 'bg-primary' },
@@ -143,7 +143,7 @@ export default function AnalyticsPage() {
                             <td className="px-8 py-5">
                               <span className="bg-white/5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-text-muted">{c.platform}</span>
                             </td>
-                            <td className="px-8 py-5 font-mono text-sm font-medium">{c.spend}</td>
+                            <td className="px-8 py-5 font-mono text-sm font-medium">{c.spent}</td>
                             <td className="px-8 py-5 font-black text-white">{c.conv}</td>
                             <td className="px-8 py-5 text-right font-black text-primary">{c.roas}</td>
                           </tr>

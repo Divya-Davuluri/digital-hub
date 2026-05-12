@@ -120,7 +120,7 @@ export default function TeamCampaignsPage() {
                     <div className="grid grid-cols-2 gap-4 border-t border-slate-50 pt-4">
                       <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Spend</p>
-                        <p className="font-bold text-slate-900">${c.spend?.toLocaleString() || '0'}</p>
+                        <p className="font-bold text-slate-900">${c.spent?.toLocaleString() || '0'}</p>
                       </div>
                       <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Budget</p>
