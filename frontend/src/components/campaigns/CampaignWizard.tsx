@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { createCampaign, getCampaignTemplates } from '@/services/campaignService';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 const STEPS = [
   { id: 'objective', name: 'Objective', icon: Rocket },
@@ -68,12 +69,9 @@ export default function CampaignWizard() {
   const nextStep = () => setStep(s => Math.min(s + 1, STEPS.length - 1));
   const prevStep = () => setStep(s => Math.max(s - 1, 0));
 
-import toast from 'react-hot-toast';
-
   const handlePublish = async () => {
     setLoading(true);
     try {
-      // Ensure the first creative has the right data from the form
       await createCampaign(formData);
       toast.success('Campaign launched successfully! 🚀');
       router.push('/dashboard/admin/campaigns');
