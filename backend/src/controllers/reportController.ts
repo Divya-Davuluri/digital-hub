@@ -41,7 +41,7 @@ export const exportReport = async (req: Request, res: Response) => {
         c.impressions, 
         c.clicks, 
         c.conversions, 
-        c.spend, 
+        c.spent, 
         c.status
       ].join(','));
       
@@ -90,11 +90,11 @@ export const exportClientPDF = async (req: Request, res: Response) => {
     
     // 2. Calculate Totals
     const totals = data.reduce((acc, c) => ({
-      spend: acc.spend + (c.spend || 0),
+      spent: acc.spent + (c.spent || 0),
       impressions: acc.impressions + (c.impressions || 0),
       clicks: acc.clicks + (c.clicks || 0),
       conversions: acc.conversions + (c.conversions || 0)
-    }), { spend: 0, impressions: 0, clicks: 0, conversions: 0 });
+    }), { spent: 0, impressions: 0, clicks: 0, conversions: 0 });
 
     // 3. Generate PDF
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
@@ -116,7 +116,7 @@ export const exportClientPDF = async (req: Request, res: Response) => {
     
     const startY = doc.y + 20;
     doc.fontSize(10).font('Helvetica-Bold').text('TOTAL SPEND', 70, startY);
-    doc.fontSize(18).text(`$${totals.spend.toLocaleString()}`, 70, startY + 15);
+    doc.fontSize(18).text(`$${totals.spent.toLocaleString()}`, 70, startY + 15);
 
     doc.fontSize(10).text('IMPRESSIONS', 200, startY);
     doc.fontSize(18).text(totals.impressions.toLocaleString(), 200, startY + 15);
