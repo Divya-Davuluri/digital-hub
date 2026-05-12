@@ -99,7 +99,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     const channelStats = await db
       .select({
         channel: campaigns.channel,
-        spend: sql<number>`sum(${campaigns.spend})`,
+        spend: sql<number>`sum(${campaigns.spent})`,
         conversions: sql<number>`sum(${campaigns.conversions})`,
       })
       .from(campaigns)
