@@ -243,3 +243,62 @@ export const getTemplates = asyncHandler(async (req: any, res: Response) => {
   });
   res.json(templates);
 });
+
+/**
+ * GET /api/campaigns/:id
+ */
+export const getCampaignById = asyncHandler(async (req: any, res: Response) => {
+  const { id } = req.params;
+  const { tenantId, role, workspaceId: userWorkspaceId } = req.user;
+
+  const campaign = await db.query.campaigns.findFirst({
+    where: and(eq(campaigns.id, id), eq(campaigns.tenantId, tenantId))
+  });
+
+  if (!campaign) throw new AppError('Campaign not found', 404);
+
+  // STRICT ISOLATION check
+  if (role !== 'admin' && campaign.workspaceId !== userWorkspaceId) {
+    // If team, check assignment
+    if (role === 'team') {
+      const assigned = await db.query.clients.findFirst({
+        where: and(
+          eq(clients.workspaceId, campaign.workspaceId as string),
+          eq(clients.assignedTeamMemberId, req.user.id)
+        )
+      });
+      if (!assigned) throw new AppError('Access denied to this campaign', 403);
+    } else {
+      throw new AppError('Access denied', 403);
+    }
+  }
+
+  // Fetch ad groups and creatives
+  const groups = await db.query.adGroups.findMany({
+    where: eq(adGroups.campaignId, id)
+  });
+
+  const enhancedGroups = await Promise.all(groups.map(async (g) => {
+    const groupCreatives = await db.query.creatives.findMany({
+      where: eq(creatives.adGroupId, g.id)
+    });
+    return { ...g, creatives: groupCreatives };
+  }));
+
+  // Fetch client info
+  let clientInfo = null;
+  if (campaign.clientId) {
+    clientInfo = await db.query.clients.findFirst({
+      where: eq(clients.id, campaign.clientId)
+    });
+  }
+
+  res.json({ 
+    success: true, 
+    campaign: { 
+      ...campaign, 
+      adGroups: enhancedGroups,
+      clientName: clientInfo?.name || 'Direct'
+    } 
+  });
+});

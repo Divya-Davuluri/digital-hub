@@ -28,6 +28,11 @@ export const getCampaigns = async (workspaceId?: string): Promise<Campaign[]> =>
   return data.campaigns || [];
 };
 
+export const getCampaignById = async (id: string): Promise<Campaign> => {
+  const data = await apiCall(`/campaigns/${id}`);
+  return data.campaign;
+};
+
 export const createCampaign = async (data: any): Promise<any> => {
   return apiCall('/campaigns', {
     method: 'POST',
