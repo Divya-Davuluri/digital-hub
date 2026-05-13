@@ -7,7 +7,20 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const INITIAL_CREATIVES = [
+interface Creative {
+  id: string;
+  name: string;
+  type: 'image' | 'video' | 'text';
+  url?: string;
+  size?: string;
+  dimensions?: string;
+  duration?: string;
+  date: string;
+  thumbnail?: string;
+  content?: string;
+}
+
+const INITIAL_CREATIVES: Creative[] = [
   { id: '1', name: 'Summer Banner 1', type: 'image', url: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&auto=format&fit=crop', size: '1.2 MB', dimensions: '1080x1080', date: '2026-05-10' },
   { id: '2', name: 'Product Video Intro', type: 'video', url: 'https://cdn.pixabay.com/video/2021/04/12/70815-537449215_tiny.jpg', size: '45 MB', duration: '0:15', date: '2026-05-09', thumbnail: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop' },
   { id: '3', name: 'Lifestyle Photo B', type: 'image', url: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&auto=format&fit=crop', size: '2.4 MB', dimensions: '1920x1080', date: '2026-05-08' },
@@ -17,7 +30,7 @@ const INITIAL_CREATIVES = [
 export default function CreativeLibrary() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
-  const [creatives, setCreatives] = useState(INITIAL_CREATIVES);
+  const [creatives, setCreatives] = useState<Creative[]>(INITIAL_CREATIVES);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUploadClick = () => {
@@ -27,13 +40,15 @@ export default function CreativeLibrary() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const newAsset = {
+      const isVideo = file.type.includes('video');
+      const newAsset: Creative = {
         id: Math.random().toString(36).substr(2, 9),
         name: file.name,
-        type: file.type.includes('video') ? 'video' : 'image',
+        type: isVideo ? 'video' : 'image',
         url: URL.createObjectURL(file),
         size: (file.size / (1024 * 1024)).toFixed(1) + ' MB',
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0],
+        duration: isVideo ? '0:30' : undefined
       };
       setCreatives([newAsset, ...creatives]);
       toast.success('Asset uploaded successfully!');
