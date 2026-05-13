@@ -60,7 +60,7 @@ export default function CampaignWizard() {
         name: 'Ad Group 1',
         budget: 500,
         creatives: [
-          { name: 'Main Creative', headline: '', description: '', url: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop' }
+          { name: 'Main Creative', headline: '', description: '', url: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop', callToAction: 'Learn More' }
         ]
       }
     ]
@@ -321,18 +321,19 @@ export default function CampaignWizard() {
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Call to Action</label>
                     <select 
-                      value={formData.adGroups[0].creatives[0].url} // Reusing URL for CTA enum in this simplified UI
+                      value={formData.adGroups[0].creatives[0].callToAction}
                       onChange={(e) => {
                         const newAdGroups = [...formData.adGroups];
-                        newAdGroups[0].creatives[0].url = e.target.value;
+                        newAdGroups[0].creatives[0].callToAction = e.target.value;
                         setFormData({ ...formData, adGroups: newAdGroups });
                       }}
                       className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                     >
-                      <option value="learn_more">Learn More</option>
-                      <option value="sign_up">Sign Up</option>
-                      <option value="get_quote">Get Quote</option>
-                      <option value="download">Download</option>
+                      <option value="Learn More">Learn More</option>
+                      <option value="Shop Now">Shop Now</option>
+                      <option value="Get Started">Get Started</option>
+                      <option value="Sign Up">Sign Up</option>
+                      <option value="Contact Us">Contact Us</option>
                     </select>
                   </div>
                 </div>

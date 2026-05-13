@@ -102,7 +102,7 @@ export const createCampaign = asyncHandler(async (req: any, res: Response) => {
       endDate,
       status: 'ACTIVE',
       headline: firstCreative?.headline || '',
-      cta: firstCreative?.callToAction || firstCreative?.url || 'Learn More',
+      cta: firstCreative?.callToAction || 'Learn More',
       creativeUrl: firstCreative?.url || '',
       createdBy: userId,
       spent: starterSpent,
