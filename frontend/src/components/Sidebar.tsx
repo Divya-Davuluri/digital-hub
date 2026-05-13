@@ -59,6 +59,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
       { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
       { name: 'Reports', href: '/dashboard/client/reports', icon: '📄' },
       { name: 'Analytics', href: '/dashboard/client/analytics', icon: '📈' },
+      { name: 'Automation', href: '/dashboard/client/automation', icon: '🤖' },
     ];
   };
 

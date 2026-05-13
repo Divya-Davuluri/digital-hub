@@ -32,6 +32,8 @@ import documentRoutes from './routes/documentRoutes';
 import settingsRoutes from './routes/settingsRoutes';
 import campaignRoutes from './routes/campaignRoutes';
 import automationRoutes from './routes/automationRoutes';
+import clientPortalRoutes from './routes/clientPortalRoutes';
+import assetRoutes from './routes/assetRoutes';
 
 
 import { authMiddleware, authorize } from './middleware/authMiddleware';
@@ -119,6 +121,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/admin/branding', adminBrandingRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/automation', automationRoutes);
+app.use('/api/client', clientPortalRoutes);
+app.use('/api/assets', assetRoutes);
 
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);

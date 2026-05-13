@@ -68,11 +68,13 @@ export default function CampaignWizard() {
         name: 'Ad Group 1',
         budget: 500,
         creatives: [
-          { name: 'Main Creative', headline: '', description: '', url: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop', callToAction: 'Learn More' }
+          { name: 'Main Creative', headline: '', description: '', url: '', callToAction: 'Learn More', assetId: '' }
         ]
       }
     ]
   });
+  const [libraryAssets, setLibraryAssets] = useState<any[]>([]);
+  const [fetchingAssets, setFetchingAssets] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin' || user?.role === 'team') {
@@ -95,6 +97,26 @@ export default function CampaignWizard() {
       console.error("Fetch clients error:", err);
     }
   };
+
+  const fetchAssets = async () => {
+    try {
+      setFetchingAssets(true);
+      const data = await apiCall('/assets');
+      if (data.success) {
+        setLibraryAssets(data.assets || []);
+      }
+    } catch (err) {
+      console.error("Fetch assets error:", err);
+    } finally {
+      setFetchingAssets(false);
+    }
+  };
+
+  useEffect(() => {
+    if (step === 4) {
+      fetchAssets();
+    }
+  }, [step]);
 
   const nextStep = () => setStep(s => Math.min(s + 1, STEPS.length - 1));
   const prevStep = () => setStep(s => Math.max(s - 1, 0));
@@ -339,33 +361,94 @@ export default function CampaignWizard() {
                   ref={fileInputRef}
                   className="hidden" 
                   accept="image/*,video/*"
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      const newAdGroups = [...formData.adGroups];
-                      newAdGroups[0].creatives[0].name = file.name;
-                      newAdGroups[0].creatives[0].url = URL.createObjectURL(file);
-                      setFormData({ ...formData, adGroups: newAdGroups });
-                      toast.success('Creative asset attached!');
+                      const reader = new FileReader();
+                      reader.onload = async (event) => {
+                        const base64Data = event.target?.result as string;
+                        try {
+                          toast.loading('Persisting asset...', { id: 'asset-upload' });
+                          const res = await apiCall('/assets/upload', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              name: file.name,
+                              fileType: file.type.includes('video') ? 'video' : 'image',
+                              size: Math.round(file.size / 1024),
+                              fileUrl: base64Data,
+                              category: 'Campaign'
+                            })
+                          });
+                          
+                          if (res.success) {
+                            const newAdGroups = [...formData.adGroups];
+                            newAdGroups[0].creatives[0].name = res.asset.name;
+                            newAdGroups[0].creatives[0].url = res.asset.file_url;
+                            newAdGroups[0].creatives[0].assetId = res.asset.id;
+                            setFormData({ ...formData, adGroups: newAdGroups });
+                            setLibraryAssets([res.asset, ...libraryAssets]);
+                            toast.success('Asset saved and attached!', { id: 'asset-upload' });
+                          }
+                        } catch (err) {
+                          toast.error('Failed to persist asset', { id: 'asset-upload' });
+                        }
+                      };
+                      reader.readAsDataURL(file);
                     }
                   }}
                 />
-                <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-8 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center text-center bg-slate-50/30 cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/20 transition-all group"
-                >
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-sm mb-4 group-hover:scale-110 transition-transform">
-                    {formData.adGroups[0].creatives[0].name !== 'Main Creative' ? '✅' : '🖼️'}
+
+                <div className="flex gap-4 mb-4">
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1 p-6 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-center bg-slate-50/30 cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/20 transition-all group"
+                  >
+                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-2xl shadow-sm mb-2 group-hover:scale-110 transition-transform">
+                      {formData.adGroups[0].creatives[0].url ? '✅' : '📤'}
+                    </div>
+                    <p className="text-xs font-bold text-slate-700">Upload New</p>
                   </div>
-                  <h4 className="font-bold text-slate-900 mb-1">
-                    {formData.adGroups[0].creatives[0].name !== 'Main Creative' 
-                      ? formData.adGroups[0].creatives[0].name 
-                      : 'Drag & Drop Creatives'}
-                  </h4>
-                  <p className="text-sm text-slate-500 mb-4">Upload images or videos for your ads. (Max 10MB)</p>
-                  <button className="px-6 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 shadow-sm group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all">
-                    Choose Files
-                  </button>
+
+                  <div className="flex-[2] overflow-x-auto">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Or select from Library</label>
+                    <div className="flex gap-3 pb-2">
+                      {fetchingAssets ? (
+                        <div className="text-[10px] text-slate-400 italic">Loading library...</div>
+                      ) : libraryAssets.length === 0 ? (
+                        <div className="text-[10px] text-slate-400 italic">Library is empty.</div>
+                      ) : (
+                        libraryAssets.map((asset) => (
+                          <div 
+                            key={asset.id} 
+                            onClick={() => {
+                              const newAdGroups = [...formData.adGroups];
+                              newAdGroups[0].creatives[0].name = asset.name;
+                              newAdGroups[0].creatives[0].url = asset.file_url;
+                              newAdGroups[0].creatives[0].assetId = asset.id;
+                              setFormData({ ...formData, adGroups: newAdGroups });
+                            }}
+                            className={`flex-shrink-0 w-16 h-16 rounded-xl border-2 cursor-pointer overflow-hidden transition-all ${
+                              formData.adGroups[0].creatives[0].url === asset.file_url ? 'border-indigo-600 ring-2 ring-indigo-100' : 'border-transparent'
+                            }`}
+                          >
+                            <img src={asset.file_url} alt={asset.name} className="w-full h-full object-cover" />
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-900 rounded-2xl flex items-center gap-4">
+                  <div className="w-16 h-16 bg-white/10 rounded-lg overflow-hidden flex items-center justify-center">
+                    {formData.adGroups[0].creatives[0].url ? (
+                      <img src={formData.adGroups[0].creatives[0].url} alt="Active creative preview" className="w-full h-full object-cover" />
+                    ) : <ImageIcon className="text-white/20" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Active Creative</p>
+                    <p className="text-sm font-bold text-white">{formData.adGroups[0].creatives[0].name || 'None selected'}</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
