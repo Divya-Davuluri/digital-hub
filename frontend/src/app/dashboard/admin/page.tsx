@@ -12,9 +12,20 @@ import dynamic from 'next/dynamic';
 
 const ResponsiveContainer = dynamic<any>(() => import('recharts').then(mod => mod.ResponsiveContainer) as any, { ssr: false });
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
-  AreaChart, Area
+  BarChart as RechartsBarChart, Bar as RechartsBar, XAxis as RechartsXAxis, YAxis as RechartsYAxis, 
+  CartesianGrid as RechartsCartesianGrid, Tooltip as RechartsTooltip, Cell as RechartsCell,
+  AreaChart as RechartsAreaChart, Area as RechartsArea
 } from 'recharts';
+
+const BarChart = RechartsBarChart as any;
+const Bar = RechartsBar as any;
+const XAxis = RechartsXAxis as any;
+const YAxis = RechartsYAxis as any;
+const CartesianGrid = RechartsCartesianGrid as any;
+const Tooltip = RechartsTooltip as any;
+const Cell = RechartsCell as any;
+const AreaChart = RechartsAreaChart as any;
+const Area = RechartsArea as any;
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -114,13 +125,13 @@ export default function AdminDashboard() {
                     <BarChart data={stats} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="channel" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600, fill: '#64748b' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(value) => `$${value/1000}k`} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(value: number) => `$${value/1000}k`} />
                       <Tooltip 
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                         cursor={{ fill: '#f8fafc' }}
                       />
                       <Bar dataKey="spend" radius={[6, 6, 0, 0]} barSize={40}>
-                        {Array.isArray(stats) && stats.map((entry, index) => (
+                        {Array.isArray(stats) && stats.map((entry: any, index: number) => (
                           <Cell key={`cell-${index}`} fill={index === 0 ? primaryColor : `${primaryColor}aa`} />
                         ))}
                       </Bar>

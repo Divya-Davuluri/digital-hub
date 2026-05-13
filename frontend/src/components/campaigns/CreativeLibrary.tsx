@@ -126,6 +126,7 @@ export default function CreativeLibrary() {
                     <div className="relative w-full h-full group">
                       <img 
                         src={asset.thumbnail || asset.url} 
+                        alt={asset.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-60" 
                       />
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-900 drop-shadow-md">
@@ -173,7 +174,7 @@ export default function CreativeLibrary() {
             {filteredCreatives.map((asset) => (
               <div key={asset.id} className="flex items-center gap-4 p-3 bg-white border border-slate-100 rounded-xl hover:bg-slate-50 transition-all">
                 <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
-                  {asset.type === 'image' ? <img src={asset.url} className="w-full h-full object-cover" /> : <Video size={20} className="text-slate-400" />}
+                  {asset.type === 'image' ? <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" /> : <Video size={20} className="text-slate-400" />}
                 </div>
                 <div className="flex-1">
                   <div className="text-sm font-bold text-slate-900">{asset.name}</div>

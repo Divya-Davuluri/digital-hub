@@ -10,8 +10,16 @@ import dynamic from 'next/dynamic';
 
 const ResponsiveContainer = dynamic<any>(() => import('recharts').then(mod => mod.ResponsiveContainer) as any, { ssr: false });
 import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip 
+  AreaChart as RechartsAreaChart, Area as RechartsArea, XAxis as RechartsXAxis, YAxis as RechartsYAxis, 
+  CartesianGrid as RechartsCartesianGrid, Tooltip as RechartsTooltip 
 } from 'recharts';
+
+const AreaChart = RechartsAreaChart as any;
+const Area = RechartsArea as any;
+const XAxis = RechartsXAxis as any;
+const YAxis = RechartsYAxis as any;
+const CartesianGrid = RechartsCartesianGrid as any;
+const Tooltip = RechartsTooltip as any;
 
 interface AnalyticsSummary {
   totalImpressions: number;

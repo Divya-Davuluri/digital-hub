@@ -10,8 +10,16 @@ import dynamic from 'next/dynamic';
 
 const ResponsiveContainer = dynamic<any>(() => import('recharts').then(mod => mod.ResponsiveContainer) as any, { ssr: false });
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip 
+  LineChart as RechartsLineChart, Line as RechartsLine, XAxis as RechartsXAxis, YAxis as RechartsYAxis, 
+  CartesianGrid as RechartsCartesianGrid, Tooltip as RechartsTooltip 
 } from 'recharts';
+
+const LineChart = RechartsLineChart as any;
+const Line = RechartsLine as any;
+const XAxis = RechartsXAxis as any;
+const YAxis = RechartsYAxis as any;
+const CartesianGrid = RechartsCartesianGrid as any;
+const Tooltip = RechartsTooltip as any;
 
 const mockPerformanceData = [
   { name: 'Week 1', budget: 4000, spend: 2400 },

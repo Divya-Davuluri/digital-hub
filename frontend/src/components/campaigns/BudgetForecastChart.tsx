@@ -1,9 +1,19 @@
 'use client';
 
 import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, ReferenceLine 
+  AreaChart as RechartsAreaChart, Area as RechartsArea, XAxis as RechartsXAxis, YAxis as RechartsYAxis, 
+  CartesianGrid as RechartsCartesianGrid, Tooltip as RechartsTooltip, 
+  ResponsiveContainer as RechartsResponsiveContainer, ReferenceLine as RechartsReferenceLine 
 } from 'recharts';
+
+const AreaChart = RechartsAreaChart as any;
+const Area = RechartsArea as any;
+const XAxis = RechartsXAxis as any;
+const YAxis = RechartsYAxis as any;
+const CartesianGrid = RechartsCartesianGrid as any;
+const Tooltip = RechartsTooltip as any;
+const ResponsiveContainer = RechartsResponsiveContainer as any;
+const ReferenceLine = RechartsReferenceLine as any;
 
 interface ForecastData {
   date: string;
@@ -41,7 +51,7 @@ export default function BudgetForecastChart({ data, budgetLimit }: { data: Forec
             axisLine={false} 
             tickLine={false} 
             tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 'bold' }}
-            tickFormatter={(value) => `$${value}`}
+            tickFormatter={(value: number) => `$${value}`}
           />
           <Tooltip 
             contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
