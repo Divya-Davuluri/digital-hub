@@ -92,3 +92,31 @@ export const getDomainStatus = asyncHandler(async (req: any, res: Response) => {
   res.json(domains);
 });
 
+export const addDomain = asyncHandler(async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const { domain } = req.body;
+
+  if (!domain) throw new Error('Domain name is required');
+
+  const id = uuidv4();
+  await db.insert(customDomains).values({
+    id,
+    tenantId,
+    domain,
+    status: 'pending',
+    isVerified: 0
+  });
+
+  res.json({ success: true, id });
+});
+
+export const deleteDomain = asyncHandler(async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const { id } = req.params;
+
+  await db.delete(customDomains)
+    .where(and(eq(customDomains.id, id), eq(customDomains.tenantId, tenantId)));
+
+  res.json({ success: true });
+});
+

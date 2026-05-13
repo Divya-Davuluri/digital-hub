@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import RoleGuard from '@/components/RoleGuard';
@@ -8,9 +8,10 @@ import { apiCall } from '@/lib/api';
 import { 
   Palette, Globe, Image as ImageIcon, Shield, 
   ExternalLink, Save, CheckCircle2, AlertCircle,
-  Type, Layout, Code, HelpCircle
+  Type, Layout, Code, HelpCircle, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 export default function BrandingSettingsPage() {
   const [branding, setBranding] = useState({
@@ -29,6 +30,9 @@ export default function BrandingSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,12 +76,39 @@ export default function BrandingSettingsPage() {
         body: JSON.stringify({ domain: newDomain })
       });
       setNewDomain('');
+      toast.success("Domain added!");
       // Refresh domains
       const dData = await apiCall('/branding/domain');
       setDomains(dData);
     } catch (err) {
-      alert("Failed to add domain");
+      toast.error("Failed to add domain");
     }
+  };
+
+  const handleDeleteDomain = async (id: string) => {
+    try {
+      await apiCall(`/branding/domain/${id}`, { method: 'DELETE' });
+      toast.success("Domain removed");
+      setDomains(domains.filter(d => d.id !== id));
+    } catch (err) {
+      toast.error("Failed to delete domain");
+    }
+  };
+
+  const handleFileUpload = (type: 'logo' | 'favicon') => {
+    const file = type === 'logo' ? logoInputRef.current?.files?.[0] : faviconInputRef.current?.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      setBranding({
+        ...branding,
+        [type === 'logo' ? 'logoUrl' : 'faviconUrl']: base64
+      });
+      toast.success(`${type === 'logo' ? 'Logo' : 'Favicon'} updated in preview!`);
+    };
+    reader.readAsDataURL(file);
   };
 
   if (loading) {
@@ -199,27 +230,51 @@ export default function BrandingSettingsPage() {
                     <h3 className="font-black text-slate-900">Brand Assets</h3>
                   </div>
                   <div className="p-8 grid grid-cols-2 gap-8">
-                    <div className="space-y-4">
+                    <div className="space-y-4 text-center">
+                      <input 
+                        type="file" 
+                        ref={logoInputRef} 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={() => handleFileUpload('logo')} 
+                      />
                       <div className="p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center gap-4">
                         {branding.logoUrl ? (
                           <img src={branding.logoUrl} alt="Logo" className="h-12 object-contain" />
                         ) : (
                           <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400"><ImageIcon size={24} /></div>
                         )}
-                        <button className="text-xs font-black text-indigo-600 hover:underline uppercase tracking-widest">Upload Main Logo</button>
+                        <button 
+                          onClick={() => logoInputRef.current?.click()}
+                          className="text-xs font-black text-indigo-600 hover:underline uppercase tracking-widest"
+                        >
+                          Upload Main Logo
+                        </button>
                       </div>
-                      <p className="text-[10px] text-slate-400 text-center font-bold uppercase tracking-tighter">Recommended: 400x120px PNG/SVG</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Recommended: 400x120px PNG/SVG</p>
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-4 text-center">
+                      <input 
+                        type="file" 
+                        ref={faviconInputRef} 
+                        className="hidden" 
+                        accept="image/*,.ico" 
+                        onChange={() => handleFileUpload('favicon')} 
+                      />
                       <div className="p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center gap-4">
                         {branding.faviconUrl ? (
                           <img src={branding.faviconUrl} alt="Favicon" className="w-8 h-8 object-contain" />
                         ) : (
                           <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400"><Globe size={16} /></div>
                         )}
-                        <button className="text-xs font-black text-indigo-600 hover:underline uppercase tracking-widest">Upload Favicon</button>
+                        <button 
+                          onClick={() => faviconInputRef.current?.click()}
+                          className="text-xs font-black text-indigo-600 hover:underline uppercase tracking-widest"
+                        >
+                          Upload Favicon
+                        </button>
                       </div>
-                      <p className="text-[10px] text-slate-400 text-center font-bold uppercase tracking-tighter">Recommended: 32x32px ICO/PNG</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Recommended: 32x32px ICO/PNG</p>
                     </div>
                   </div>
                 </section>
@@ -291,10 +346,18 @@ export default function BrandingSettingsPage() {
                   
                   <div className="space-y-4">
                     {Array.isArray(domains) && domains.map(d => (
-                      <div key={d.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div key={d.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group/item">
                         <div className="flex justify-between items-start mb-1">
                           <span className="text-sm font-bold text-slate-900">{d.domain}</span>
-                          {d.isVerified ? <CheckCircle2 size={16} className="text-green-500" /> : <AlertCircle size={16} className="text-amber-500" />}
+                          <div className="flex items-center gap-2">
+                            {d.isVerified ? <CheckCircle2 size={16} className="text-green-500" /> : <AlertCircle size={16} className="text-amber-500" />}
+                            <button 
+                              onClick={() => handleDeleteDomain(d.id)}
+                              className="text-red-400 hover:text-red-600 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                         <div className="text-[10px] font-black uppercase tracking-tight text-slate-400">{d.status}</div>
                       </div>
