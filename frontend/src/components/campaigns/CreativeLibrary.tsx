@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { 
   Plus, Search, Filter, MoreHorizontal, Image as ImageIcon, 
-  Video, FileText, Download, Trash2, Eye, Grid, List
+  Video, FileText, Download, Trash2, Eye, Grid, List, Upload
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-const MOCK_CREATIVES = [
+const INITIAL_CREATIVES = [
   { id: '1', name: 'Summer Banner 1', type: 'image', url: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&auto=format&fit=crop', size: '1.2 MB', dimensions: '1080x1080', date: '2026-05-10' },
-  { id: '2', name: 'Product Video Intro', type: 'video', url: '#', size: '45 MB', duration: '0:15', date: '2026-05-09' },
+  { id: '2', name: 'Product Video Intro', type: 'video', url: 'https://cdn.pixabay.com/video/2021/04/12/70815-537449215_tiny.jpg', size: '45 MB', duration: '0:15', date: '2026-05-09', thumbnail: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop' },
   { id: '3', name: 'Lifestyle Photo B', type: 'image', url: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&auto=format&fit=crop', size: '2.4 MB', dimensions: '1920x1080', date: '2026-05-08' },
   { id: '4', name: 'Retargeting Ad Copy', type: 'text', content: 'Special offer just for you!', date: '2026-05-07' },
 ];
@@ -16,6 +17,45 @@ const MOCK_CREATIVES = [
 export default function CreativeLibrary() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
+  const [creatives, setCreatives] = useState(INITIAL_CREATIVES);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const newAsset = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        type: file.type.includes('video') ? 'video' : 'image',
+        url: URL.createObjectURL(file),
+        size: (file.size / (1024 * 1024)).toFixed(1) + ' MB',
+        date: new Date().toISOString().split('T')[0]
+      };
+      setCreatives([newAsset, ...creatives]);
+      toast.success('Asset uploaded successfully!');
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    setCreatives(creatives.filter(c => c.id !== id));
+    toast.success('Asset deleted');
+  };
+
+  const handleView = (asset: any) => {
+    if (asset.type === 'text') {
+      toast(asset.content, { icon: '📝' });
+    } else {
+      window.open(asset.url, '_blank');
+    }
+  };
+
+  const filteredCreatives = creatives.filter(c => 
+    c.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
@@ -25,10 +65,20 @@ export default function CreativeLibrary() {
           <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Manage ad assets</p>
         </div>
         <div className="flex gap-2">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileChange} 
+            className="hidden" 
+            accept="image/*,video/*"
+          />
           <button onClick={() => setView('grid')} className={`p-2 rounded-lg ${view === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}><Grid size={18} /></button>
           <button onClick={() => setView('list')} className={`p-2 rounded-lg ${view === 'list' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}><List size={18} /></button>
-          <button className="ml-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all flex items-center gap-2">
-            <Plus size={16} /> Upload Asset
+          <button 
+            onClick={handleUploadClick}
+            className="ml-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all flex items-center gap-2"
+          >
+            <Upload size={16} /> Upload Asset
           </button>
         </div>
       </div>
@@ -58,9 +108,17 @@ export default function CreativeLibrary() {
                   {asset.type === 'image' ? (
                     <img src={asset.url} alt={asset.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : asset.type === 'video' ? (
-                    <div className="flex flex-col items-center gap-2 text-slate-400">
-                      <Video size={32} />
-                      <span className="text-[10px] font-bold">{asset.duration}</span>
+                    <div className="relative w-full h-full group">
+                      <img 
+                        src={asset.thumbnail || asset.url} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-60" 
+                      />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-900 drop-shadow-md">
+                        <div className="w-12 h-12 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                          <Video size={24} className="ml-0.5" />
+                        </div>
+                        <span className="text-[10px] font-black bg-white/90 backdrop-blur px-2 py-0.5 rounded-full">{asset.duration}</span>
+                      </div>
                     </div>
                   ) : (
                     <div className="p-4 text-center">
@@ -78,16 +136,26 @@ export default function CreativeLibrary() {
                   </div>
                 </div>
 
-                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="p-2 bg-white/90 backdrop-blur rounded-lg text-slate-600 hover:text-indigo-600 shadow-lg"><Eye size={14} /></button>
-                  <button className="p-2 bg-white/90 backdrop-blur rounded-lg text-slate-600 hover:text-red-600 shadow-lg"><Trash2 size={14} /></button>
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                  <button 
+                    onClick={() => handleView(asset)}
+                    className="p-2 bg-white/90 backdrop-blur rounded-lg text-slate-600 hover:text-indigo-600 shadow-lg hover:scale-110 transition-all"
+                  >
+                    <Eye size={14} />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(asset.id)}
+                    className="p-2 bg-white/90 backdrop-blur rounded-lg text-slate-600 hover:text-red-600 shadow-lg hover:scale-110 transition-all"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         ) : (
           <div className="space-y-2">
-            {MOCK_CREATIVES.map((asset) => (
+            {filteredCreatives.map((asset) => (
               <div key={asset.id} className="flex items-center gap-4 p-3 bg-white border border-slate-100 rounded-xl hover:bg-slate-50 transition-all">
                 <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
                   {asset.type === 'image' ? <img src={asset.url} className="w-full h-full object-cover" /> : <Video size={20} className="text-slate-400" />}
@@ -97,8 +165,18 @@ export default function CreativeLibrary() {
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{asset.date} • {asset.size}</div>
                 </div>
                 <div className="flex gap-2">
-                  <button className="p-2 text-slate-400 hover:text-slate-900"><Download size={18} /></button>
-                  <button className="p-2 text-slate-400 hover:text-red-600"><Trash2 size={18} /></button>
+                  <button 
+                    onClick={() => handleView(asset)}
+                    className="p-2 text-slate-400 hover:text-indigo-600"
+                  >
+                    <Download size={18} />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(asset.id)}
+                    className="p-2 text-slate-400 hover:text-red-600"
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               </div>
             ))}
