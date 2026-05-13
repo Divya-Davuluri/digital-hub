@@ -8,7 +8,7 @@ import {
   Share2, MessageCircle, Upload
 } from 'lucide-react';
 import { createCampaign, getCampaignTemplates } from '@/services/campaignService';
-import { getClients } from '@/services/agencyService';
+import apiCall from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
@@ -89,10 +89,10 @@ export default function CampaignWizard() {
 
   const fetchClients = async () => {
     try {
-      const data = await getClients();
-      setClients(data);
+      const data = await apiCall('/api/agency/clients');
+      setClients(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Failed to fetch clients:", err);
+      console.error("Fetch clients error:", err);
     }
   };
 
