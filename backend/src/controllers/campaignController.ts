@@ -89,9 +89,15 @@ export const createCampaign = asyncHandler(async (req: any, res: Response) => {
 
   try {
     // 1. Create Campaign
+    // Ensure tenantId matches the workspace tenantId to prevent visibility issues
+    const workspaceRecord = await db.query.workspaces.findFirst({
+      where: eq(workspaces.id, targetWorkspaceId)
+    });
+    const finalTenantId = workspaceRecord?.tenantId || tenantId;
+
     await db.insert(campaigns).values({
       id: campaignId,
-      tenantId,
+      tenantId: finalTenantId,
       workspaceId: targetWorkspaceId,
       clientId: bodyClientId || null,
       name,
