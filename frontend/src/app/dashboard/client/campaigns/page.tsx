@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import apiCall from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+import { Campaign } from '@/services/campaignService';
 
 export default function ClientCampaigns() {
+  const { user } = useAuth();
   const [campaigns, setCampaigns] = 
-    useState<any[]>([]);
+    useState<Campaign[]>([]);
   const [loading, setLoading] = 
     useState<boolean>(true);
 
@@ -14,12 +16,13 @@ export default function ClientCampaigns() {
   }, []);
 
   const loadCampaigns = async () => {
+    if (!user?.workspaceId) return;
     try {
       setLoading(true);
       const data = await apiCall(
-        '/campaigns'
+        `/campaigns?workspaceId=${user.workspaceId}`
       );
-      setCampaigns(Array.isArray(data) ? data : (data.campaigns || []));
+      setCampaigns(data.campaigns || []);
     } catch (err) {
       console.error('Load campaigns:', err);
       setCampaigns([]);
@@ -27,6 +30,10 @@ export default function ClientCampaigns() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user) loadCampaigns();
+  }, [user]);
 
   const downloadPDF = (
     campaignName: string

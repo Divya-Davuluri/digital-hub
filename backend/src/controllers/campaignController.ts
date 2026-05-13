@@ -302,3 +302,39 @@ export const getCampaignById = asyncHandler(async (req: any, res: Response) => {
     } 
   });
 });
+
+/**
+ * GET /api/campaigns/metrics
+ */
+export const getCampaignMetrics = asyncHandler(async (req: any, res: Response) => {
+  const { tenantId, role, workspaceId: userWorkspaceId } = req.user;
+  const { workspaceId: queryWorkspaceId } = req.query;
+
+  let targetWorkspaceId = role === 'admin' ? (queryWorkspaceId as string) : (userWorkspaceId || queryWorkspaceId as string);
+
+  let whereConditions = [eq(campaigns.tenantId, tenantId)];
+  if (targetWorkspaceId) whereConditions.push(eq(campaigns.workspaceId, targetWorkspaceId));
+
+  const result = await db.select({
+    totalSpend: sql<number>`sum(${campaigns.spent})`,
+    totalImpressions: sql<number>`sum(${campaigns.impressions})`,
+    totalClicks: sql<number>`sum(${campaigns.clicks})`,
+    totalConversions: sql<number>`sum(${campaigns.conversions})`,
+    campaignCount: sql<number>`count(${campaigns.id})`
+  })
+  .from(campaigns)
+  .where(and(...whereConditions));
+
+  const stats = result[0] || { totalSpend: 0, totalImpressions: 0, totalClicks: 0, totalConversions: 0, campaignCount: 0 };
+
+  res.json({
+    success: true,
+    metrics: {
+      spend: Number(stats.totalSpend) || 0,
+      impressions: Number(stats.totalImpressions) || 0,
+      clicks: Number(stats.totalClicks) || 0,
+      conversions: Number(stats.totalConversions) || 0,
+      count: Number(stats.campaignCount) || 0
+    }
+  });
+});

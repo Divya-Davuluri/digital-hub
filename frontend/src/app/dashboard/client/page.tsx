@@ -5,24 +5,39 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import apiCall from "@/lib/api";
 import RoleGuard from "@/components/RoleGuard";
+import { useAuth } from "@/context/AuthContext";
 
 export default function ClientDashboard() {
+  const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState({ spend: 0, impressions: 0, clicks: 0, conversions: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchCampaigns = async () => {
+    const fetchData = async () => {
+      if (!user?.workspaceId) return;
       try {
-        const data = await apiCall("/campaigns");
-        setCampaigns(Array.isArray(data) ? data : (data.campaigns || []));
+        setLoading(true);
+        const [campaignsData, metricsData] = await Promise.all([
+          apiCall(`/campaigns?workspaceId=${user.workspaceId}`),
+          apiCall(`/campaigns/metrics?workspaceId=${user.workspaceId}`)
+        ]);
+        setCampaigns(campaignsData.campaigns || []);
+        setMetrics(metricsData.metrics || { spend: 0, impressions: 0, clicks: 0, conversions: 0 });
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
-    fetchCampaigns();
-  }, []);
+    if (user) fetchData();
+  }, [user]);
+
+  const formatValue = (val: number) => {
+    if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+    if (val >= 1000) return (val / 1000).toFixed(1) + 'K';
+    return val.toString();
+  };
 
   const handleDownloadPDF = () => {
     const win = window.open('', '_blank');
@@ -103,10 +118,10 @@ export default function ClientDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-              <StatCard label="Total Spend" value="$4,500" icon="💸" />
-              <StatCard label="Impressions" value="1.2M" icon="👀" />
-              <StatCard label="Clicks" value="24.5K" icon="🖱️" />
-              <StatCard label="Conversions" value="482" icon="🎯" />
+              <StatCard label="Total Spend" value={`$${metrics.spend.toLocaleString()}`} icon="💸" />
+              <StatCard label="Impressions" value={formatValue(metrics.impressions)} icon="👀" trend="+5.2%" />
+              <StatCard label="Clicks" value={formatValue(metrics.clicks)} icon="🖱️" trend="+8.4%" />
+              <StatCard label="Conversions" value={metrics.conversions.toString()} icon="🎯" trend="+12.1%" />
             </div>
 
             <div className="card">

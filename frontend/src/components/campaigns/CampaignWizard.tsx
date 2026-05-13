@@ -8,13 +8,17 @@ import {
   Share2, MessageCircle, Upload
 } from 'lucide-react';
 import { createCampaign, getCampaignTemplates } from '@/services/campaignService';
+import { getClients } from '@/services/agencyService';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
+import { useEffect } from 'react';
 
 const STEPS = [
+  { id: 'client', name: 'Select Client', icon: Users },
   { id: 'objective', name: 'Objective', icon: Rocket },
   { id: 'channel', name: 'Channel & Budget', icon: Globe },
-  { id: 'targeting', name: 'Audience', icon: Users },
+  { id: 'targeting', name: 'Audience', icon: Target },
   { id: 'creative', name: 'Creative', icon: ImageIcon },
   { id: 'review', name: 'Review', icon: CheckCircle },
 ];
@@ -36,10 +40,14 @@ const CHANNELS = [
 export default function CampaignWizard() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [clients, setClients] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: '',
+    clientId: '',
+    workspaceId: '',
     objective: 'awareness',
     channel: 'google',
     budget: 500,
@@ -65,6 +73,28 @@ export default function CampaignWizard() {
       }
     ]
   });
+
+  useEffect(() => {
+    if (user?.role === 'admin' || user?.role === 'team') {
+      fetchClients();
+    } else if (user?.role === 'client') {
+      setFormData(prev => ({ 
+        ...prev, 
+        clientId: user.id, 
+        workspaceId: user.workspaceId || '' 
+      }));
+      setStep(1); // Skip client selection for clients
+    }
+  }, [user]);
+
+  const fetchClients = async () => {
+    try {
+      const data = await getClients();
+      setClients(data);
+    } catch (err) {
+      console.error("Failed to fetch clients:", err);
+    }
+  };
 
   const nextStep = () => setStep(s => Math.min(s + 1, STEPS.length - 1));
   const prevStep = () => setStep(s => Math.max(s - 1, 0));
@@ -124,6 +154,39 @@ export default function CampaignWizard() {
           >
             {step === 0 && (
               <div className="space-y-6">
+                <div className="mb-6">
+                  <label className="block text-sm font-bold text-slate-700 mb-4 text-center">Who are you creating this for?</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto p-2">
+                    {clients.map((client) => (
+                      <button
+                        key={client.id}
+                        onClick={() => setFormData({ 
+                          ...formData, 
+                          clientId: client.id, 
+                          workspaceId: client.workspaceId || client.workspace_id 
+                        })}
+                        className={`p-6 rounded-2xl border-2 text-left transition-all flex items-center gap-4 ${
+                          formData.clientId === client.id 
+                            ? 'border-indigo-600 bg-indigo-50 shadow-md' 
+                            : 'border-slate-100 hover:border-slate-200'
+                        }`}
+                      >
+                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-xl">
+                          🏢
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900">{client.name}</h4>
+                          <p className="text-xs text-slate-500">{client.workspaceName || client.companyName || 'Global Workspace'}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 1 && (
+              <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   {OBJECTIVES.map((obj) => (
                     <button
@@ -154,7 +217,7 @@ export default function CampaignWizard() {
               </div>
             )}
 
-            {step === 1 && (
+            {step === 2 && (
               <div className="space-y-8">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-4">Select Channel</label>
@@ -222,7 +285,7 @@ export default function CampaignWizard() {
               </div>
             )}
 
-            {step === 2 && (
+            {step === 3 && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-6">
                   <div>
@@ -269,7 +332,7 @@ export default function CampaignWizard() {
               </div>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <div className="space-y-6">
                 <input 
                   type="file" 
@@ -342,7 +405,7 @@ export default function CampaignWizard() {
               </div>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <div className="space-y-8">
                 <div className="p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
                   <h4 className="font-bold text-indigo-900 mb-2 flex items-center gap-2">
@@ -359,9 +422,14 @@ export default function CampaignWizard() {
                       <span className="text-sm font-bold text-slate-900">{formData.name || 'Untitled'}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-slate-100">
+                      <span className="text-sm text-slate-500">Client</span>
+                      <span className="text-sm font-bold text-indigo-600">{clients.find(c => c.id === formData.clientId)?.name || 'Direct'}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-slate-100">
                       <span className="text-sm text-slate-500">Objective</span>
                       <span className="text-sm font-bold text-slate-900 capitalize">{formData.objective}</span>
                     </div>
+                  </div>
                     <div className="flex justify-between py-2 border-b border-slate-100">
                       <span className="text-sm text-slate-500">Platform</span>
                       <span className="text-sm font-bold text-slate-900 capitalize">{formData.channel}</span>
@@ -403,7 +471,7 @@ export default function CampaignWizard() {
           {step < STEPS.length - 1 ? (
             <button 
               onClick={nextStep}
-              disabled={step === 0 && !formData.name}
+              disabled={(step === 0 && !formData.clientId) || (step === 1 && !formData.name)}
               className="px-8 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all flex items-center gap-2 disabled:opacity-50"
             >
               Continue <ChevronRight size={16} />
