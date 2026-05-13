@@ -281,7 +281,9 @@ export default function CampaignWizard() {
                     if (file) {
                       const newAdGroups = [...formData.adGroups];
                       newAdGroups[0].creatives[0].name = file.name;
+                      newAdGroups[0].creatives[0].url = URL.createObjectURL(file);
                       setFormData({ ...formData, adGroups: newAdGroups });
+                      toast.success('Creative asset attached!');
                     }
                   }}
                 />
