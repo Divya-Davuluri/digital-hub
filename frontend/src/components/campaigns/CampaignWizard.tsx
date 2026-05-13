@@ -429,7 +429,6 @@ export default function CampaignWizard() {
                       <span className="text-sm text-slate-500">Objective</span>
                       <span className="text-sm font-bold text-slate-900 capitalize">{formData.objective}</span>
                     </div>
-                  </div>
                     <div className="flex justify-between py-2 border-b border-slate-100">
                       <span className="text-sm text-slate-500">Platform</span>
                       <span className="text-sm font-bold text-slate-900 capitalize">{formData.channel}</span>
