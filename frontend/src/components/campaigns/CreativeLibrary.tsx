@@ -117,7 +117,7 @@ export default function CreativeLibrary() {
       <div className="flex-1 p-6 overflow-y-auto">
         {view === 'grid' ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {MOCK_CREATIVES.map((asset) => (
+            {filteredCreatives.map((asset) => (
               <div key={asset.id} className="group relative bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden hover:border-indigo-200 hover:shadow-xl transition-all">
                 <div className="aspect-square w-full bg-slate-200 overflow-hidden flex items-center justify-center">
                   {asset.type === 'image' ? (
