@@ -41,15 +41,15 @@ export default function BudgetPage() {
   });
 
   // Calculated fields (read-only, auto-computed)
-  const calculatedROAS = metricsForm.spentAmount && metricsForm.revenue
+  const calculatedROAS = Number(metricsForm.spentAmount) > 0 && Number(metricsForm.revenue) > 0
     ? (Number(metricsForm.revenue) / Number(metricsForm.spentAmount)).toFixed(2)
     : '0.00';
 
-  const calculatedCTR = metricsForm.impressions && metricsForm.clicks
+  const calculatedCTR = Number(metricsForm.impressions) > 0 && Number(metricsForm.clicks) > 0
     ? ((Number(metricsForm.clicks) / Number(metricsForm.impressions)) * 100).toFixed(2)
     : '0.00';
 
-  const calculatedCVR = metricsForm.clicks && metricsForm.conversions
+  const calculatedCVR = Number(metricsForm.clicks) > 0 && Number(metricsForm.conversions) > 0
     ? ((Number(metricsForm.conversions) / Number(metricsForm.clicks)) * 100).toFixed(2)
     : '0.00';
   
@@ -119,11 +119,11 @@ export default function BudgetPage() {
   const openMetricsModal = (allocation: any) => {
     setSelectedAllocation(allocation);
     setMetricsForm({
-      clicks: allocation.clicks?.toString() || '',
-      impressions: allocation.impressions?.toString() || '',
-      conversions: allocation.conversions?.toString() || '',
-      revenue: allocation.revenue?.toString() || '',
-      spentAmount: allocation.spentAmount?.toString() || '',
+      clicks: allocation.clicks > 0 ? allocation.clicks.toString() : '',
+      impressions: allocation.impressions > 0 ? allocation.impressions.toString() : '',
+      conversions: allocation.conversions > 0 ? allocation.conversions.toString() : '',
+      revenue: allocation.revenue > 0 ? allocation.revenue.toString() : '',
+      spentAmount: allocation.spentAmount > 0 ? allocation.spentAmount.toString() : '',
     });
     setMetricsModal(true);
   };
