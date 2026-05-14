@@ -396,8 +396,8 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
       impressions: Math.floor(Math.random() * 10000),
       conversions: Math.floor(Math.random() * 20),
       spent: Math.floor(Math.random() * 500),
-      totalSpent: Math.floor(Math.random() * 5000), // Updated field
-      roas: Math.floor(Math.random() * 10) + 2, // New field
+      totalSpent: Math.floor(Math.random() * 5000),
+      roas: Math.floor(Math.random() * 10) + 2,
     });
   }
   await db.insert(analytics).values(analyticsData);
@@ -407,14 +407,26 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
     id: uuidv4(),
     tenantId,
     workspaceId,
+    clientId,
+    campaignId: null,
     report_name: 'Initial Strategy & Setup Report',
+    client_name: null,
+    campaign: 'All Campaigns',
     type: 'PERFORMANCE',
-    period: 'April 2026', 
-    totalSpend: 2090, 
-    conversions: 97, 
-    roas: 4, 
+    period: 'April 2026',
+    startDate: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString().split('T')[0],
+    endDate: now.toISOString().split('T')[0],
     status: 'completed',
-    file_url: '#'
+    totalSpend: 2090,
+    impressions: 45000,
+    clicks: 1240,
+    conversions: 97,
+    roas: 4,
+    file_url: '#',
+    requestedBy: null,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
   });
 
   // 4. Create Starter Report Request so Client Reports page isn't empty

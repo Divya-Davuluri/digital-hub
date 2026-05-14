@@ -30,8 +30,8 @@ export default function UnifiedReportsPage() {
     workspace_id: '',
     client_id: '',
     campaign_id: '',
-    start_date: '',
-    end_date: ''
+    client_name: '',
+    campaign: 'All Campaigns'
   });
 
   const [workspaces, setWorkspaces] = useState<any[]>([]);
@@ -74,7 +74,7 @@ export default function UnifiedReportsPage() {
 
   const handleCreateReport = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.report_name || !formData.workspace_id) {
+    if (!formData.report_name || !formData.client_id) {
       toast.error("Please fill required fields");
       return;
     }
@@ -89,31 +89,25 @@ export default function UnifiedReportsPage() {
       console.log("[DEBUG] Create report response:", res);
 
       if (res.success) {
-        toast.success("Report generated successfully");
+        toast.success("Report generated successfully!");
         setIsModalOpen(false);
         
         // Immediately add to list so no refresh is needed
-        setReports(prev => [res.report, ...prev]);
-        
-        // Reset filters to ensure the new report is visible if they were filtering
-        if (typeFilter !== 'All Types' || dateFilter !== 'Last 30 Days' || searchTerm !== '') {
-            setTypeFilter('All Types');
-            setDateFilter('Last 30 Days');
-            setSearchTerm('');
-            // The useEffect will trigger fetchReports, but since we added it manually, 
-            // it's okay, the fetch will just refresh the whole list.
+        if (res.data && res.data.data) {
+          setReports(prev => [res.data.data, ...prev]);
+        } else if (res.report) {
+          setReports(prev => [res.report, ...prev]);
         }
         
         setFormData({
           report_name: '', report_type: 'Performance', period: 'Last 30 Days',
-          workspace_id: '', client_id: '', campaign_id: '', start_date: '', end_date: ''
+          workspace_id: '', client_id: '', campaign_id: '', client_name: '', campaign: 'All Campaigns'
         });
       } else {
         toast.error(res.error || "Failed to generate report");
       }
     } catch (err: any) {
       console.error("[DEBUG] Create report error:", err);
-      // Show exact error message from server if available
       const errorMsg = err.response?.data?.error || err.message || "Failed to generate report";
       toast.error(errorMsg);
     } finally {
@@ -281,14 +275,19 @@ export default function UnifiedReportsPage() {
                           </td>
                           <td className="px-6 py-4">
                             {report.status === 'completed' ? (
-                              <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-sm bg-emerald-50 px-3 py-1 rounded-full w-fit">
+                              <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-sm bg-emerald-50 px-3 py-1 rounded-full w-fit border border-emerald-100">
                                 <CheckCircle2 size={16} />
                                 Completed
                               </div>
+                            ) : report.status === 'failed' ? (
+                              <div className="flex items-center gap-1.5 text-rose-600 font-bold text-sm bg-rose-50 px-3 py-1 rounded-full w-fit border border-rose-100">
+                                <AlertCircle size={16} />
+                                Failed
+                              </div>
                             ) : (
-                              <div className="flex items-center gap-1.5 text-amber-500 font-bold text-sm bg-amber-50 px-3 py-1 rounded-full w-fit">
+                              <div className="flex items-center gap-1.5 text-amber-600 font-bold text-sm bg-amber-50 px-3 py-1 rounded-full w-fit border border-amber-100">
                                 <Clock size={16} className="animate-pulse" />
-                                Processing
+                                Pending
                               </div>
                             )}
                           </td>
@@ -360,24 +359,25 @@ export default function UnifiedReportsPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="col-span-2 space-y-2">
                       <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Client / Workspace</label>
                       <select 
                         required
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.workspace_id}
+                        value={formData.client_id}
                         onChange={e => {
-                          const ws = workspaces.find(w => (w.workspaceId || w.workspace_id) === e.target.value);
+                          const ws = workspaces.find(w => w.id === e.target.value);
                           setFormData({
                             ...formData, 
-                            workspace_id: e.target.value, 
-                            client_id: ws?.id || ws?.clientId || ''
+                            client_id: e.target.value, 
+                            client_name: ws?.companyName || ws?.name || '',
+                            workspace_id: ws?.workspace_id || ws?.workspaceId || ''
                           });
                         }}
                       >
-                        <option value="">Select Workspace</option>
+                        <option value="">Select Client</option>
                         {workspaces.map(w => (
-                          <option key={w.id} value={w.workspaceId || w.workspace_id}>
+                          <option key={w.id} value={w.id}>
                             {w.companyName || w.name} ({w.workspace_slug || 'Workspace'})
                           </option>
                         ))}
@@ -389,7 +389,14 @@ export default function UnifiedReportsPage() {
                       <select 
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                         value={formData.campaign_id}
-                        onChange={e => setFormData({...formData, campaign_id: e.target.value})}
+                        onChange={e => {
+                          const camp = campaigns.find(c => c.id === e.target.value);
+                          setFormData({
+                            ...formData, 
+                            campaign_id: e.target.value,
+                            campaign: camp?.name || 'All Campaigns'
+                          });
+                        }}
                       >
                         <option value="">All Campaigns</option>
                         {campaigns.filter(c => (c.workspaceId || c.workspace_id) === formData.workspace_id).map(c => (
@@ -405,14 +412,14 @@ export default function UnifiedReportsPage() {
                         value={formData.report_type}
                         onChange={e => setFormData({...formData, report_type: e.target.value})}
                       >
-                        <option value="Performance">Performance</option>
-                        <option value="Campaign Detail">Campaign Detail</option>
-                        <option value="Analytics Deep-dive">Analytics Deep-dive</option>
-                        <option value="Budget Allocation">Budget Allocation</option>
+                        <option value="PERFORMANCE">Performance</option>
+                        <option value="CAMPAIGN">Campaign Detail</option>
+                        <option value="ANALYTICS">Analytics Deep-dive</option>
+                        <option value="BUDGET">Budget Allocation</option>
                       </select>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="col-span-2 space-y-2">
                       <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Period</label>
                       <select 
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"

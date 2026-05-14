@@ -88,114 +88,74 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
  * POST /api/reports
  */
 export const createReport = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId, id: userId } = req.user;
+  const { tenantId } = req.user;
   const { 
-    report_name, 
-    report_type, 
+    report_name: reportName, 
+    report_type: type, 
     period, 
-    workspace_id, 
-    client_id, 
-    campaign_id, 
-    start_date, 
-    end_date 
+    client_id: clientId, 
+    campaign_id: campaignId,
+    client_name: clientName,
+    campaign 
   } = req.body;
 
   console.log('[POST_REPORT_BODY]', req.body);
 
   try {
-    // 1. Validation
-    if (!report_name || !workspace_id) {
-      throw new AppError('Report name and Workspace are required', 400);
-    }
-
-    console.log('[1/4] Validation passed');
-
-    // 2. Resolve Names for persistence
-    let clientName = 'Unknown Client';
-    let campaignName = campaign_id || 'All Campaigns';
-
-    if (client_id) {
-      const client = await db.query.clients.findFirst({ where: eq(clients.id, client_id) });
-      if (client) clientName = client.name;
-    } else {
-      const ws = await db.query.workspaces.findFirst({ where: eq(workspaces.id, workspace_id) });
-      if (ws) clientName = ws.name;
-    }
-
-    if (campaign_id && campaign_id !== 'All Campaigns') {
-      const camp = await db.query.campaigns.findFirst({ where: eq(campaigns.id, campaign_id) });
-      if (camp) campaignName = camp.name;
-    }
-
-    console.log('[2/4] Context resolved:', { clientName, campaignName });
-
-    // 3. Save Report to DB immediately
     const reportId = uuidv4();
-    const reportData = {
+
+    // Calculate dates from period
+    const endDate = new Date();
+    const startDate = new Date();
+    if (period === 'Last 7 Days') startDate.setDate(startDate.getDate() - 7);
+    else if (period === 'Last 30 Days') startDate.setDate(startDate.getDate() - 30);
+    else if (period === 'Last 90 Days') startDate.setDate(startDate.getDate() - 90);
+    else startDate.setDate(startDate.getDate() - 30);
+
+    // Get workspace from clientId
+    const workspace = await db.query.workspaces.findFirst({
+      where: and(
+        eq(workspaces.tenantId, tenantId),
+        eq(workspaces.clientId, clientId)
+      )
+    });
+    
+    if (!workspace) throw new AppError('Workspace not found', 404);
+
+    await db.insert(reports).values({
       id: reportId,
       tenantId,
-      workspaceId: workspace_id,
-      clientId: client_id || null,
-      campaignId: campaign_id || null,
-      report_name,
-      client_name: clientName,
-      campaign: campaignName,
-      type: report_type || 'Performance',
+      workspaceId: workspace.id,
+      clientId: clientId || null,
+      campaignId: campaignId || null,
+      report_name: reportName,
+      client_name: clientName || null,
+      campaign: campaign || 'All Campaigns',
+      type: type || 'PERFORMANCE',
       period: period || 'Last 30 Days',
-      startDate: start_date || null,
-      endDate: end_date || null,
-      status: 'completed', // Setting to completed immediately as requested for basic flow
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      status: 'completed',
       totalSpend: 0,
       impressions: 0,
       clicks: 0,
       conversions: 0,
       roas: 0,
       file_url: `/api/reports/${reportId}/download`,
-      requestedBy: userId,
+      requestedBy: req.user?.id || null,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    console.log('[3/4] Attempting DB insert...');
-    await db.insert(reports).values(reportData);
-    console.log('[4/4] DB insert successful:', reportId);
-
-    // 4. Return success immediately
-    res.status(201).json({
-      success: true,
-      message: 'Report generated successfully',
-      report: reportData
+      updatedAt: new Date().toISOString(),
     });
 
-    // Optional: Update metrics in background without blocking response
-    setTimeout(async () => {
-      try {
-        let campaignQuery = db.select().from(campaigns).where(and(
-          eq(campaigns.tenantId, tenantId),
-          campaign_id ? eq(campaigns.id, campaign_id) : eq(campaigns.workspaceId, workspace_id)
-        ));
-        const campaignData = await campaignQuery;
-        const totals = campaignData.reduce((acc, c) => ({
-          spent: acc.spent + (c.spent || 0),
-          impressions: acc.impressions + (c.impressions || 0),
-          clicks: acc.clicks + (c.clicks || 0),
-          conversions: acc.conversions + (c.conversions || 0)
-        }), { spent: 0, impressions: 0, clicks: 0, conversions: 0 });
-        const roas = totals.spent > 0 ? (totals.conversions * 50) / totals.spent : 0;
+    const newReport = await db.query.reports.findFirst({
+      where: eq(reports.id, reportId)
+    });
 
-        await db.update(reports).set({
-          totalSpend: totals.spent,
-          impressions: totals.impressions,
-          clicks: totals.clicks,
-          conversions: totals.conversions,
-          roas,
-          updatedAt: new Date().toISOString()
-        }).where(eq(reports.id, reportId));
-        console.log('[BACKGROUND] Metrics updated for report:', reportId);
-      } catch (e) {
-        console.error('[BACKGROUND] Metrics update failed:', e);
-      }
-    }, 100);
+    return res.status(201).json({
+      success: true,
+      message: 'Report generated successfully',
+      data: newReport
+    });
 
   } catch (err: any) {
     console.error('Report generation failed:', err);
