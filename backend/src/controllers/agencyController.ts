@@ -408,13 +408,13 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
     tenantId,
     workspaceId,
     name: 'Initial Strategy & Setup Report',
-    url: '#',
     type: 'PERFORMANCE',
     period: 'April 2026', 
-    spent: 2090, 
+    totalSpend: 2090, 
     conversions: 97, 
     roas: 4, 
-    status: 'READY'
+    status: 'READY',
+    pdfUrl: '#'
   });
 
   // 4. Create Starter Report Request so Client Reports page isn't empty
