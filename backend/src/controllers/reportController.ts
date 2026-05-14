@@ -10,78 +10,69 @@ import { AppError, asyncHandler } from '../utils/errors';
  * GET /api/reports
  */
 export const getReports = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId, workspaceId: userWorkspaceId, role, id: userId } = req.user;
-  const { search, type, period, workspaceId: queryWorkspaceId, clientId } = req.query;
+  const { tenantId, role, id: userId, workspaceId: userWorkspaceId } = req.user;
+  const { search, type, period } = req.query;
 
-  console.log('[GET_REPORTS_QUERY]', { role, tenantId, search, type, period });
+  console.log('Fetching reports for tenantId:', tenantId, 'Role:', role);
 
-  let query = db.select({
-    id: reports.id,
-    report_name: reports.report_name,
-    client_name: reports.client_name,
-    campaign: reports.campaign,
-    type: reports.type,
-    period: reports.period,
-    status: reports.status,
-    createdAt: reports.createdAt,
-    workspaceName: workspaces.name,
-    clientName: clients.name,
-    totalSpend: reports.totalSpend,
-    impressions: reports.impressions,
-    clicks: reports.clicks,
-    conversions: reports.conversions,
-    roas: reports.roas,
-    file_url: reports.file_url
-  })
-  .from(reports)
-  .leftJoin(workspaces, eq(reports.workspaceId, workspaces.id))
-  .leftJoin(clients, eq(reports.clientId, clients.id));
+  try {
+    let filters = [eq(reports.tenantId, tenantId)];
 
-  let filters = [eq(reports.tenantId, tenantId)];
-
-  // Role-based filtering
-  if (role === 'client') {
-    filters.push(eq(reports.workspaceId, userWorkspaceId));
-  } else if (role === 'team') {
-    const assignedClients = await db.select({ id: clients.id }).from(clients).where(eq(clients.assignedTeamMemberId, userId));
-    const clientIds = assignedClients.map(c => c.id);
-    if (clientIds.length > 0) {
-      filters.push(or(eq(reports.requestedBy, userId), inArray(reports.clientId, clientIds as string[])) as any);
-    } else {
-      filters.push(eq(reports.requestedBy, userId));
+    // Role-based filtering
+    if (role === 'client') {
+      filters.push(eq(reports.workspaceId, userWorkspaceId));
+    } else if (role === 'team') {
+      // Team members see reports they requested OR reports for clients they are assigned to
+      const assignedClients = await db.select({ id: clients.id }).from(clients).where(eq(clients.assignedTeamMemberId, userId));
+      const clientIds = assignedClients.map(c => c.id);
+      
+      if (clientIds.length > 0) {
+        filters.push(or(eq(reports.requestedBy, userId), inArray(reports.clientId, clientIds as string[])) as any);
+      } else {
+        filters.push(eq(reports.requestedBy, userId));
+      }
     }
-  }
 
-  // Query filters
-  if (queryWorkspaceId && queryWorkspaceId !== 'undefined' && queryWorkspaceId !== 'null') {
-    filters.push(eq(reports.workspaceId, queryWorkspaceId));
-  }
-  if (clientId && clientId !== 'undefined' && clientId !== 'null') {
-    filters.push(eq(reports.clientId, clientId));
-  }
-  if (type && type !== 'All Types') {
-    filters.push(eq(reports.type, type.toUpperCase()));
-  }
-  if (period && period !== 'All Time' && period !== 'Last 30 Days' && period !== 'Last 7 Days') {
-    filters.push(eq(reports.period, period));
-  } else if (period && period !== 'All Time') {
-    filters.push(eq(reports.period, period));
-  }
-  
-  if (search) {
-    filters.push(or(
-      like(reports.report_name, `%${search}%`),
-      like(workspaces.name, `%${search}%`),
-      like(clients.name, `%${search}%`)
-    ) as any);
-  }
+    if (type && type !== 'All Types') {
+      filters.push(eq(reports.type, type.toUpperCase()));
+    }
+    
+    if (search) {
+      filters.push(like(reports.report_name, `%${search}%`) as any);
+    }
 
-  const allReports = await query
-    .where(and(...filters))
-    .orderBy(sql`${reports.createdAt} DESC`);
+    const allReports = await db
+      .select({
+        id: reports.id,
+        report_name: reports.report_name,
+        client_name: reports.client_name,
+        campaign: reports.campaign,
+        type: reports.type,
+        period: reports.period,
+        status: reports.status,
+        createdAt: reports.createdAt,
+        totalSpend: reports.totalSpend,
+        impressions: reports.impressions,
+        clicks: reports.clicks,
+        conversions: reports.conversions,
+        roas: reports.roas,
+        file_url: reports.file_url
+      })
+      .from(reports)
+      .where(and(...filters))
+      .orderBy(sql`${reports.createdAt} DESC`);
 
-  console.log('[GET_REPORTS_COUNT]', allReports.length);
-  res.json({ success: true, reports: allReports });
+    console.log('Reports found:', allReports.length);
+    
+    res.json({
+      success: true,
+      reports: allReports
+    });
+
+  } catch (err) {
+    console.error('Failed to fetch reports:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch reports' });
+  }
 });
 
 /**

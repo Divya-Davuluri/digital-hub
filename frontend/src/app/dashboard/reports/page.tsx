@@ -37,22 +37,30 @@ export default function UnifiedReportsPage() {
   const [workspaces, setWorkspaces] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
 
+  // FIX 5: Load reports on mount and when filters change
   useEffect(() => {
     fetchReports();
     fetchData();
   }, [typeFilter, dateFilter]);
 
+  // FIX 2 & 6: Comprehensive fetchReports with debugging
   const fetchReports = async () => {
     setLoading(true);
     try {
       console.log("[DEBUG] Fetching reports with filters:", { typeFilter, dateFilter });
       const response = await apiCall(`/reports?type=${typeFilter}&period=${dateFilter}`);
-      console.log("[DEBUG] Reports response:", response);
       
-      const reportList = response.reports || (Array.isArray(response) ? response : []);
+      console.log("[DEBUG] Raw API response:", response);
+      
+      // Handle various response structures (FIX 2)
+      const reportList = response.reports || response.data || (Array.isArray(response) ? response : []);
+      
+      console.log("[DEBUG] Reports array:", reportList);
+      console.log("[DEBUG] Reports count:", reportList.length);
+      
       setReports(reportList);
     } catch (err) {
-      console.error("[DEBUG] Failed to load reports", err);
+      console.error("[DEBUG] Failed to load reports:", err);
       toast.error("Failed to load reports");
     } finally {
       setLoading(false);
@@ -72,6 +80,7 @@ export default function UnifiedReportsPage() {
     }
   };
 
+  // FIX 1: Refetch after successful creation
   const handleCreateReport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.report_name || !formData.client_id) {
@@ -92,12 +101,14 @@ export default function UnifiedReportsPage() {
         toast.success("Report generated successfully!");
         setIsModalOpen(false);
         
-        // Immediately add to list so no refresh is needed
-        if (res.data && res.data.data) {
-          setReports(prev => [res.data.data, ...prev]);
-        } else if (res.report) {
-          setReports(prev => [res.report, ...prev]);
+        // Option 1: Immediate optimistic update
+        const newReport = res.data?.data || res.data || res.report;
+        if (newReport) {
+           setReports(prev => [newReport, ...prev]);
         }
+        
+        // Option 2: Full refetch (FIX 1)
+        await fetchReports();
         
         setFormData({
           report_name: '', report_type: 'Performance', period: 'Last 30 Days',
@@ -151,9 +162,8 @@ export default function UnifiedReportsPage() {
   };
 
   const filteredReports = reports.filter(r => 
-    r.report_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.workspaceName?.toLowerCase().includes(searchTerm.toLowerCase())
+    (r.report_name || r.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (r.client_name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -221,7 +231,7 @@ export default function UnifiedReportsPage() {
                   <thead className="bg-slate-50/50 border-b border-slate-100">
                     <tr>
                       <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Report Name</th>
-                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Client / Workspace</th>
+                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Client</th>
                       <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Period</th>
                       <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Type</th>
                       <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
@@ -253,14 +263,13 @@ export default function UnifiedReportsPage() {
                                 <FileText size={20} />
                               </div>
                               <div>
-                                <div className="font-bold text-slate-800">{report.report_name}</div>
+                                <div className="font-bold text-slate-800">{report.report_name || report.name}</div>
                                 <div className="text-xs text-slate-400">Created {new Date(report.createdAt).toLocaleDateString()}</div>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-sm">
-                            <div className="font-semibold text-slate-700">{report.client_name || report.clientName || 'Direct Workspace'}</div>
-                            <div className="text-xs text-slate-400">{report.workspaceName}</div>
+                            <div className="font-semibold text-slate-700">{report.client_name || 'Direct Workspace'}</div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-100 w-fit px-3 py-1 rounded-full font-medium">
@@ -274,7 +283,8 @@ export default function UnifiedReportsPage() {
                              </span>
                           </td>
                           <td className="px-6 py-4">
-                            {report.status === 'completed' ? (
+                            {/* FIX 4: Status Badge Logic */}
+                            {report.status === 'completed' || report.status === 'READY' ? (
                               <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-sm bg-emerald-50 px-3 py-1 rounded-full w-fit border border-emerald-100">
                                 <CheckCircle2 size={16} />
                                 Completed
