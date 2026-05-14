@@ -91,19 +91,28 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
  */
 export const createReport = asyncHandler(async (req: any, res: Response) => {
   const { tenantId, id: userId } = req.user;
-  const { name, type, period, workspaceId, clientId, campaignId, startDate, endDate } = req.body;
+  const { 
+    report_name, 
+    report_type, 
+    period, 
+    workspace_id, 
+    client_id, 
+    campaign_id, 
+    start_date, 
+    end_date 
+  } = req.body;
 
-  console.log('[POST_REPORT_BODY]', { name, workspaceId, clientId, type, period });
+  console.log('[POST_REPORT_BODY]', req.body);
 
   // 1. Validation
-  if (!name || !workspaceId) {
+  if (!report_name || !workspace_id) {
     throw new AppError('Report name and Workspace are required', 400);
   }
 
   // 2. Calculate Metrics from Campaigns
   let campaignQuery = db.select().from(campaigns).where(and(
     eq(campaigns.tenantId, tenantId),
-    campaignId ? eq(campaigns.id, campaignId) : eq(campaigns.workspaceId, workspaceId)
+    campaign_id ? eq(campaigns.id, campaign_id) : eq(campaigns.workspaceId, workspace_id)
   ));
 
   const campaignData = await campaignQuery;
@@ -122,14 +131,14 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
   const reportData = {
     id: reportId,
     tenantId,
-    workspaceId,
-    clientId: clientId || null,
-    campaignId: campaignId || null,
-    name,
-    type: type || 'PERFORMANCE',
+    workspaceId: workspace_id,
+    clientId: client_id || null,
+    campaignId: campaign_id || null,
+    name: report_name,
+    type: report_type || 'PERFORMANCE',
     period: period || 'Last 30 Days',
-    startDate: startDate || null,
-    endDate: endDate || null,
+    startDate: start_date || null,
+    endDate: end_date || null,
     status: 'READY',
     totalSpend: totals.spent,
     impressions: totals.impressions,

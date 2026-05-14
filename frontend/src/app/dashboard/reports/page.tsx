@@ -23,14 +23,14 @@ export default function UnifiedReportsPage() {
 
   // Form State
   const [formData, setFormData] = useState({
-    name: '',
-    type: 'PERFORMANCE',
+    report_name: '',
+    report_type: 'PERFORMANCE',
     period: 'Last 30 Days',
-    workspaceId: '',
-    clientId: '',
-    campaignId: '',
-    startDate: '',
-    endDate: ''
+    workspace_id: '',
+    client_id: '',
+    campaign_id: '',
+    start_date: '',
+    end_date: ''
   });
 
   const [workspaces, setWorkspaces] = useState<any[]>([]);
@@ -73,7 +73,7 @@ export default function UnifiedReportsPage() {
 
   const handleCreateReport = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.workspaceId) {
+    if (!formData.report_name || !formData.workspace_id) {
       toast.error("Please fill required fields");
       return;
     }
@@ -104,8 +104,8 @@ export default function UnifiedReportsPage() {
         }
         
         setFormData({
-          name: '', type: 'PERFORMANCE', period: 'Last 30 Days',
-          workspaceId: '', clientId: '', campaignId: '', startDate: '', endDate: ''
+          report_name: '', report_type: 'PERFORMANCE', period: 'Last 30 Days',
+          workspace_id: '', client_id: '', campaign_id: '', start_date: '', end_date: ''
         });
       } else {
         toast.error(res.error || "Failed to generate report");
@@ -338,8 +338,8 @@ export default function UnifiedReportsPage() {
                       required
                       placeholder="e.g., Monthly Performance - June 2024"
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={formData.name}
-                      onChange={e => setFormData({...formData, name: e.target.value})}
+                      value={formData.report_name}
+                      onChange={e => setFormData({...formData, report_name: e.target.value})}
                     />
                   </div>
 
@@ -348,13 +348,13 @@ export default function UnifiedReportsPage() {
                     <select 
                       required
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={formData.workspaceId}
+                      value={formData.workspace_id}
                       onChange={e => {
                         const ws = workspaces.find(w => (w.workspaceId || w.workspace_id) === e.target.value);
                         setFormData({
                           ...formData, 
-                          workspaceId: e.target.value, 
-                          clientId: ws?.id || ws?.clientId || ''
+                          workspace_id: e.target.value, 
+                          client_id: ws?.id || ws?.clientId || ''
                         });
                       }}
                     >
@@ -371,11 +371,11 @@ export default function UnifiedReportsPage() {
                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Campaign (Optional)</label>
                     <select 
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={formData.campaignId}
-                      onChange={e => setFormData({...formData, campaignId: e.target.value})}
+                      value={formData.campaign_id}
+                      onChange={e => setFormData({...formData, campaign_id: e.target.value})}
                     >
                       <option value="">All Campaigns</option>
-                      {campaigns.filter(c => (c.workspaceId || c.workspace_id) === formData.workspaceId).map(c => (
+                      {campaigns.filter(c => (c.workspaceId || c.workspace_id) === formData.workspace_id).map(c => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
@@ -385,8 +385,8 @@ export default function UnifiedReportsPage() {
                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Report Type</label>
                     <select 
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={formData.type}
-                      onChange={e => setFormData({...formData, type: e.target.value})}
+                      value={formData.report_type}
+                      onChange={e => setFormData({...formData, report_type: e.target.value})}
                     >
                       <option value="PERFORMANCE">Performance</option>
                       <option value="CAMPAIGN">Campaign Detail</option>
