@@ -18,13 +18,17 @@ export default function ClientSelector({ onSelect, className = '' }: ClientSelec
     const fetchClients = async () => {
       try {
         const data = await apiCall('/clients');
-        setClients(data);
-        if (data.length > 0) {
-          setSelectedId(data[0].id);
-          onSelect(data[0].id);
+        // Safeguard: data might be an error object or null
+        const clientsList = Array.isArray(data) ? data : (data?.data && Array.isArray(data.data) ? data.data : []);
+        
+        setClients(clientsList);
+        if (clientsList.length > 0) {
+          setSelectedId(clientsList[0].id);
+          onSelect(clientsList[0].id);
         }
       } catch (err) {
         console.error('Failed to fetch clients', err);
+        setClients([]);
       } finally {
         setLoading(false);
       }

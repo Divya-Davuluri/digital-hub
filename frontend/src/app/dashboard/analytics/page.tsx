@@ -52,7 +52,6 @@ export default function AnalyticsPage() {
     if (selectedClient) {
       fetchAnalytics();
     } else {
-      // Reset data if client unselected
       setOverview(null);
       setTimeseries([]);
       setChannels([]);
@@ -63,7 +62,7 @@ export default function AnalyticsPage() {
   const fetchBranding = async () => {
     try {
       const data = await apiCall('/branding');
-      setBranding(data);
+      if (data) setBranding(data);
     } catch (err) {
       console.error('Failed to fetch branding', err);
     }
@@ -72,20 +71,26 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const [over, time, chan, camp] = await Promise.all([
+      const [overRes, timeRes, chanRes, campRes] = await Promise.all([
         apiCall(`/analytics/overview?clientId=${selectedClient}&period=${selectedPeriod}`),
         apiCall(`/analytics/timeseries?clientId=${selectedClient}&period=${selectedPeriod}`),
         apiCall(`/analytics/channels?clientId=${selectedClient}&period=${selectedPeriod}`),
         apiCall(`/analytics/campaigns?clientId=${selectedClient}&period=${selectedPeriod}`)
       ]);
       
-      setOverview(over.data);
-      setTimeseries(time.data);
-      setChannels(chan.data);
-      setCampaigns(camp.data);
+      if (overRes?.success) setOverview(overRes.data || null);
+      if (timeRes?.success) setTimeseries(timeRes.data || []);
+      if (chanRes?.success) setChannels(chanRes.data || []);
+      if (campRes?.success) setCampaigns(campRes.data || []);
+      
     } catch (err) {
       console.error('Failed to fetch analytics', err);
       toast.error('Failed to load analytics data');
+      // Reset on error to prevent inconsistent state
+      setOverview(null);
+      setTimeseries([]);
+      setChannels([]);
+      setCampaigns([]);
     } finally {
       setLoading(false);
     }
@@ -109,6 +114,8 @@ export default function AnalyticsPage() {
           metrics: overview
         })
       });
+      
+      if (!response.ok) throw new Error('Export failed');
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -143,7 +150,8 @@ export default function AnalyticsPage() {
                 <PeriodSelector onSelect={setSelectedPeriod} />
                 <button 
                   onClick={handleExport}
-                  className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2"
+                  disabled={loading || !selectedClient}
+                  className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-lg hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                 >
                   <Download size={18} /> Export Report
                 </button>
@@ -156,10 +164,6 @@ export default function AnalyticsPage() {
                   {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-white rounded-3xl border border-slate-200" />)}
                 </div>
                 <div className="h-80 bg-white rounded-3xl border border-slate-200" />
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="h-80 bg-white rounded-3xl border border-slate-200" />
-                  <div className="h-80 bg-white rounded-3xl border border-slate-200" />
-                </div>
               </div>
             ) : !selectedClient ? (
               <div className="bg-white rounded-[2.5rem] border border-slate-200 p-24 text-center flex flex-col items-center gap-6 shadow-sm">
@@ -177,21 +181,21 @@ export default function AnalyticsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                   <KpiCard 
                     title="Total Spent" 
-                    value={`$${overview?.totalSpent?.toLocaleString() || 0}`} 
+                    value={`$${Number(overview?.totalSpent || 0).toLocaleString()}`} 
                     change={overview?.spentChange || 0} 
                     icon={<DollarSign size={20} />} 
                     color="red" 
                   />
                   <KpiCard 
                     title="Total Revenue" 
-                    value={`$${overview?.totalRevenue?.toLocaleString() || 0}`} 
+                    value={`$${Number(overview?.totalRevenue || 0).toLocaleString()}`} 
                     change={overview?.revenueChange || 0} 
                     icon={<Activity size={20} />} 
                     color="green" 
                   />
                   <KpiCard 
                     title="Total Clicks" 
-                    value={overview?.totalClicks?.toLocaleString() || 0} 
+                    value={Number(overview?.totalClicks || 0).toLocaleString()} 
                     change={overview?.clicksChange || 0} 
                     icon={<MousePointer2 size={20} />} 
                     color="indigo" 
@@ -218,7 +222,7 @@ export default function AnalyticsPage() {
                   </div>
                   <div className="h-[320px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={timeseries}>
+                      <LineChart data={timeseries || []}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
                         <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(v: any) => `$${v}`} />
@@ -240,7 +244,7 @@ export default function AnalyticsPage() {
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
-                            data={channels}
+                            data={channels || []}
                             cx="50%"
                             cy="50%"
                             innerRadius={60}
@@ -248,7 +252,7 @@ export default function AnalyticsPage() {
                             paddingAngle={5}
                             dataKey="spent"
                           >
-                            {channels.map((entry, index) => (
+                            {(channels || []).map((entry: any, index: number) => (
                               <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
                           </Pie>
@@ -262,13 +266,13 @@ export default function AnalyticsPage() {
                     <h3 className="text-xl font-black text-slate-900 mb-8">Conversions by Channel</h3>
                     <div className="h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={channels}>
+                        <BarChart data={channels || []}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="channel" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
                           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
                           <Tooltip cursor={{ fill: '#f8fafc' }} />
                           <Bar dataKey="conversions" radius={[6, 6, 0, 0]}>
-                            {channels.map((entry, index) => (
+                            {(channels || []).map((entry: any, index: number) => (
                               <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
                           </Bar>
@@ -297,7 +301,7 @@ export default function AnalyticsPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {campaigns.map((camp) => (
+                        {(campaigns || []).map((camp: any) => (
                           <tr key={camp.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-8 py-4 font-bold text-slate-900">{camp.name}</td>
                             <td className="px-8 py-4">
@@ -308,28 +312,28 @@ export default function AnalyticsPage() {
                                 {camp.status}
                               </span>
                             </td>
-                            <td className="px-8 py-4 text-sm font-bold text-slate-900">${camp.budget?.toLocaleString() || 0}</td>
+                            <td className="px-8 py-4 text-sm font-bold text-slate-900">${Number(camp.budget || 0).toLocaleString()}</td>
                             <td className="px-8 py-4 text-right">
                               <div className="flex flex-col items-end gap-1.5">
-                                <span className="text-sm font-bold text-slate-900">${camp.spent?.toLocaleString() || 0}</span>
+                                <span className="text-sm font-bold text-slate-900">${Number(camp.spent || 0).toLocaleString()}</span>
                                 <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                   <div 
                                     className="h-full bg-indigo-500" 
-                                    style={{ width: `${Math.min(100, (camp.spent / (camp.budget || 1)) * 100)}%` }} 
+                                    style={{ width: `${Math.min(100, (Number(camp.spent || 0) / (Number(camp.budget || 1))) * 100)}%` }} 
                                   />
                                 </div>
                               </div>
                             </td>
                             <td className="px-8 py-4 text-center font-black">
                               <span className={
-                                Number(camp.roas) > 4 ? 'text-emerald-600' : 
-                                Number(camp.roas) > 2 ? 'text-amber-600' : 'text-red-600'
+                                Number(camp.roas || 0) > 4 ? 'text-emerald-600' : 
+                                Number(camp.roas || 0) > 2 ? 'text-amber-600' : 'text-red-600'
                               }>
-                                {camp.roas}x
+                                {camp.roas || '0.0'}x
                               </span>
                             </td>
-                            <td className="px-8 py-4 text-center text-sm font-medium text-slate-600">{camp.ctr}%</td>
-                            <td className="px-8 py-4 text-center text-sm font-medium text-slate-600">{camp.cvr}%</td>
+                            <td className="px-8 py-4 text-center text-sm font-medium text-slate-600">{camp.ctr || '0.00'}%</td>
+                            <td className="px-8 py-4 text-center text-sm font-medium text-slate-600">{camp.cvr || '0.00'}%</td>
                           </tr>
                         ))}
                       </tbody>
@@ -355,7 +359,7 @@ export default function AnalyticsPage() {
 }
 
 function KpiCard({ title, value, change, icon, color, isROAS = false }: any) {
-  const isPositive = change >= 0;
+  const isPositive = Number(change || 0) >= 0;
   const colors: any = {
     red: 'bg-red-50 text-red-600',
     green: 'bg-emerald-50 text-emerald-600',
@@ -366,7 +370,7 @@ function KpiCard({ title, value, change, icon, color, isROAS = false }: any) {
   return (
     <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-4">
-        <div className={`p-3 rounded-2xl ${colors[color]}`}>{icon}</div>
+        <div className={`p-3 rounded-2xl ${colors[color] || 'bg-slate-50 text-slate-600'}`}>{icon}</div>
         <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black ${
           isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
         }`}>
