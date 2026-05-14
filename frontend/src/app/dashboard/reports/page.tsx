@@ -44,9 +44,14 @@ export default function UnifiedReportsPage() {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const data = await apiCall(`/reports?type=${typeFilter}&period=${dateFilter}`);
-      setReports(Array.isArray(data) ? data : []);
+      console.log("[DEBUG] Fetching reports with filters:", { typeFilter, dateFilter });
+      const response = await apiCall(`/reports?type=${typeFilter}&period=${dateFilter}`);
+      console.log("[DEBUG] Reports response:", response);
+      
+      const reportList = response.reports || (Array.isArray(response) ? response : []);
+      setReports(reportList);
     } catch (err) {
+      console.error("[DEBUG] Failed to load reports", err);
       toast.error("Failed to load reports");
     } finally {
       setLoading(false);
@@ -75,30 +80,39 @@ export default function UnifiedReportsPage() {
 
     setCreating(true);
     try {
-      await apiCall('/reports', {
+      console.log("[DEBUG] Creating report payload:", formData);
+      const res = await apiCall('/reports', {
         method: 'POST',
         body: JSON.stringify(formData)
       });
-      toast.success("Report generated successfully");
-      setIsModalOpen(false);
-      
-      // Reset filters to ensure the new report is visible
-      const filtersWereDefault = typeFilter === 'All Types' && dateFilter === 'Last 30 Days' && searchTerm === '';
-      
-      setTypeFilter('All Types');
-      setDateFilter('Last 30 Days');
-      setSearchTerm('');
-      
-      // If filters were already default, useEffect won't trigger, so fetch manually
-      if (filtersWereDefault) {
-        fetchReports();
+      console.log("[DEBUG] Create report response:", res);
+
+      if (res.success) {
+        toast.success("Report generated successfully");
+        setIsModalOpen(false);
+        
+        // Reset filters to ensure the new report is visible
+        const filtersWereDefault = typeFilter === 'All Types' && dateFilter === 'Last 30 Days' && searchTerm === '';
+        
+        setTypeFilter('All Types');
+        setDateFilter('Last 30 Days');
+        setSearchTerm('');
+        
+        // If filters were already default, useEffect won't trigger, so fetch manually
+        if (filtersWereDefault) {
+          fetchReports();
+        }
+        
+        setFormData({
+          name: '', type: 'PERFORMANCE', period: 'Last 30 Days',
+          workspaceId: '', clientId: '', campaignId: '', startDate: '', endDate: ''
+        });
+      } else {
+        toast.error(res.error || "Failed to generate report");
       }
-      setFormData({
-        name: '', type: 'PERFORMANCE', period: 'Last 30 Days',
-        workspaceId: '', clientId: '', campaignId: '', startDate: '', endDate: ''
-      });
-    } catch (err) {
-      toast.error("Failed to generate report");
+    } catch (err: any) {
+      console.error("[DEBUG] Create report error:", err);
+      toast.error(err.message || "Failed to generate report");
     } finally {
       setCreating(false);
     }

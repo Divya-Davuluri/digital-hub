@@ -8,10 +8,15 @@ import { AppError, asyncHandler } from '../utils/errors';
 
 /**
  * GET /api/reports
+ * Admin: all reports
+ * Team: assigned workspace reports
+ * Client: own workspace reports
  */
 export const getReports = asyncHandler(async (req: any, res: Response) => {
   const { tenantId, workspaceId: userWorkspaceId, role, id: userId } = req.user;
   const { search, type, period, workspaceId: queryWorkspaceId, clientId } = req.query;
+
+  console.log('[GET_REPORTS_QUERY]', { role, tenantId, search, type, period });
 
   let query = db.select({
     id: reports.id,
@@ -38,7 +43,6 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
   if (role === 'client') {
     filters.push(eq(reports.workspaceId, userWorkspaceId));
   } else if (role === 'team') {
-    // Team members only see reports for clients they are assigned to
     const assignedClients = await db.select({ id: clients.id }).from(clients).where(eq(clients.assignedTeamMemberId, userId));
     const clientIds = assignedClients.map(c => c.id);
     if (clientIds.length > 0) {
@@ -49,10 +53,22 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
   }
 
   // Query filters
-  if (queryWorkspaceId && queryWorkspaceId !== 'undefined') filters.push(eq(reports.workspaceId, queryWorkspaceId));
-  if (clientId && clientId !== 'undefined') filters.push(eq(reports.clientId, clientId));
-  if (type && type !== 'All Types') filters.push(eq(reports.type, type.toUpperCase()));
-  if (period && period !== 'All Time') filters.push(eq(reports.period, period));
+  if (queryWorkspaceId && queryWorkspaceId !== 'undefined' && queryWorkspaceId !== 'null') {
+    filters.push(eq(reports.workspaceId, queryWorkspaceId));
+  }
+  if (clientId && clientId !== 'undefined' && clientId !== 'null') {
+    filters.push(eq(reports.clientId, clientId));
+  }
+  if (type && type !== 'All Types') {
+    filters.push(eq(reports.type, type.toUpperCase()));
+  }
+  if (period && period !== 'All Time' && period !== 'Last 30 Days' && period !== 'Last 7 Days') {
+    // If it's a specific period, filter by it. Default to showing all if period is just a general label.
+    // However, the user wants "Last 30 Days" filter to work.
+    filters.push(eq(reports.period, period));
+  } else if (period && period !== 'All Time') {
+    filters.push(eq(reports.period, period));
+  }
   
   if (search) {
     filters.push(or(
@@ -66,7 +82,8 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
     .where(and(...filters))
     .orderBy(sql`${reports.createdAt} DESC`);
 
-  res.json(allReports);
+  console.log('[GET_REPORTS_COUNT]', allReports.length);
+  res.json({ success: true, reports: allReports });
 });
 
 /**
@@ -76,11 +93,14 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
   const { tenantId, id: userId } = req.user;
   const { name, type, period, workspaceId, clientId, campaignId, startDate, endDate } = req.body;
 
+  console.log('[POST_REPORT_BODY]', { name, workspaceId, clientId, type, period });
+
+  // 1. Validation
   if (!name || !workspaceId) {
-    throw new AppError('Name and Workspace are required', 400);
+    throw new AppError('Report name and Workspace are required', 400);
   }
 
-  // 1. Calculate Metrics from Campaigns
+  // 2. Calculate Metrics from Campaigns
   let campaignQuery = db.select().from(campaigns).where(and(
     eq(campaigns.tenantId, tenantId),
     campaignId ? eq(campaigns.id, campaignId) : eq(campaigns.workspaceId, workspaceId)
@@ -97,7 +117,7 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
 
   const roas = totals.spent > 0 ? (totals.conversions * 50) / totals.spent : 0;
 
-  // 2. Save Report to DB
+  // 3. Save Report to DB
   const reportId = uuidv4();
   const reportData = {
     id: reportId,
@@ -123,11 +143,22 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
   };
 
   await db.insert(reports).values(reportData);
+  console.log('[REPORT_INSERTED]', reportId);
+
+  // 4. Verify insertion immediately
+  const verifiedReport = await db.query.reports.findFirst({
+    where: eq(reports.id, reportId)
+  });
+
+  if (!verifiedReport) {
+    console.error('[REPORT_VERIFICATION_FAILED]', reportId);
+    throw new AppError('Critical Error: Report was not saved to database. Please try again.', 500);
+  }
 
   res.status(201).json({
     success: true,
     message: 'Report generated successfully',
-    report: reportData
+    report: verifiedReport
   });
 });
 
@@ -143,7 +174,7 @@ export const getReportById = asyncHandler(async (req: any, res: Response) => {
   });
 
   if (!report) throw new AppError('Report not found', 404);
-  res.json(report);
+  res.json({ success: true, report });
 });
 
 /**
