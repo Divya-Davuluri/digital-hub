@@ -13,7 +13,9 @@ async function migrate() {
     { name: 'clicks', type: 'INTEGER DEFAULT 0' },
     { name: 'updated_at', type: 'TEXT' },
     { name: 'pdf_url', type: 'TEXT' },
-    { name: 'requested_by', type: 'TEXT' }
+    { name: 'requested_by', type: 'TEXT' },
+    { name: 'start_date', type: 'TEXT' },
+    { name: 'end_date', type: 'TEXT' }
   ];
 
   for (const col of columnsToAdd) {
