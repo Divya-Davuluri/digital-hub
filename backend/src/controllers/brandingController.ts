@@ -56,7 +56,23 @@ export const getBranding = asyncHandler(async (req: any, res: Response) => {
  */
 export const updateBranding = asyncHandler(async (req: any, res: Response) => {
   const { tenantId } = req.user;
-  const data = req.body;
+  const { 
+    agencyName, primaryColor, secondaryColor, logoUrl, 
+    faviconUrl, customCss, supportEmail, removePoweredBy, footerText 
+  } = req.body;
+
+  const brandingData = {
+    agencyName,
+    primaryColor,
+    secondaryColor,
+    logoUrl,
+    faviconUrl,
+    customCss,
+    supportEmail,
+    removePoweredBy: Number(removePoweredBy) || 0,
+    footerText,
+    updatedAt: new Date().toISOString()
+  };
 
   const existing = await db.query.customBranding.findFirst({
     where: eq(customBranding.tenantId, tenantId),
@@ -64,16 +80,13 @@ export const updateBranding = asyncHandler(async (req: any, res: Response) => {
 
   if (existing) {
     await db.update(customBranding)
-      .set({ 
-        ...data, 
-        updatedAt: new Date().toISOString() 
-      })
+      .set(brandingData)
       .where(eq(customBranding.tenantId, tenantId));
   } else {
     await db.insert(customBranding).values({
       id: uuidv4(),
       tenantId,
-      ...data
+      ...brandingData
     });
   }
 

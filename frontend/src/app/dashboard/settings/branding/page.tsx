@@ -22,6 +22,7 @@ export default function BrandingSettingsPage() {
     faviconUrl: '',
     customCss: '',
     footerText: '',
+    supportEmail: '',
     removePoweredBy: 0
   });
 
@@ -178,6 +179,8 @@ export default function BrandingSettingsPage() {
                         <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Support Email</label>
                         <input 
                           type="email" 
+                          value={branding.supportEmail}
+                          onChange={e => setBranding({...branding, supportEmail: e.target.value})}
                           className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                           placeholder="support@youragency.com"
                         />
