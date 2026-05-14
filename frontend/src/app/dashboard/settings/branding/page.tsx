@@ -96,20 +96,39 @@ export default function BrandingSettingsPage() {
     }
   };
 
-  const handleFileUpload = (type: 'logo' | 'favicon') => {
+  const handleFileUpload = async (type: 'logo' | 'favicon') => {
     const file = type === 'logo' ? logoInputRef.current?.files?.[0] : faviconInputRef.current?.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target?.result as string;
-      setBranding({
-        ...branding,
-        [type === 'logo' ? 'logoUrl' : 'faviconUrl']: base64
-      });
-      toast.success(`${type === 'logo' ? 'Logo' : 'Favicon'} updated in preview!`);
-    };
-    reader.readAsDataURL(file);
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const uploadToast = toast.loading(`Uploading ${type}...`);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com/api'}/branding/upload`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData 
+        }
+      );
+      const data = await response.json();
+      
+      if (data.url) {
+        setBranding(prev => ({
+          ...prev,
+          [type === 'logo' ? 'logoUrl' : 'faviconUrl']: data.url
+        }));
+        toast.success(`${type === 'logo' ? 'Logo' : 'Favicon'} uploaded successfully!`, { id: uploadToast });
+      } else {
+        throw new Error(data.error || 'Upload failed');
+      }
+    } catch (err: any) {
+      console.error('Upload failed:', err);
+      toast.error(`Upload failed: ${err.message}`, { id: uploadToast });
+    }
   };
 
   if (loading) {

@@ -4,10 +4,18 @@ import { tenants, customDomains } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncHandler, AppError } from '../utils/errors';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 /**
  * GET /api/branding
- * FIX 1: Returns branding from the tenants table with exact field names for the frontend.
+ * FIX 1: Returns branding from the tenants table with EXACT field names for the frontend.
  */
 export const getBranding = asyncHandler(async (req: any, res: Response) => {
   const { tenantId } = req.user;
@@ -22,14 +30,14 @@ export const getBranding = asyncHandler(async (req: any, res: Response) => {
   
   // Return fields matching EXACTLY what frontend expects (Fix 1)
   res.json({
-    agencyName: tenant.name || '',
-    primaryColor: tenant.primaryColor || '#6366f1',
-    secondaryColor: tenant.secondaryColor || '#4f46e5',
-    logoUrl: tenant.logoUrl || '',
-    faviconUrl: tenant.faviconUrl || '',
-    customCss: tenant.customCss || '',
-    footerText: tenant.footerText || '',
-    supportEmail: tenant.supportEmail || '',
+    agencyName:      tenant.name || '',
+    primaryColor:    tenant.primaryColor || '#6366f1',
+    secondaryColor:  tenant.secondaryColor || '#4f46e5',
+    logoUrl:         tenant.logoUrl || '',
+    faviconUrl:      tenant.faviconUrl || '',
+    customCss:       tenant.customCss || '',
+    footerText:      tenant.footerText || '',
+    supportEmail:    tenant.supportEmail || '',
     removePoweredBy: tenant.removePoweredBy || 0,
   });
 });
@@ -53,18 +61,18 @@ export const updateBranding = asyncHandler(async (req: any, res: Response) => {
   } = req.body;
   
   console.log('Saving branding for tenant:', tenantId);
-  console.log('Branding data received:', req.body);
+  console.log('Branding data received:', { agencyName, primaryColor, hasLogo: !!logoUrl });
   
   await db.update(tenants)
     .set({
-      name: agencyName || undefined,
-      primaryColor: primaryColor || undefined,
-      secondaryColor: secondaryColor || undefined,
-      logoUrl: logoUrl || undefined,
-      faviconUrl: faviconUrl || undefined,
-      customCss: customCss || undefined,
-      footerText: footerText || undefined,
-      supportEmail: supportEmail || undefined,
+      name:            agencyName  || undefined,
+      primaryColor:    primaryColor || undefined,
+      secondaryColor:  secondaryColor || undefined,
+      logoUrl:         logoUrl !== undefined ? logoUrl : undefined,
+      faviconUrl:      faviconUrl !== undefined ? faviconUrl : undefined,
+      customCss:       customCss || undefined,
+      footerText:      footerText || undefined,
+      supportEmail:    supportEmail || undefined,
       removePoweredBy: removePoweredBy !== undefined ? Number(removePoweredBy) : undefined,
     })
     .where(eq(tenants.id, tenantId));
@@ -74,6 +82,33 @@ export const updateBranding = asyncHandler(async (req: any, res: Response) => {
   res.json({ 
     success: true, 
     message: 'Branding saved successfully' 
+  });
+});
+
+/**
+ * POST /api/branding/upload
+ * FIX 3: Uploads branding asset to Cloudinary.
+ */
+export const uploadBrandingAsset = asyncHandler(async (req: any, res: Response) => {
+  if (!req.file) throw new AppError('No file uploaded', 400);
+
+  console.log('Uploading asset to Cloudinary for tenant:', req.user.tenantId);
+
+  const result = await new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      { folder: 'branding', resource_type: 'image' },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    ).end(req.file.buffer);
+  });
+
+  console.log('Asset uploaded successfully:', (result as any).secure_url);
+
+  res.json({ 
+    success: true, 
+    url: (result as any).secure_url 
   });
 });
 
