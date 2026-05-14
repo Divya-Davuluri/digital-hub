@@ -106,8 +106,11 @@ export default function BrandingSettingsPage() {
     const uploadToast = toast.loading(`Uploading ${type}...`);
     try {
       const token = localStorage.getItem('token');
+      const envUrl = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com';
+      const baseUrl = envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
+
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com/api'}/branding/upload`,
+        `${baseUrl}/branding/upload`,
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
