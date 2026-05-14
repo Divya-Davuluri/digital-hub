@@ -1,101 +1,84 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { workspaces, customBranding, customDomains } from '../db/schema';
+import { tenants, customDomains } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
-import { asyncHandler } from '../utils/errors';
+import { asyncHandler, AppError } from '../utils/errors';
 
 /**
  * GET /api/branding
- * Fetches branding based on the current domain or authenticated user.
+ * FIX 1: Returns branding from the tenants table with exact field names for the frontend.
  */
 export const getBranding = asyncHandler(async (req: any, res: Response) => {
-  const host = req.get('host');
-  const { tenantId: userTenantId } = req.user || {};
+  const { tenantId } = req.user;
   
-  let tenantId = userTenantId;
+  console.log('Fetching branding for tenantId:', tenantId);
 
-  // 1. Domain-based detection (if not authenticated or checking for white-label)
-  if (!tenantId && host) {
-    const domainRecord = await db.query.customDomains.findFirst({
-      where: and(eq(customDomains.domain, host), eq(customDomains.status, 'active'))
-    });
-    if (domainRecord) tenantId = domainRecord.tenantId;
-  }
-
-  // 2. Fetch Branding
-  if (!tenantId) {
-    return res.json({ 
-      agencyName: 'Digital Marketing Hub',
-      primaryColor: '#6366f1', 
-      secondaryColor: '#4f46e5',
-      logoUrl: '/logo.png',
-      removePoweredBy: 0
-    });
-  }
-
-  const branding = await db.query.customBranding.findFirst({
-    where: eq(customBranding.tenantId, tenantId),
+  const tenant = await db.query.tenants.findFirst({
+    where: eq(tenants.id, tenantId)
   });
-
+  
+  if (!tenant) throw new AppError('Tenant not found', 404);
+  
+  // Return fields matching EXACTLY what frontend expects (Fix 1)
   res.json({
-    agencyName: branding?.agencyName || 'Digital Marketing Hub',
-    primaryColor: branding?.primaryColor || '#6366f1',
-    secondaryColor: branding?.secondaryColor || '#4f46e5',
-    logoUrl: branding?.logoUrl || '',
-    faviconUrl: branding?.faviconUrl || '',
-    customCss: branding?.customCss || '',
-    removePoweredBy: branding?.removePoweredBy || 0,
-    footerText: branding?.footerText || ''
+    agencyName: tenant.name || '',
+    primaryColor: tenant.primaryColor || '#6366f1',
+    secondaryColor: tenant.secondaryColor || '#4f46e5',
+    logoUrl: tenant.logoUrl || '',
+    faviconUrl: tenant.faviconUrl || '',
+    customCss: tenant.customCss || '',
+    footerText: tenant.footerText || '',
+    supportEmail: tenant.supportEmail || '',
+    removePoweredBy: tenant.removePoweredBy || 0,
   });
 });
 
 /**
  * POST /api/branding
- * Updates deep branding for the tenant.
+ * FIX 2: Updates all branding fields directly in the tenants table.
  */
 export const updateBranding = asyncHandler(async (req: any, res: Response) => {
   const { tenantId } = req.user;
   const { 
-    agencyName, primaryColor, secondaryColor, logoUrl, 
-    faviconUrl, customCss, supportEmail, removePoweredBy, footerText 
-  } = req.body;
-
-  const brandingData = {
     agencyName,
     primaryColor,
     secondaryColor,
     logoUrl,
     faviconUrl,
     customCss,
-    supportEmail,
-    removePoweredBy: Number(removePoweredBy) || 0,
     footerText,
-    updatedAt: new Date().toISOString()
-  };
-
-  const existing = await db.query.customBranding.findFirst({
-    where: eq(customBranding.tenantId, tenantId),
+    supportEmail,
+    removePoweredBy
+  } = req.body;
+  
+  console.log('Saving branding for tenant:', tenantId);
+  console.log('Branding data received:', req.body);
+  
+  await db.update(tenants)
+    .set({
+      name: agencyName || undefined,
+      primaryColor: primaryColor || undefined,
+      secondaryColor: secondaryColor || undefined,
+      logoUrl: logoUrl || undefined,
+      faviconUrl: faviconUrl || undefined,
+      customCss: customCss || undefined,
+      footerText: footerText || undefined,
+      supportEmail: supportEmail || undefined,
+      removePoweredBy: removePoweredBy !== undefined ? Number(removePoweredBy) : undefined,
+    })
+    .where(eq(tenants.id, tenantId));
+  
+  console.log('Branding saved successfully to tenants table');
+  
+  res.json({ 
+    success: true, 
+    message: 'Branding saved successfully' 
   });
-
-  if (existing) {
-    await db.update(customBranding)
-      .set(brandingData)
-      .where(eq(customBranding.tenantId, tenantId));
-  } else {
-    await db.insert(customBranding).values({
-      id: uuidv4(),
-      tenantId,
-      ...brandingData
-    });
-  }
-
-  res.json({ success: true, message: 'Branding updated successfully' });
 });
 
 /**
  * GET /api/branding/domain
- * Fetch custom domain status for the tenant.
  */
 export const getDomainStatus = asyncHandler(async (req: any, res: Response) => {
   const { tenantId } = req.user;
@@ -132,4 +115,3 @@ export const deleteDomain = asyncHandler(async (req: any, res: Response) => {
 
   res.json({ success: true });
 });
-

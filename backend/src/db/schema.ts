@@ -10,9 +10,17 @@ import { v4 as uuidv4 } from 'uuid';
 export const tenants = sqliteTable('tenants', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  logo: text('logo'),
-  themeColor: text('theme_color').default('#4f46e5'),
-  subdomain: text('subdomain').notNull().unique(),
+  subdomain: text('subdomain').unique(),
+  customDomain: text('custom_domain').unique(),
+  logoUrl: text('logo_url'),
+  faviconUrl: text('favicon_url'),
+  primaryColor: text('primary_color').default('#6366f1'),
+  secondaryColor: text('secondary_color').default('#4f46e5'),
+  supportEmail: text('support_email'),
+  customCss: text('custom_css'),
+  footerText: text('footer_text'),
+  removePoweredBy: integer('remove_powered_by').default(0),
+  status: text('status').default('active'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
