@@ -36,6 +36,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
         { name: 'Overview', href: '/dashboard/admin', icon: '🏠' },
         { name: 'Manage Clients', href: '/dashboard/admin/clients', icon: '🏢' },
         { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
+        { name: 'Budget', href: '/dashboard/budget', icon: '💰' },
         { name: 'Creative Assets', href: '/dashboard/creatives', icon: '🖼️' },
         { name: 'White-Labeling', href: '/dashboard/settings/branding', icon: '🎨' },
         { name: 'Reports', href: '/dashboard/reports', icon: '📈' },
@@ -48,6 +49,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
         { name: 'Overview', href: '/dashboard/team', icon: '🏠' },
         { name: 'Assigned Clients', href: '/dashboard/team/assigned-clients', icon: '💼' },
         { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
+        { name: 'Budget', href: '/dashboard/budget', icon: '💰' },
         { name: 'Creative Assets', href: '/dashboard/creatives', icon: '🖼️' },
         { name: 'Reports', href: '/dashboard/reports', icon: '📈' },
       ];

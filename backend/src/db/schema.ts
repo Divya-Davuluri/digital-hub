@@ -158,15 +158,51 @@ export const campaignTemplates = sqliteTable('campaign_templates', {
 
 export const budgetPools = sqliteTable('budget_pools', {
   id: text('id').primaryKey(),
-  tenantId: text('tenant_id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  clientId: text('client_id')
+    .references(() => clients.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   totalBudget: real('total_budget').notNull(),
-  spent: real('spent').default(0),
-  remaining: real('remaining').default(0),
+  allocatedBudget: real('allocated_budget').default(0),
+  remainingBudget: real('remaining_budget').default(0),
   currency: text('currency').default('USD'),
-  status: text('status', { enum: ['active', 'exhausted', 'paused'] }).default('active'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  period: text('period').default('monthly'),
+  startDate: text('start_date'),
+  endDate: text('end_date'),
+  autoReallocate: integer('auto_reallocate').default(1),
+  status: text('status').default('active'),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const budgetAllocations = sqliteTable('budget_allocations', {
+  id: text('id').primaryKey(),
+  poolId: text('pool_id').notNull()
+    .references(() => budgetPools.id, { onDelete: 'cascade' }),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  channel: text('channel').notNull(), // 'meta','tiktok','google','snapchat','pinterest'
+  allocatedAmount: real('allocated_amount').default(0),
+  spentAmount: real('spent_amount').default(0),
+  remainingAmount: real('remaining_amount').default(0),
+  clicks: integer('clicks').default(0),
+  impressions: integer('impressions').default(0),
+  conversions: integer('conversions').default(0),
+  revenue: real('revenue').default(0),
+  roas: real('roas').default(0),
+  ctr: real('ctr').default(0),
+  cvr: real('cvr').default(0),
+  performanceScore: real('performance_score').default(0),
+  autoAdjust: integer('auto_adjust').default(1),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const automationRules = sqliteTable('automation_rules', {

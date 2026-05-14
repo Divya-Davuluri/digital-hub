@@ -30,7 +30,8 @@ export const createBudgetPool = asyncHandler(async (req: any, res: Response) => 
     workspaceId,
     name,
     totalBudget,
-    remaining: totalBudget,
+    remainingBudget: totalBudget,
+    allocatedBudget: 0,
     currency: currency || 'USD'
   });
 

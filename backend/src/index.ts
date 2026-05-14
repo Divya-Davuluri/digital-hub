@@ -110,6 +110,8 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // --- API Route Mounting ---
+import budgetRoutes from './routes/budget';
+
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/agency', agencyRoutes);
@@ -129,6 +131,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/onboarding', onboardingRoutes);
+app.use('/api/budget', budgetRoutes);
 
 // --- 404 & Error Handling ---
 app.use('/api/*', (req: Request, res: Response) => {

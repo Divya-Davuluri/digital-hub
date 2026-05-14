@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { db } from '../db';
-import { clients, campaigns, users, workspaces, analytics, reports, reportRequests, transactions } from '../db/schema';
+import { clients, campaigns, users, workspaces, analytics, reports, reportRequests, transactions, budgetPools, budgetAllocations } from '../db/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -452,4 +452,68 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
     notes: 'Initial performance summary',
     status: 'COMPLETED'
   });
+
+  // 5. Seed Budget Pool
+  const poolId = uuidv4();
+  await db.insert(budgetPools).values({
+    id: poolId,
+    tenantId,
+    workspaceId,
+    clientId,
+    name: 'Q2 2026 Campaign Budget',
+    totalBudget: 10000,
+    allocatedBudget: 10000,
+    remainingBudget: 3200,
+    period: 'monthly',
+    startDate: new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000)
+      .toISOString().split('T')[0],
+    endDate: new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000)
+      .toISOString().split('T')[0],
+    autoReallocate: 1,
+    status: 'active',
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  });
+
+  // Seed Channel Allocations
+  const channelData = [
+    { 
+      channel: 'meta', allocated: 4200, spent: 3100,
+      roas: 3.2, ctr: 2.4, cvr: 3.1, clicks: 1240,
+      impressions: 51666, conversions: 38, revenue: 9920
+    },
+    { 
+      channel: 'tiktok', allocated: 3800, spent: 2400,
+      roas: 4.1, ctr: 3.8, cvr: 4.2, clicks: 890,
+      impressions: 23421, conversions: 37, revenue: 9840
+    },
+    { 
+      channel: 'google', allocated: 2000, spent: 1300,
+      roas: 2.8, ctr: 1.9, cvr: 2.6, clicks: 620,
+      impressions: 32631, conversions: 16, revenue: 3640
+    },
+  ];
+
+  for (const ch of channelData) {
+    await db.insert(budgetAllocations).values({
+      id: uuidv4(),
+      poolId,
+      tenantId,
+      channel: ch.channel,
+      allocatedAmount: ch.allocated,
+      spentAmount: ch.spent,
+      remainingAmount: ch.allocated - ch.spent,
+      clicks: ch.clicks,
+      impressions: ch.impressions,
+      conversions: ch.conversions,
+      revenue: ch.revenue,
+      roas: ch.roas,
+      ctr: ch.ctr,
+      cvr: ch.cvr,
+      performanceScore: (ch.roas * 0.5) + (ch.ctr * 0.3) + (ch.cvr * 0.2),
+      autoAdjust: 1,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    });
+  }
 }
