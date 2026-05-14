@@ -16,7 +16,9 @@ async function migrate() {
     { name: 'requested_by', type: 'TEXT' },
     { name: 'start_date', type: 'TEXT' },
     { name: 'end_date', type: 'TEXT' },
-    { name: 'report_name', type: 'TEXT' }
+    { name: 'report_name', type: 'TEXT' },
+    { name: 'client_name', type: 'TEXT' },
+    { name: 'campaign', type: 'TEXT DEFAULT "All Campaigns"' }
   ];
 
   for (const col of columnsToAdd) {

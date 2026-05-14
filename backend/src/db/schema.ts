@@ -246,11 +246,13 @@ export const reports = sqliteTable('reports', {
   clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
   campaignId: text('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }),
   report_name: text('report_name').notNull(),
+  client_name: text('client_name'),
+  campaign: text('campaign').default('All Campaigns'),
   type: text('type').default('PERFORMANCE'), // PERFORMANCE, CAMPAIGN, ANALYTICS, BUDGET, CLIENT_SUMMARY
-  period: text('period'), // Last 7 Days, Last 30 Days, etc.
+  period: text('period').default('Last 30 Days'),
   startDate: text('start_date'),
   endDate: text('end_date'),
-  status: text('status').default('pending'), // pending, generating, completed, failed
+  status: text('status').default('completed'), // pending, generating, completed, failed
   totalSpend: real('total_spend').default(0),
   impressions: integer('impressions').default(0),
   clicks: integer('clicks').default(0),

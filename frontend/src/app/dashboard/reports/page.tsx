@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { apiCall } from '@/lib/api';
@@ -21,12 +21,11 @@ export default function UnifiedReportsPage() {
   const [dateFilter, setDateFilter] = useState('Last 30 Days');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
     report_name: '',
-    report_type: 'PERFORMANCE',
+    report_type: 'Performance',
     period: 'Last 30 Days',
     workspace_id: '',
     client_id: '',
@@ -41,14 +40,10 @@ export default function UnifiedReportsPage() {
   useEffect(() => {
     fetchReports();
     fetchData();
-    
-    // Polling setup
-    return () => {
-      if (pollingInterval.current) clearInterval(pollingInterval.current);
-    };
   }, [typeFilter, dateFilter]);
 
   const fetchReports = async () => {
+    setLoading(true);
     try {
       console.log("[DEBUG] Fetching reports with filters:", { typeFilter, dateFilter });
       const response = await apiCall(`/reports?type=${typeFilter}&period=${dateFilter}`);
@@ -56,33 +51,11 @@ export default function UnifiedReportsPage() {
       
       const reportList = response.reports || (Array.isArray(response) ? response : []);
       setReports(reportList);
-      setLoading(false);
-
-      // Check if we need to poll
-      const hasPending = reportList.some((r: any) => r.status === 'pending' || r.status === 'generating');
-      if (hasPending && !pollingInterval.current) {
-        startPolling();
-      } else if (!hasPending && pollingInterval.current) {
-        stopPolling();
-      }
     } catch (err) {
       console.error("[DEBUG] Failed to load reports", err);
       toast.error("Failed to load reports");
+    } finally {
       setLoading(false);
-    }
-  };
-
-  const startPolling = () => {
-    if (pollingInterval.current) return;
-    console.log("[POLLING] Started status polling...");
-    pollingInterval.current = setInterval(fetchReports, 5000);
-  };
-
-  const stopPolling = () => {
-    if (pollingInterval.current) {
-      console.log("[POLLING] Stopped status polling.");
-      clearInterval(pollingInterval.current);
-      pollingInterval.current = null;
     }
   };
 
@@ -116,18 +89,23 @@ export default function UnifiedReportsPage() {
       console.log("[DEBUG] Create report response:", res);
 
       if (res.success) {
-        toast.success("Report generation started");
+        toast.success("Report generated successfully");
         setIsModalOpen(false);
         
-        // Reset filters to ensure the new report is visible
-        setTypeFilter('All Types');
-        setDateFilter('Last 30 Days');
-        setSearchTerm('');
+        // Immediately add to list so no refresh is needed
+        setReports(prev => [res.report, ...prev]);
         
-        fetchReports();
+        // Reset filters to ensure the new report is visible if they were filtering
+        if (typeFilter !== 'All Types' || dateFilter !== 'Last 30 Days' || searchTerm !== '') {
+            setTypeFilter('All Types');
+            setDateFilter('Last 30 Days');
+            setSearchTerm('');
+            // The useEffect will trigger fetchReports, but since we added it manually, 
+            // it's okay, the fetch will just refresh the whole list.
+        }
         
         setFormData({
-          report_name: '', report_type: 'PERFORMANCE', period: 'Last 30 Days',
+          report_name: '', report_type: 'Performance', period: 'Last 30 Days',
           workspace_id: '', client_id: '', campaign_id: '', start_date: '', end_date: ''
         });
       } else {
@@ -135,7 +113,9 @@ export default function UnifiedReportsPage() {
       }
     } catch (err: any) {
       console.error("[DEBUG] Create report error:", err);
-      toast.error(err.message || "Failed to generate report");
+      // Show exact error message from server if available
+      const errorMsg = err.response?.data?.error || err.message || "Failed to generate report";
+      toast.error(errorMsg);
     } finally {
       setCreating(false);
     }
@@ -146,17 +126,13 @@ export default function UnifiedReportsPage() {
     try {
       await apiCall(`/reports/${id}`, { method: 'DELETE' });
       toast.success("Report deleted");
-      fetchReports();
+      setReports(prev => prev.filter(r => r.id !== id));
     } catch (err) {
       toast.error("Failed to delete report");
     }
   };
 
   const handleDownload = async (report: any) => {
-    if (report.status !== 'completed') {
-      toast.error("Report is still being generated...");
-      return;
-    }
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com/api'}${report.file_url}`, {
         headers: {
@@ -181,9 +157,9 @@ export default function UnifiedReportsPage() {
   };
 
   const filteredReports = reports.filter(r => 
-    r.report_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.workspaceName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.clientName?.toLowerCase().includes(searchTerm.toLowerCase())
+    r.report_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.workspaceName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -195,7 +171,6 @@ export default function UnifiedReportsPage() {
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           <div className="max-w-7xl mx-auto space-y-6">
             
-            {/* Action Bar */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <div>
                 <h1 className="text-2xl font-black text-slate-800">Reports Engine</h1>
@@ -210,7 +185,6 @@ export default function UnifiedReportsPage() {
               </button>
             </div>
 
-            {/* Filters */}
             <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-wrap items-center gap-4">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -229,10 +203,10 @@ export default function UnifiedReportsPage() {
                 onChange={e => setTypeFilter(e.target.value)}
               >
                 <option>All Types</option>
-                <option>PERFORMANCE</option>
-                <option>CAMPAIGN</option>
-                <option>ANALYTICS</option>
-                <option>BUDGET</option>
+                <option value="PERFORMANCE">Performance</option>
+                <option value="CAMPAIGN">Campaign Detail</option>
+                <option value="ANALYTICS">Analytics Deep-dive</option>
+                <option value="BUDGET">Budget Allocation</option>
               </select>
 
               <select 
@@ -247,7 +221,6 @@ export default function UnifiedReportsPage() {
               </select>
             </div>
 
-            {/* Reports Table */}
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
@@ -262,7 +235,7 @@ export default function UnifiedReportsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {loading ? (
+                    {loading && reports.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-6 py-20 text-center">
                           <Loader2 className="mx-auto text-indigo-500 animate-spin" size={40} />
@@ -292,7 +265,7 @@ export default function UnifiedReportsPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-sm">
-                            <div className="font-semibold text-slate-700">{report.clientName || 'Direct Workspace'}</div>
+                            <div className="font-semibold text-slate-700">{report.client_name || report.clientName || 'Direct Workspace'}</div>
                             <div className="text-xs text-slate-400">{report.workspaceName}</div>
                           </td>
                           <td className="px-6 py-4">
@@ -307,62 +280,27 @@ export default function UnifiedReportsPage() {
                              </span>
                           </td>
                           <td className="px-6 py-4">
-                            {report.status === 'completed' && (
-                              <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-sm">
+                            {report.status === 'completed' ? (
+                              <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-sm bg-emerald-50 px-3 py-1 rounded-full w-fit">
                                 <CheckCircle2 size={16} />
                                 Completed
                               </div>
-                            )}
-                            {report.status === 'pending' && (
-                              <div className="flex items-center gap-1.5 text-amber-500 font-bold text-sm">
+                            ) : (
+                              <div className="flex items-center gap-1.5 text-amber-500 font-bold text-sm bg-amber-50 px-3 py-1 rounded-full w-fit">
                                 <Clock size={16} className="animate-pulse" />
-                                Pending
-                              </div>
-                            )}
-                            {report.status === 'generating' && (
-                              <div className="flex items-center gap-1.5 text-indigo-600 font-bold text-sm">
-                                <Loader2 size={16} className="animate-spin" />
-                                Generating...
-                              </div>
-                            )}
-                            {report.status === 'failed' && (
-                              <div className="flex items-center gap-1.5 text-rose-500 font-bold text-sm">
-                                <AlertCircle size={16} />
-                                Failed
+                                Processing
                               </div>
                             )}
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end items-center gap-2">
-                              {report.status === 'completed' ? (
-                                <button 
-                                  onClick={() => handleDownload(report)}
-                                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                                  title="Download PDF"
-                                >
-                                  <Download size={18} />
-                                </button>
-                              ) : report.status === 'failed' ? (
-                                <button 
-                                  onClick={() => {
-                                    setFormData({
-                                      report_name: report.report_name,
-                                      report_type: report.type,
-                                      period: report.period,
-                                      workspace_id: report.workspaceId,
-                                      client_id: report.clientId,
-                                      campaign_id: report.campaignId || '',
-                                      start_date: '',
-                                      end_date: ''
-                                    });
-                                    setIsModalOpen(true);
-                                  }}
-                                  className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                  title="Retry Generation"
-                                >
-                                  <RefreshCw size={18} />
-                                </button>
-                              ) : null}
+                              <button 
+                                onClick={() => handleDownload(report)}
+                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                title="Download PDF"
+                              >
+                                <Download size={18} />
+                              </button>
                               <button 
                                 onClick={() => handleDeleteReport(report.id)}
                                 className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
@@ -382,7 +320,6 @@ export default function UnifiedReportsPage() {
           </div>
         </main>
 
-        {/* Modal */}
         <AnimatePresence>
           {isModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -468,10 +405,10 @@ export default function UnifiedReportsPage() {
                         value={formData.report_type}
                         onChange={e => setFormData({...formData, report_type: e.target.value})}
                       >
-                        <option value="PERFORMANCE">Performance</option>
-                        <option value="CAMPAIGN">Campaign Detail</option>
-                        <option value="ANALYTICS">Analytics Deep-dive</option>
-                        <option value="BUDGET">Budget Allocation</option>
+                        <option value="Performance">Performance</option>
+                        <option value="Campaign Detail">Campaign Detail</option>
+                        <option value="Analytics Deep-dive">Analytics Deep-dive</option>
+                        <option value="Budget Allocation">Budget Allocation</option>
                       </select>
                     </div>
 

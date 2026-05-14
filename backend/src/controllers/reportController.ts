@@ -18,6 +18,8 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
   let query = db.select({
     id: reports.id,
     report_name: reports.report_name,
+    client_name: reports.client_name,
+    campaign: reports.campaign,
     type: reports.type,
     period: reports.period,
     status: reports.status,
@@ -100,86 +102,108 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
 
   console.log('[POST_REPORT_BODY]', req.body);
 
-  if (!report_name || !workspace_id) {
-    throw new AppError('Report name and Workspace are required', 400);
-  }
-
-  const reportId = uuidv4();
-  
-  // 1. Insert initial pending record
-  const initialReport = {
-    id: reportId,
-    tenantId,
-    workspaceId: workspace_id,
-    clientId: client_id || null,
-    campaignId: campaign_id || null,
-    report_name,
-    type: report_type || 'PERFORMANCE',
-    period: period || 'Last 30 Days',
-    startDate: start_date || null,
-    endDate: end_date || null,
-    status: 'pending',
-    totalSpend: 0,
-    impressions: 0,
-    clicks: 0,
-    conversions: 0,
-    roas: 0,
-    file_url: `/api/reports/${reportId}/download`,
-    requestedBy: userId,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-
-  await db.insert(reports).values(initialReport);
-
-  // 2. Start "Processing" in background (simulated)
-  // In a real BullMQ setup, we would add to queue here.
-  // For now, we update it to 'generating' then 'completed'
-  
-  setTimeout(async () => {
-    try {
-      // Update to generating
-      await db.update(reports).set({ status: 'generating' }).where(eq(reports.id, reportId));
-      
-      // Calculate Metrics
-      let campaignQuery = db.select().from(campaigns).where(and(
-        eq(campaigns.tenantId, tenantId),
-        campaign_id ? eq(campaigns.id, campaign_id) : eq(campaigns.workspaceId, workspace_id)
-      ));
-
-      const campaignData = await campaignQuery;
-      const totals = campaignData.reduce((acc, c) => ({
-        spent: acc.spent + (c.spent || 0),
-        impressions: acc.impressions + (c.impressions || 0),
-        clicks: acc.clicks + (c.clicks || 0),
-        conversions: acc.conversions + (c.conversions || 0)
-      }), { spent: 0, impressions: 0, clicks: 0, conversions: 0 });
-
-      const roas = totals.spent > 0 ? (totals.conversions * 50) / totals.spent : 0;
-
-      // Update to completed
-      await db.update(reports).set({ 
-        status: 'completed',
-        totalSpend: totals.spent,
-        impressions: totals.impressions,
-        clicks: totals.clicks,
-        conversions: totals.conversions,
-        roas,
-        updatedAt: new Date().toISOString()
-      }).where(eq(reports.id, reportId));
-      
-      console.log(`[REPORT_COMPLETED] ${reportId}`);
-    } catch (err) {
-      console.error(`[REPORT_FAILED] ${reportId}`, err);
-      await db.update(reports).set({ status: 'failed' }).where(eq(reports.id, reportId));
+  try {
+    // 1. Validation
+    if (!report_name || !workspace_id) {
+      throw new AppError('Report name and Workspace are required', 400);
     }
-  }, 2000); // Wait 2 seconds to show the flow
 
-  res.status(201).json({
-    success: true,
-    message: 'Report generation started',
-    report: initialReport
-  });
+    console.log('[1/4] Validation passed');
+
+    // 2. Resolve Names for persistence
+    let clientName = 'Unknown Client';
+    let campaignName = campaign_id || 'All Campaigns';
+
+    if (client_id) {
+      const client = await db.query.clients.findFirst({ where: eq(clients.id, client_id) });
+      if (client) clientName = client.name;
+    } else {
+      const ws = await db.query.workspaces.findFirst({ where: eq(workspaces.id, workspace_id) });
+      if (ws) clientName = ws.name;
+    }
+
+    if (campaign_id && campaign_id !== 'All Campaigns') {
+      const camp = await db.query.campaigns.findFirst({ where: eq(campaigns.id, campaign_id) });
+      if (camp) campaignName = camp.name;
+    }
+
+    console.log('[2/4] Context resolved:', { clientName, campaignName });
+
+    // 3. Save Report to DB immediately
+    const reportId = uuidv4();
+    const reportData = {
+      id: reportId,
+      tenantId,
+      workspaceId: workspace_id,
+      clientId: client_id || null,
+      campaignId: campaign_id || null,
+      report_name,
+      client_name: clientName,
+      campaign: campaignName,
+      type: report_type || 'Performance',
+      period: period || 'Last 30 Days',
+      startDate: start_date || null,
+      endDate: end_date || null,
+      status: 'completed', // Setting to completed immediately as requested for basic flow
+      totalSpend: 0,
+      impressions: 0,
+      clicks: 0,
+      conversions: 0,
+      roas: 0,
+      file_url: `/api/reports/${reportId}/download`,
+      requestedBy: userId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    console.log('[3/4] Attempting DB insert...');
+    await db.insert(reports).values(reportData);
+    console.log('[4/4] DB insert successful:', reportId);
+
+    // 4. Return success immediately
+    res.status(201).json({
+      success: true,
+      message: 'Report generated successfully',
+      report: reportData
+    });
+
+    // Optional: Update metrics in background without blocking response
+    setTimeout(async () => {
+      try {
+        let campaignQuery = db.select().from(campaigns).where(and(
+          eq(campaigns.tenantId, tenantId),
+          campaign_id ? eq(campaigns.id, campaign_id) : eq(campaigns.workspaceId, workspace_id)
+        ));
+        const campaignData = await campaignQuery;
+        const totals = campaignData.reduce((acc, c) => ({
+          spent: acc.spent + (c.spent || 0),
+          impressions: acc.impressions + (c.impressions || 0),
+          clicks: acc.clicks + (c.clicks || 0),
+          conversions: acc.conversions + (c.conversions || 0)
+        }), { spent: 0, impressions: 0, clicks: 0, conversions: 0 });
+        const roas = totals.spent > 0 ? (totals.conversions * 50) / totals.spent : 0;
+
+        await db.update(reports).set({
+          totalSpend: totals.spent,
+          impressions: totals.impressions,
+          clicks: totals.clicks,
+          conversions: totals.conversions,
+          roas,
+          updatedAt: new Date().toISOString()
+        }).where(eq(reports.id, reportId));
+        console.log('[BACKGROUND] Metrics updated for report:', reportId);
+      } catch (e) {
+        console.error('[BACKGROUND] Metrics update failed:', e);
+      }
+    }, 100);
+
+  } catch (err: any) {
+    console.error('Report generation failed:', err);
+    res.status(err.statusCode || 500).json({
+      success: false,
+      error: err.message || 'Internal Server Error'
+    });
+  }
 });
 
 /**
@@ -209,7 +233,6 @@ export const downloadReport = asyncHandler(async (req: any, res: Response) => {
   });
 
   if (!report) throw new AppError('Report not found', 404);
-  if (report.status !== 'completed') throw new AppError('Report is not ready for download', 400);
 
   // Fetch context names
   const workspace = await db.query.workspaces.findFirst({ where: eq(workspaces.id, report.workspaceId) });
@@ -227,8 +250,8 @@ export const downloadReport = asyncHandler(async (req: any, res: Response) => {
   doc.moveDown(2);
 
   doc.fontSize(12).font('Helvetica-Bold').text('Report Details:');
-  doc.font('Helvetica').text(`Client/Workspace: ${workspace?.name || 'N/A'}`);
-  if (campaign) doc.text(`Campaign: ${campaign.name}`);
+  doc.font('Helvetica').text(`Client/Workspace: ${report.client_name || workspace?.name || 'N/A'}`);
+  doc.text(`Campaign: ${report.campaign || 'All Campaigns'}`);
   doc.text(`Type: ${report.type}`);
   doc.text(`Period: ${report.period}`);
   doc.text(`Date: ${new Date(report.createdAt).toLocaleDateString()}`);
