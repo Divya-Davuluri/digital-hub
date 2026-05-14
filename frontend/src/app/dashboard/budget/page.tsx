@@ -29,6 +29,29 @@ export default function BudgetPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isReallocateModalOpen, setIsReallocateModalOpen] = useState(false);
   const [reallocationPreview, setReallocationPreview] = useState<any[]>([]);
+  const [metricsModal, setMetricsModal] = useState(false);
+  const [selectedAllocation, setSelectedAllocation] = useState<any>(null);
+  
+  const [metricsForm, setMetricsForm] = useState({
+    clicks: '',
+    impressions: '',
+    conversions: '',
+    revenue: '',
+    spentAmount: ''
+  });
+
+  // Calculated fields (read-only, auto-computed)
+  const calculatedROAS = metricsForm.spentAmount && metricsForm.revenue
+    ? (Number(metricsForm.revenue) / Number(metricsForm.spentAmount)).toFixed(2)
+    : '0.00';
+
+  const calculatedCTR = metricsForm.impressions && metricsForm.clicks
+    ? ((Number(metricsForm.clicks) / Number(metricsForm.impressions)) * 100).toFixed(2)
+    : '0.00';
+
+  const calculatedCVR = metricsForm.clicks && metricsForm.conversions
+    ? ((Number(metricsForm.conversions) / Number(metricsForm.clicks)) * 100).toFixed(2)
+    : '0.00';
   
   // Create Form State
   const [form, setForm] = useState({
@@ -94,7 +117,36 @@ export default function BudgetPage() {
   };
 
   const openMetricsModal = (allocation: any) => {
-    toast('Metrics modal coming soon', { icon: '📊' });
+    setSelectedAllocation(allocation);
+    setMetricsForm({
+      clicks: allocation.clicks?.toString() || '',
+      impressions: allocation.impressions?.toString() || '',
+      conversions: allocation.conversions?.toString() || '',
+      revenue: allocation.revenue?.toString() || '',
+      spentAmount: allocation.spentAmount?.toString() || '',
+    });
+    setMetricsModal(true);
+  };
+
+  const handleSaveMetrics = async () => {
+    if (!selectedAllocation) return;
+    try {
+      await apiCall(`/budget/allocations/${selectedAllocation.id}/metrics`, {
+        method: 'POST',
+        body: JSON.stringify({
+          clicks: Number(metricsForm.clicks),
+          impressions: Number(metricsForm.impressions),
+          conversions: Number(metricsForm.conversions),
+          revenue: Number(metricsForm.revenue),
+          spentAmount: Number(metricsForm.spentAmount),
+        })
+      });
+      toast.success('Metrics saved! Run Reallocate to optimise budget.');
+      setMetricsModal(false);
+      fetchData(); // refresh pool data
+    } catch (err) {
+      toast.error('Failed to save metrics');
+    }
   };
 
   const handleCreatePool = async (e: React.FormEvent) => {
@@ -446,6 +498,139 @@ export default function BudgetPage() {
                       Create Pool
                     </button>
                   </form>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION G: Update Metrics Modal */}
+            {metricsModal && selectedAllocation && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                  
+                  {/* Header */}
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h2 className="text-lg font-black text-slate-900">
+                        Update Channel Metrics
+                      </h2>
+                      <p className="text-sm text-slate-500 capitalize">
+                        {selectedAllocation.channel} performance data
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => setMetricsModal(false)}
+                      className="text-slate-400 hover:text-slate-600 text-2xl font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {/* Input Fields */}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-1">
+                          Clicks
+                        </label>
+                        <input
+                          type="number"
+                          value={metricsForm.clicks}
+                          onChange={e => setMetricsForm(prev => ({ ...prev, clicks: e.target.value }))}
+                          placeholder="e.g. 1240"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-1">
+                          Impressions
+                        </label>
+                        <input
+                          type="number"
+                          value={metricsForm.impressions}
+                          onChange={e => setMetricsForm(prev => ({ ...prev, impressions: e.target.value }))}
+                          placeholder="e.g. 51000"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-1">
+                          Conversions
+                        </label>
+                        <input
+                          type="number"
+                          value={metricsForm.conversions}
+                          onChange={e => setMetricsForm(prev => ({ ...prev, conversions: e.target.value }))}
+                          placeholder="e.g. 38"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-1">
+                          Amount Spent ($)
+                        </label>
+                        <input
+                          type="number"
+                          value={metricsForm.spentAmount}
+                          onChange={e => setMetricsForm(prev => ({ ...prev, spentAmount: e.target.value }))}
+                          placeholder="e.g. 3100"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        Revenue Generated ($)
+                      </label>
+                      <input
+                        type="number"
+                        value={metricsForm.revenue}
+                        onChange={e => setMetricsForm(prev => ({ ...prev, revenue: e.target.value }))}
+                        placeholder="e.g. 9920"
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    {/* Auto-calculated Results */}
+                    <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
+                      <p className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-3">
+                        Auto-Calculated
+                      </p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="text-center">
+                          <p className="text-lg font-black text-slate-900">{calculatedROAS}x</p>
+                          <p className="text-xs text-slate-500">ROAS</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-lg font-black text-slate-900">{calculatedCTR}%</p>
+                          <p className="text-xs text-slate-500">CTR</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-lg font-black text-slate-900">{calculatedCVR}%</p>
+                          <p className="text-xs text-slate-500">CVR</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => setMetricsModal(false)}
+                      className="flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveMetrics}
+                      className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20"
+                    >
+                      Save Metrics
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
