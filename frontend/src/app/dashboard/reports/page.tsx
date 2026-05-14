@@ -152,10 +152,10 @@ export default function UnifiedReportsPage() {
   return (
     <div className="flex h-screen bg-[#F9FAFB] overflow-hidden font-sans text-slate-900">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden pl-[260px]">
         <Header />
         
-        <main className="flex-1 overflow-y-auto p-8 scrollbar-hide">
+        <main className="flex-1 overflow-y-auto p-8">
           <div className="max-w-[1400px] mx-auto space-y-8">
             
             {/* Page Header */}
