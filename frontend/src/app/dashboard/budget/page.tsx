@@ -259,19 +259,19 @@ export default function BudgetPage() {
                 <div className="grid grid-cols-3 gap-8">
                   {/* Left: Table */}
                   <div className="col-span-2 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                    <table className="w-full text-left">
-                      <thead className="bg-slate-50 border-b border-slate-100">
-                        <tr>
-                          <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest">Channel</th>
-                          <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Allocated</th>
-                          <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Spent</th>
-                          <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Remaining</th>
-                          <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">ROAS</th>
-                          <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Score</th>
-                          <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Auto</th>
-                          <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
-                        </tr>
-                      </thead>
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full min-w-[800px] text-left">
+                        <thead className="bg-slate-50 border-b border-slate-100">
+                          <tr>
+                            <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest w-[140px]">Channel</th>
+                            <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right w-[100px]">Allocated</th>
+                            <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right w-[80px]">Spent</th>
+                            <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right w-[100px]">Remaining</th>
+                            <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center w-[70px]">ROAS</th>
+                            <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center w-[90px]">Score</th>
+                            <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center w-[120px]">Auto</th>
+                          </tr>
+                        </thead>
                       <tbody className="divide-y divide-slate-50">
                         {selectedPool.allocations.map((alloc: any) => (
                           <tr key={alloc.id} className="hover:bg-slate-50/50">
@@ -287,26 +287,27 @@ export default function BudgetPage() {
                             <td className="p-4 text-center text-sm">{getRoasElement(alloc.roas)}</td>
                             <td className="p-4 text-center">{getScoreBadge(alloc.performanceScore || 0)}</td>
                             <td className="p-4 text-center">
-                              <button 
-                                onClick={() => toggleAutoAdjust(alloc.id, alloc.autoAdjust)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${alloc.autoAdjust ? 'bg-indigo-500' : 'bg-slate-200'}`}
-                              >
-                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${alloc.autoAdjust ? 'translate-x-6' : 'translate-x-1'}`} />
-                              </button>
-                            </td>
-                            <td className="p-4 text-center">
-                              <button 
-                                onClick={() => openMetricsModal(alloc)}
-                                className="text-xs px-3 py-1.5 border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50 font-bold transition-all whitespace-nowrap"
-                              >
-                                + Add Metrics
-                              </button>
+                              <div className="flex flex-col gap-1 items-center">
+                                <button 
+                                  onClick={() => toggleAutoAdjust(alloc.id, alloc.autoAdjust)}
+                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${alloc.autoAdjust ? 'bg-indigo-500' : 'bg-slate-200'}`}
+                                >
+                                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${alloc.autoAdjust ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                                <button 
+                                  onClick={() => openMetricsModal(alloc)}
+                                  className="text-[10px] text-indigo-500 hover:underline font-bold"
+                                >
+                                  + metrics
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
+                </div>
 
                   {/* Right: Chart */}
                   <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 flex flex-col">
