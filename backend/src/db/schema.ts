@@ -243,15 +243,23 @@ export const reports = sqliteTable('reports', {
   id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
+  campaignId: text('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
-  url: text('url').notNull(),
-  type: text('type').default('PERFORMANCE'),
-  period: text('period'),
-  spent: real('spent').default(0),
+  type: text('type').default('PERFORMANCE'), // PERFORMANCE, CAMPAIGN, ANALYTICS, BUDGET, CLIENT_SUMMARY
+  period: text('period'), // Last 7 Days, Last 30 Days, etc.
+  startDate: text('start_date'),
+  endDate: text('end_date'),
+  status: text('status').default('READY'), // READY, GENERATING, FAILED
+  totalSpend: real('total_spend').default(0),
+  impressions: integer('impressions').default(0),
+  clicks: integer('clicks').default(0),
   conversions: integer('conversions').default(0),
   roas: real('roas').default(0),
-  status: text('status').default('READY'),
+  pdfUrl: text('pdf_url'),
+  requestedBy: text('requested_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const reportRequests = sqliteTable('report_requests', {

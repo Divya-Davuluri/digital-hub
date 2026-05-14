@@ -1,357 +1,221 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { campaigns, clients, workspaces, reportRequests, reports, users } from '../db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { campaigns, clients, workspaces, reports, users } from '../db/schema';
+import { eq, and, sql, likeOr, or, like, gte, lte } from 'drizzle-orm';
 import PDFDocument from 'pdfkit';
 import { v4 as uuidv4 } from 'uuid';
-import { AppError } from '../utils/errors';
+import { AppError, asyncHandler } from '../utils/errors';
 
 /**
- * GET /api/reports/export
+ * GET /api/reports
  */
-export const exportReport = async (req: Request, res: Response) => {
-  try {
-    const { tenantId, workspaceId, role } = req.user as any;
-    const { format, clientId, workspaceId: queryWorkspaceId } = req.query;
-    
-    const targetWorkspaceId = role === 'client' ? workspaceId : (workspaceId || queryWorkspaceId);
+export const getReports = asyncHandler(async (req: any, res: Response) => {
+  const { tenantId, workspaceId: userWorkspaceId, role, id: userId } = req.user;
+  const { search, type, period, workspaceId: queryWorkspaceId, clientId } = req.query;
 
-    if (!targetWorkspaceId && role === 'client') {
-      throw new AppError('Workspace context required', 403);
-    }
+  let query = db.select({
+    id: reports.id,
+    name: reports.name,
+    type: reports.type,
+    period: reports.period,
+    status: reports.status,
+    createdAt: reports.createdAt,
+    workspaceName: workspaces.name,
+    clientName: clients.name,
+    totalSpend: reports.totalSpend,
+    impressions: reports.impressions,
+    clicks: reports.clicks,
+    conversions: reports.conversions,
+    roas: reports.roas
+  })
+  .from(reports)
+  .leftJoin(workspaces, eq(reports.workspaceId, workspaces.id))
+  .leftJoin(clients, eq(reports.clientId, clients.id));
 
-    let whereClause = eq(campaigns.tenantId, tenantId);
-    if (targetWorkspaceId) {
-      whereClause = and(whereClause, eq(campaigns.workspaceId, targetWorkspaceId)) as any;
-    }
-    
-    if (clientId) {
-      whereClause = and(whereClause, eq(campaigns.clientId, clientId as string)) as any;
-    }
+  let filters = [eq(reports.tenantId, tenantId)];
 
-    const data = await db.select().from(campaigns).where(whereClause);
-
-    if (format === 'csv') {
-      const headers = ['ID', 'Name', 'Channel', 'Budget', 'Impressions', 'Clicks', 'Conversions', 'Spend', 'Status'];
-      const rows = data.map(c => [
-        c.id, 
-        `"${c.name}"`, 
-        c.channel, 
-        c.budget, 
-        c.impressions, 
-        c.clicks, 
-        c.conversions, 
-        c.spent, 
-        c.status
-      ].join(','));
-      
-      const csvContent = [headers.join(','), ...rows].join('\n');
-      
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename=report-${Date.now()}.csv`);
-      return res.send(csvContent);
-    }
-
-    res.json(data);
-  } catch (error) {
-    console.error('[REPORT_EXPORT_ERROR]', error);
-    res.status(500).json({ message: 'Error generating report' });
-  }
-};
-
-/**
- * GET /api/client/report/pdf
- */
-export const exportClientPDF = async (req: Request, res: Response) => {
-  try {
-    const { tenantId, workspaceId, role } = req.user as any;
-    const targetWorkspaceId = role === 'client' ? workspaceId : (workspaceId || req.query.workspaceId);
-
-    if (!targetWorkspaceId && role === 'client') throw new AppError('Workspace context required', 403);
-
-    // 1. Fetch Data
-    let workspaceName = 'Agency Report';
-    let primaryColor = '#4f46e5';
-    let data;
-
-    if (targetWorkspaceId) {
-      const workspace = await db.query.workspaces.findFirst({
-        where: and(eq(workspaces.id, targetWorkspaceId), eq(workspaces.tenantId, tenantId))
-      });
-      if (workspace) {
-        workspaceName = workspace.name;
-        primaryColor = workspace.primaryColor || '#4f46e5';
-      }
-      data = await db.select().from(campaigns).where(and(eq(campaigns.tenantId, tenantId), eq(campaigns.workspaceId, targetWorkspaceId)));
+  // Role-based filtering
+  if (role === 'client') {
+    filters.push(eq(reports.workspaceId, userWorkspaceId));
+  } else if (role === 'team') {
+    // Team members only see reports for clients they are assigned to
+    const assignedClients = await db.select({ id: clients.id }).from(clients).where(eq(clients.assignedTeamMemberId, userId));
+    const clientIds = assignedClients.map(c => c.id);
+    if (clientIds.length > 0) {
+      filters.push(or(eq(reports.requestedBy, userId), sql`${reports.clientId} IN (${clientIds.join(',')})`) as any);
     } else {
-      if (role !== 'admin' && role !== 'team') throw new AppError('Workspace context required', 403);
-      data = await db.select().from(campaigns).where(eq(campaigns.tenantId, tenantId));
+      filters.push(eq(reports.requestedBy, userId));
     }
-    
-    // 2. Calculate Totals
-    const totals = data.reduce((acc, c) => ({
-      spent: acc.spent + (c.spent || 0),
-      impressions: acc.impressions + (c.impressions || 0),
-      clicks: acc.clicks + (c.clicks || 0),
-      conversions: acc.conversions + (c.conversions || 0)
-    }), { spent: 0, impressions: 0, clicks: 0, conversions: 0 });
-
-    // 3. Generate PDF
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
-    
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=workspace-report-${Date.now()}.pdf`);
-    
-    doc.pipe(res);
-
-    // HEADER
-    doc.fontSize(24).font('Helvetica-Bold').fillColor(primaryColor).text(workspaceName, { align: 'center' });
-    doc.moveDown(0.2);
-    doc.fontSize(10).font('Helvetica').fillColor('#64748b').text(`Generated on ${new Date().toLocaleDateString()}`, { align: 'center' });
-    doc.moveDown(2);
-
-    // STATS GRID
-    doc.rect(50, doc.y, 500, 80).fill('#f8fafc');
-    doc.fillColor('#1e293b');
-    
-    const startY = doc.y + 20;
-    doc.fontSize(10).font('Helvetica-Bold').text('TOTAL SPEND', 70, startY);
-    doc.fontSize(18).text(`$${totals.spent.toLocaleString()}`, 70, startY + 15);
-
-    doc.fontSize(10).text('IMPRESSIONS', 200, startY);
-    doc.fontSize(18).text(totals.impressions.toLocaleString(), 200, startY + 15);
-
-    doc.fontSize(10).text('CLICKS', 330, startY);
-    doc.fontSize(18).text(totals.clicks.toLocaleString(), 330, startY + 15);
-
-    doc.fontSize(10).text('CONVERSIONS', 460, startY);
-    doc.fontSize(18).text(totals.conversions.toLocaleString(), 460, startY + 15);
-
-    doc.moveDown(6);
-
-    // TABLE HEADER
-    doc.fontSize(14).font('Helvetica-Bold').fillColor('#0f172a').text('Campaigns Performance');
-    doc.moveDown(1);
-
-    const tableTop = doc.y;
-    doc.fontSize(10).fillColor('#64748b');
-    doc.text('Campaign Name', 50, tableTop);
-    doc.text('Status', 300, tableTop);
-    doc.text('Budget', 450, tableTop);
-    
-    doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).strokeColor('#e2e8f0').stroke();
-
-    // TABLE ROWS
-    let currentY = tableTop + 25;
-    doc.fillColor('#334155').font('Helvetica');
-
-    data.forEach(c => {
-      if (currentY > 750) { doc.addPage(); currentY = 50; }
-      doc.text(c.name, 50, currentY);
-      doc.text(c.status?.toUpperCase() || 'ACTIVE', 300, currentY);
-      doc.text(`$${c.budget?.toLocaleString()}`, 450, currentY);
-      currentY += 25;
-    });
-
-    doc.fontSize(10).fillColor('#94a3b8').text('Generated by Digital Marketing Hub', 50, 780, { align: 'center' });
-    doc.end();
-
-  } catch (error) {
-    console.error('[PDF_EXPORT_ERROR]', error);
-    res.status(500).json({ message: 'Error generating PDF report' });
   }
-};
+
+  // Query filters
+  if (queryWorkspaceId) filters.push(eq(reports.workspaceId, queryWorkspaceId));
+  if (clientId) filters.push(eq(reports.clientId, clientId));
+  if (type && type !== 'All Types') filters.push(eq(reports.type, type.toUpperCase()));
+  if (search) {
+    filters.push(or(
+      like(reports.name, `%${search}%`),
+      like(workspaces.name, `%${search}%`),
+      like(clients.name, `%${search}%`)
+    ) as any);
+  }
+
+  const allReports = await query
+    .where(and(...filters))
+    .orderBy(sql`${reports.createdAt} DESC`);
+
+  res.json(allReports);
+});
 
 /**
- * POST /api/client/reports/request
+ * POST /api/reports
  */
-export const requestCustomReport = async (req: Request, res: Response) => {
-  try {
-    const { id: userId, tenantId, workspaceId, role, name: userName, email: userEmail } = req.user as any;
-    const { reportType, dateFrom, dateTo, notes, clientId } = req.body;
+export const createReport = asyncHandler(async (req: any, res: Response) => {
+  const { tenantId, id: userId } = req.user;
+  const { name, type, period, workspaceId, clientId, campaignId, startDate, endDate } = req.body;
 
-    let targetWorkspaceId = workspaceId || req.body.workspaceId;
-
-    // Auto-provision workspace if the client doesn't have one
-    if (!targetWorkspaceId && role === 'client') {
-      targetWorkspaceId = uuidv4();
-      await db.insert(workspaces).values({
-        id: targetWorkspaceId,
-        tenantId,
-        name: `${userName || 'Client'}'s Workspace`,
-        slug: `workspace-${Date.now()}`
-      });
-      // Update the user's workspace
-      await db.update(users).set({ workspaceId: targetWorkspaceId }).where(eq(users.id, userId));
-    }
-
-    if (!targetWorkspaceId) {
-      throw new AppError('Workspace context required', 400);
-    }
-    
-    const targetClientId = clientId || req.body.clientId;
-
-    if (!reportType) return res.status(400).json({ message: 'Report type is required' });
-
-    let finalClientId = clientId || req.body.clientId;
-
-    // If clientId is missing, resolve it from the workspaceId
-    if (!finalClientId && targetWorkspaceId) {
-      const clientRecord = await db.query.clients.findFirst({
-        where: eq(clients.workspaceId, targetWorkspaceId)
-      });
-      if (clientRecord) {
-        finalClientId = clientRecord.id;
-      } else {
-        // Auto-create a dummy client record for this workspace to satisfy foreign key constraints
-        const newClientId = uuidv4();
-        await db.insert(clients).values({
-          id: newClientId,
-          tenantId,
-          workspaceId: targetWorkspaceId,
-          name: 'Auto-generated Client',
-          email: userEmail || 'client@example.com',
-          status: 'active'
-        });
-        finalClientId = newClientId;
-      }
-    }
-
-    if (!finalClientId) {
-      throw new AppError('Client context not found. Please ensure your account is linked to a client profile.', 400);
-    }
-
-    await db.insert(reportRequests).values({
-      id: uuidv4(),
-      tenantId,
-      workspaceId: targetWorkspaceId,
-      clientId: finalClientId,
-      reportType,
-      dateFrom: dateFrom || null,
-      dateTo: dateTo || null,
-      notes: notes || '',
-      status: 'PENDING'
-    });
-
-    console.log('[REPORT_REQUEST_SUCCESS]', { tenantId, targetWorkspaceId, finalClientId, reportType });
-    res.status(201).json({ success: true, message: 'Report request submitted successfully' });
-  } catch (error: any) {
-    console.error('[REPORT_REQUEST_ERROR_EXACT]', {
-      error: error.message,
-      stack: error.stack,
-      body: req.body,
-      user: req.user
-    });
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error submitting report request',
-      error: error.message 
-    });
+  if (!name || !workspaceId) {
+    throw new AppError('Name and Workspace are required', 400);
   }
-};
+
+  // 1. Calculate Metrics from Campaigns
+  let campaignQuery = db.select().from(campaigns).where(and(
+    eq(campaigns.tenantId, tenantId),
+    campaignId ? eq(campaigns.id, campaignId) : eq(campaigns.workspaceId, workspaceId)
+  ));
+
+  const campaignData = await campaignQuery;
+
+  const totals = campaignData.reduce((acc, c) => ({
+    spent: acc.spent + (c.spent || 0),
+    impressions: acc.impressions + (c.impressions || 0),
+    clicks: acc.clicks + (c.clicks || 0),
+    conversions: acc.conversions + (c.conversions || 0)
+  }), { spent: 0, impressions: 0, clicks: 0, conversions: 0 });
+
+  const roas = totals.spent > 0 ? (totals.conversions * 50) / totals.spent : 0; // Simulated value
+
+  // 2. Save Report to DB
+  const reportId = uuidv4();
+  const newReport = {
+    id: reportId,
+    tenantId,
+    workspaceId,
+    clientId: clientId || null,
+    campaignId: campaignId || null,
+    name,
+    type: type || 'PERFORMANCE',
+    period: period || 'Last 30 Days',
+    startDate: startDate || null,
+    endDate: endDate || null,
+    status: 'READY',
+    totalSpend: totals.spent,
+    impressions: totals.impressions,
+    clicks: totals.clicks,
+    conversions: totals.conversions,
+    roas,
+    pdfUrl: `/api/reports/${reportId}/download`,
+    requestedBy: userId,
+    createdAt: new Date().toISOString()
+  };
+
+  await db.insert(reports).values(newReport);
+
+  res.status(201).json(newReport);
+});
 
 /**
- * GET /api/admin/report-requests
+ * GET /api/reports/:id
  */
-export const getReportRequests = async (req: Request, res: Response) => {
-  try {
-    const { tenantId, workspaceId: userWorkspaceId, role, id: userId } = req.user as any;
-    const queryWorkspaceId = req.query.workspaceId;
+export const getReportById = asyncHandler(async (req: any, res: Response) => {
+  const { id } = req.params;
+  const { tenantId } = req.user;
 
-    // Clients only see their own workspace
-    let targetWorkspaceId = role === 'client' ? userWorkspaceId : queryWorkspaceId;
-    
-    // Admins see all unless they specify a workspace, Team members default to their assigned
-    if (!targetWorkspaceId && role !== 'admin') {
-      targetWorkspaceId = userWorkspaceId;
+  const report = await db.query.reports.findFirst({
+    where: and(eq(reports.id, id), eq(reports.tenantId, tenantId)),
+    with: {
+      // If we added relations to schema
     }
+  });
 
-    const requests = await db.select({
-      id: reportRequests.id,
-      reportType: reportRequests.reportType,
-      dateFrom: reportRequests.dateFrom,
-      dateTo: reportRequests.dateTo,
-      notes: reportRequests.notes,
-      status: reportRequests.status,
-      createdAt: reportRequests.createdAt,
-      clientName: clients.name
-    })
-    .from(reportRequests)
-    .leftJoin(clients, eq(reportRequests.clientId, clients.id))
-    .where(targetWorkspaceId 
-      ? and(eq(reportRequests.tenantId, tenantId), eq(reportRequests.workspaceId, targetWorkspaceId as string))
-      : role === 'team'
-      ? and(eq(reportRequests.tenantId, tenantId), eq(clients.assignedTeamMemberId, userId))
-      : eq(reportRequests.tenantId, tenantId)
-    )
-    .orderBy(sql`${reportRequests.createdAt} DESC`);
+  if (!report) throw new AppError('Report not found', 404);
+  res.json(report);
+});
 
-    res.json(requests);
-  } catch (error) {
-    console.error('[GET_REPORT_REQUESTS_ERROR]', error);
-    res.status(500).json({ message: 'Error fetching report requests' });
-  }
-};
+/**
+ * GET /api/reports/:id/download
+ */
+export const downloadReport = asyncHandler(async (req: any, res: Response) => {
+  const { id } = req.params;
+  const { tenantId } = req.user;
 
-export const updateReportRequestStatus = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-    const { tenantId } = req.user as any;
+  const report = await db.query.reports.findFirst({
+    where: and(eq(reports.id, id), eq(reports.tenantId, tenantId))
+  });
 
-    await db.update(reportRequests)
-      .set({ status: status as any })
-      .where(and(eq(reportRequests.id, id), eq(reportRequests.tenantId, tenantId)));
+  if (!report) throw new AppError('Report not found', 404);
 
-    // If completed, create a record in the reports table
-    if (status === 'COMPLETED') {
-      const request = await db.query.reportRequests.findFirst({
-        where: and(eq(reportRequests.id, id), eq(reportRequests.tenantId, tenantId))
-      });
+  // Fetch context names
+  const workspace = await db.query.workspaces.findFirst({ where: eq(workspaces.id, report.workspaceId) });
+  const campaign = report.campaignId ? await db.query.campaigns.findFirst({ where: eq(campaigns.id, report.campaignId) }) : null;
 
-      if (request) {
-        await db.insert(reports).values({
-          id: uuidv4(),
-          tenantId,
-          workspaceId: request.workspaceId,
-          name: `${request.reportType.replace('_', ' ')} - ${new Date().toLocaleDateString()}`,
-          url: `/api/reports/export?workspaceId=${request.workspaceId}&format=pdf`, // Dynamic link
-          type: 'PERFORMANCE',
-          status: 'READY'
-        });
-      }
-    }
+  const doc = new PDFDocument({ margin: 50 });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=report-${report.name.replace(/\s+/g, '-')}.pdf`);
+  doc.pipe(res);
 
-    res.json({ success: true, message: 'Report status updated' });
-  } catch (error) {
-    console.error('[UPDATE_REPORT_STATUS_ERROR]', error);
-    res.status(500).json({ message: 'Error updating report status' });
-  }
-};
+  // PDF CONTENT
+  doc.fontSize(24).font('Helvetica-Bold').text('PERFORMANCE REPORT', { align: 'center' });
+  doc.moveDown();
+  doc.fontSize(16).text(report.name, { align: 'center' });
+  doc.moveDown(2);
 
-export const getReports = async (req: Request, res: Response) => {
-  try {
-    const { tenantId, workspaceId: userWorkspaceId, role } = req.user as any;
-    const queryWorkspaceId = req.query.workspaceId;
+  doc.fontSize(12).font('Helvetica-Bold').text('Report Details:');
+  doc.font('Helvetica').text(`Client/Workspace: ${workspace?.name || 'N/A'}`);
+  if (campaign) doc.text(`Campaign: ${campaign.name}`);
+  doc.text(`Type: ${report.type}`);
+  doc.text(`Period: ${report.period}`);
+  doc.text(`Date: ${new Date(report.createdAt).toLocaleDateString()}`);
+  doc.moveDown(2);
 
-    // Clients only see their own workspace
-    let targetWorkspaceId = role === 'client' ? userWorkspaceId : queryWorkspaceId;
+  doc.fontSize(14).font('Helvetica-Bold').text('Summary Metrics:');
+  doc.rect(50, doc.y, 500, 100).stroke();
+  const startY = doc.y + 20;
+  doc.fontSize(10).text('TOTAL SPEND', 70, startY);
+  doc.fontSize(18).text(`$${report.totalSpend?.toLocaleString()}`, 70, startY + 15);
 
-    if (!targetWorkspaceId && role !== 'admin') {
-      targetWorkspaceId = userWorkspaceId;
-    }
+  doc.fontSize(10).text('IMPRESSIONS', 200, startY);
+  doc.fontSize(18).text(report.impressions?.toLocaleString(), 200, startY + 15);
 
-    const allReports = await db.select()
-      .from(reports)
-      .where(targetWorkspaceId 
-        ? and(eq(reports.tenantId, tenantId), eq(reports.workspaceId, targetWorkspaceId as string))
-        : eq(reports.tenantId, tenantId)
-      )
-      .orderBy(sql`${reports.createdAt} DESC`);
+  doc.fontSize(10).text('CLICKS', 330, startY);
+  doc.fontSize(18).text(report.clicks?.toLocaleString(), 330, startY + 15);
 
-    res.json(allReports);
-  } catch (error) {
-    console.error('[GET_REPORTS_ERROR]', error);
-    res.status(500).json({ message: 'Error fetching reports' });
-  }
-};
+  doc.fontSize(10).text('CONVERSIONS', 460, startY);
+  doc.fontSize(18).text(report.conversions?.toLocaleString(), 460, startY + 15);
+
+  doc.moveDown(8);
+  doc.fontSize(12).font('Helvetica-Bold').text('ROAS: ' + report.roas?.toFixed(2));
+  
+  doc.moveDown(4);
+  doc.fontSize(10).font('Helvetica').text('Generated by Digital Marketing Hub', { align: 'center', color: '#94a3b8' });
+
+  doc.end();
+});
+
+/**
+ * DELETE /api/reports/:id
+ */
+export const deleteReport = asyncHandler(async (req: any, res: Response) => {
+  const { id } = req.params;
+  const { tenantId } = req.user;
+
+  await db.delete(reports).where(and(eq(reports.id, id), eq(reports.tenantId, tenantId)));
+  res.json({ success: true, message: 'Report deleted' });
+});
+
+// Legacy exports for compatibility
+export const exportReport = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy. Use new report endpoints.' });
+export const requestCustomReport = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy. Use new report endpoints.' });
+export const getReportRequests = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy. Use new report endpoints.' });
+export const exportClientPDF = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy. Use new report endpoints.' });
+export const updateReportRequestStatus = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy. Use new report endpoints.' });
