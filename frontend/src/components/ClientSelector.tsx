@@ -22,10 +22,6 @@ export default function ClientSelector({ onSelect, className = '' }: ClientSelec
         const clientsList = Array.isArray(data) ? data : (data?.data && Array.isArray(data.data) ? data.data : []);
         
         setClients(clientsList);
-        if (clientsList.length > 0) {
-          setSelectedId(clientsList[0].id);
-          onSelect(clientsList[0].id);
-        }
       } catch (err) {
         console.error('Failed to fetch clients', err);
         setClients([]);
@@ -52,7 +48,7 @@ export default function ClientSelector({ onSelect, className = '' }: ClientSelec
         onChange={handleChange}
         className="pl-10 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer shadow-sm"
       >
-        <option value="">Select Client</option>
+        <option value="">All Clients</option>
         {clients.map(client => (
           <option key={client.id} value={client.id}>
             {client.companyName || client.name}

@@ -42,21 +42,12 @@ export default function AnalyticsPage() {
   const [timeseries, setTimeseries] = useState<any[]>([]);
   const [channels, setChannels] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchBranding();
-  }, []);
-
-  useEffect(() => {
-    if (selectedClient) {
-      fetchAnalytics();
-    } else {
-      setOverview(null);
-      setTimeseries([]);
-      setChannels([]);
-      setCampaigns([]);
-    }
+    // Always fetch analytics on load - backend now handles empty clientId as "Global"
+    fetchAnalytics();
   }, [selectedClient, selectedPeriod]);
 
   const fetchBranding = async () => {
@@ -71,11 +62,12 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
+      const query = `clientId=${selectedClient}&period=${selectedPeriod}`;
       const [overRes, timeRes, chanRes, campRes] = await Promise.all([
-        apiCall(`/analytics/overview?clientId=${selectedClient}&period=${selectedPeriod}`),
-        apiCall(`/analytics/timeseries?clientId=${selectedClient}&period=${selectedPeriod}`),
-        apiCall(`/analytics/channels?clientId=${selectedClient}&period=${selectedPeriod}`),
-        apiCall(`/analytics/campaigns?clientId=${selectedClient}&period=${selectedPeriod}`)
+        apiCall(`/analytics/overview?${query}`),
+        apiCall(`/analytics/timeseries?${query}`),
+        apiCall(`/analytics/channels?${query}`),
+        apiCall(`/analytics/campaigns?${query}`)
       ]);
       
       if (overRes?.success) setOverview(overRes.data || null);
@@ -86,23 +78,14 @@ export default function AnalyticsPage() {
     } catch (err) {
       console.error('Failed to fetch analytics', err);
       toast.error('Failed to load analytics data');
-      // Reset on error to prevent inconsistent state
-      setOverview(null);
-      setTimeseries([]);
-      setChannels([]);
-      setCampaigns([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleExport = async () => {
-    if (!selectedClient) {
-      toast.error('Please select a client first');
-      return;
-    }
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/analytics/export-pdf`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com'}/api/analytics/export-pdf`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -142,15 +125,19 @@ export default function AnalyticsPage() {
             <div className="flex justify-between items-end">
               <div>
                 {branding?.logoUrl && <img src={branding.logoUrl} alt="Logo" className="h-8 mb-4 object-contain" />}
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight">Analytics Dashboard</h1>
-                <p className="text-slate-500 mt-1 font-medium">Track performance across all channels</p>
+                <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+                  {selectedClient ? 'Client Analytics' : 'Global Analytics'}
+                </h1>
+                <p className="text-slate-500 mt-1 font-medium">
+                  {selectedClient ? 'Performance for selected client' : 'Aggregated performance across all clients'}
+                </p>
               </div>
               <div className="flex items-center gap-4">
                 <ClientSelector onSelect={setSelectedClient} />
                 <PeriodSelector onSelect={setSelectedPeriod} />
                 <button 
                   onClick={handleExport}
-                  disabled={loading || !selectedClient}
+                  disabled={loading}
                   className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-lg hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                 >
                   <Download size={18} /> Export Report
@@ -164,16 +151,6 @@ export default function AnalyticsPage() {
                   {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-white rounded-3xl border border-slate-200" />)}
                 </div>
                 <div className="h-80 bg-white rounded-3xl border border-slate-200" />
-              </div>
-            ) : !selectedClient ? (
-              <div className="bg-white rounded-[2.5rem] border border-slate-200 p-24 text-center flex flex-col items-center gap-6 shadow-sm">
-                <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-500">
-                  <Target size={48} strokeWidth={1.5} />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900 mb-2">Select a Client to Begin</h3>
-                  <p className="text-slate-500 max-w-sm font-medium mx-auto">Choose a client from the dropdown above to view their performance metrics and analytics dashboard.</p>
-                </div>
               </div>
             ) : (
               <>
@@ -221,18 +198,22 @@ export default function AnalyticsPage() {
                     </div>
                   </div>
                   <div className="h-[320px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={timeseries || []}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                        <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(v: any) => `$${v}`} />
-                        <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                        <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                        <Line yAxisId="left" type="monotone" dataKey="spent" stroke="#EF4444" strokeWidth={3} dot={false} />
-                        <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#10B981" strokeWidth={3} dot={false} />
-                        <Line yAxisId="right" type="monotone" dataKey="clicks" stroke="#6366F1" strokeWidth={3} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    {timeseries.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={timeseries}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                          <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(v: any) => `$${v}`} />
+                          <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                          <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                          <Line yAxisId="left" type="monotone" dataKey="spent" stroke="#EF4444" strokeWidth={3} dot={false} />
+                          <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#10B981" strokeWidth={3} dot={false} />
+                          <Line yAxisId="right" type="monotone" dataKey="clicks" stroke="#6366F1" strokeWidth={3} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-slate-400 font-bold">No performance data available for this period</div>
+                    )}
                   </div>
                 </div>
 
@@ -241,43 +222,51 @@ export default function AnalyticsPage() {
                   <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
                     <h3 className="text-xl font-black text-slate-900 mb-8">Channel Distribution</h3>
                     <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={channels || []}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={100}
-                            paddingAngle={5}
-                            dataKey="spent"
-                          >
-                            {(channels || []).map((entry: any, index: number) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      {channels.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={channels}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={100}
+                              paddingAngle={5}
+                              dataKey="spent"
+                            >
+                              {channels.map((entry: any, index: number) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-slate-400 font-bold">No channel data</div>
+                      )}
                     </div>
                   </div>
                   <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
                     <h3 className="text-xl font-black text-slate-900 mb-8">Conversions by Channel</h3>
                     <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={channels || []}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="channel" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                          <Tooltip cursor={{ fill: '#f8fafc' }} />
-                          <Bar dataKey="conversions" radius={[6, 6, 0, 0]}>
-                            {(channels || []).map((entry: any, index: number) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+                      {channels.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={channels}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="channel" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                            <Tooltip cursor={{ fill: '#f8fafc' }} />
+                            <Bar dataKey="conversions" radius={[6, 6, 0, 0]}>
+                              {channels.map((entry: any, index: number) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-slate-400 font-bold">No conversion data</div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -301,7 +290,7 @@ export default function AnalyticsPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {(campaigns || []).map((camp: any) => (
+                        {campaigns.length > 0 ? campaigns.map((camp: any) => (
                           <tr key={camp.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-8 py-4 font-bold text-slate-900">{camp.name}</td>
                             <td className="px-8 py-4">
@@ -335,7 +324,11 @@ export default function AnalyticsPage() {
                             <td className="px-8 py-4 text-center text-sm font-medium text-slate-600">{camp.ctr || '0.00'}%</td>
                             <td className="px-8 py-4 text-center text-sm font-medium text-slate-600">{camp.cvr || '0.00'}%</td>
                           </tr>
-                        ))}
+                        )) : (
+                          <tr>
+                            <td colSpan={7} className="px-8 py-12 text-center text-slate-400 font-bold">No campaigns found</td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
