@@ -46,7 +46,9 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetchBranding();
-    // Always fetch analytics on load - backend now handles empty clientId as "Global"
+  }, []);
+
+  useEffect(() => {
     fetchAnalytics();
   }, [selectedClient, selectedPeriod]);
 
@@ -85,7 +87,11 @@ export default function AnalyticsPage() {
 
   const handleExport = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com'}/api/analytics/export-pdf`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com';
+      // Normalize URL to avoid double /api
+      const baseApi = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
+      
+      const response = await fetch(`${baseApi}/analytics/export-pdf`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -109,6 +115,7 @@ export default function AnalyticsPage() {
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
+      console.error('Export error:', err);
       toast.error('Failed to export report');
     }
   };
@@ -233,13 +240,14 @@ export default function AnalyticsPage() {
                               outerRadius={100}
                               paddingAngle={5}
                               dataKey="spent"
+                              nameKey="channel"
                             >
                               {channels.map((entry: any, index: number) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                               ))}
                             </Pie>
                             <Tooltip />
-                            <Legend />
+                            <Legend verticalAlign="bottom" height={36} />
                           </PieChart>
                         </ResponsiveContainer>
                       ) : (

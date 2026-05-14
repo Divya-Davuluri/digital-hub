@@ -108,7 +108,10 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
               style={isActive ? { backgroundColor: branding?.primaryColor || '#4f46e5' } : {}}
             >
               <span className="text-lg">{item.icon}</span>
-              {item.name}
+              <span className="flex-1">{item.name}</span>
+              {isActive && (
+                <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+              )}
             </Link>
           );
         })}
