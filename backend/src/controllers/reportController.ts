@@ -145,11 +145,10 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
         clientId,
         name: client.name,
         slug: client.name.toLowerCase().replace(/\s+/g, '-'),
-        settings: JSON.stringify({
-          theme: 'light',
-          modules: ['campaigns', 'analytics', 'reports', 'creatives']
-        }),
+        status: 'active',
+        primaryColor: '#4f46e5',
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
       
       workspace = await db.query.workspaces.findFirst({
@@ -169,7 +168,8 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
       workspaceId: workspace.id,
       clientId: clientId || null,
       campaignId: campaignId || null,
-      report_name: reportName,
+      name: reportName,         // Satisfies old DB column
+      report_name: reportName,  // Satisfies new schema field
       client_name: clientName || null,
       campaign: campaign || 'All Campaigns',
       type: type || 'PERFORMANCE',
