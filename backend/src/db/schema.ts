@@ -246,6 +246,7 @@ export const reports = sqliteTable('reports', {
   clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
   campaignId: text('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }),
   name: text('name'), // Legacy column support
+  url: text('url'), // Legacy column support
   report_name: text('report_name').notNull(),
   client_name: text('client_name'),
   campaign: text('campaign').default('All Campaigns'),

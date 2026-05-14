@@ -2,28 +2,33 @@ import { db } from '../src/db';
 import { sql } from 'drizzle-orm';
 
 async function migrate() {
-  console.log('--- STARTING MANUAL MIGRATION ---');
+  console.log('--- STARTING COMPREHENSIVE REPORTS MIGRATION ---');
   
-  // 1. Add missing columns to reports table
+  // 1. Ensure columns exist in reports table
+  // We use snake_case because we are running raw SQL ALTER TABLE commands
   const columnsToAdd = [
-    { name: 'client_id', type: 'TEXT' },
-    { name: 'campaign_id', type: 'TEXT' },
+    { name: 'name', type: 'TEXT' },
+    { name: 'report_name', type: 'TEXT' },
+    { name: 'client_name', type: 'TEXT' },
+    { name: 'campaign', type: 'TEXT DEFAULT "All Campaigns"' },
+    { name: 'type', type: 'TEXT DEFAULT "PERFORMANCE"' },
+    { name: 'period', type: 'TEXT DEFAULT "Last 30 Days"' },
+    { name: 'start_date', type: 'TEXT' },
+    { name: 'end_date', type: 'TEXT' },
+    { name: 'status', type: 'TEXT DEFAULT "completed"' },
     { name: 'total_spend', type: 'REAL DEFAULT 0' },
     { name: 'impressions', type: 'INTEGER DEFAULT 0' },
     { name: 'clicks', type: 'INTEGER DEFAULT 0' },
-    { name: 'updated_at', type: 'TEXT' },
+    { name: 'conversions', type: 'INTEGER DEFAULT 0' },
+    { name: 'roas', type: 'REAL DEFAULT 0' },
     { name: 'file_url', type: 'TEXT' },
     { name: 'requested_by', type: 'TEXT' },
-    { name: 'start_date', type: 'TEXT' },
-    { name: 'end_date', type: 'TEXT' },
-    { name: 'report_name', type: 'TEXT' },
-    { name: 'client_name', type: 'TEXT' },
-    { name: 'campaign', type: 'TEXT DEFAULT "All Campaigns"' }
+    { name: 'updated_at', type: 'TEXT' }
   ];
 
   for (const col of columnsToAdd) {
     try {
-      console.log(`Adding column ${col.name}...`);
+      console.log(`Checking/Adding column ${col.name}...`);
       await db.run(sql.raw(`ALTER TABLE reports ADD COLUMN ${col.name} ${col.type}`));
       console.log(`✅ Column ${col.name} added.`);
     } catch (err: any) {
@@ -35,9 +40,13 @@ async function migrate() {
     }
   }
 
-  // 2. Handle renamed columns if any
-  // 'url' was changed to 'pdf_url' in my previous turn, and 'spent' to 'total_spend'.
-  // But wait, Drizzle might have created them fresh.
+  // 2. Data consistency fix: ensure report_name is populated if name exists
+  try {
+    await db.run(sql`UPDATE reports SET report_name = name WHERE report_name IS NULL AND name IS NOT NULL`);
+    console.log('✅ Data synchronized between name and report_name.');
+  } catch (err: any) {
+    console.log('ℹ️ Sync skip or failed:', err.message);
+  }
   
   console.log('--- MIGRATION FINISHED ---');
 }

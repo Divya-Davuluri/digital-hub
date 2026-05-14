@@ -410,6 +410,7 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
     clientId,
     campaignId: null,
     name: 'Initial Strategy & Setup Report',
+    url: '#',
     report_name: 'Initial Strategy & Setup Report',
     client_name: null,
     campaign: 'All Campaigns',

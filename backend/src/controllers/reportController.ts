@@ -169,6 +169,7 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
       clientId: clientId || null,
       campaignId: campaignId || null,
       name: reportName,         // Satisfies old DB column
+      url: `/api/reports/${reportId}/download`, // Satisfies old DB column
       report_name: reportName,  // Satisfies new schema field
       client_name: clientName || null,
       campaign: campaign || 'All Campaigns',
