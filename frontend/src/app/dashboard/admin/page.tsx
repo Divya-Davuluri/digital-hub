@@ -5,8 +5,12 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import RoleGuard from "@/components/RoleGuard";
-import { getDashboardSummary, getDashboardStats, exportReport, DashboardSummary, ChannelStat } from "@/services/dashboardService";
+import { getDashboardSummary, getDashboardStats, DashboardSummary, ChannelStat } from "@/services/dashboardService";
 import { useBranding } from "@/context/BrandingContext";
+import { generatePDFReport } from "@/lib/exportUtils";
+import { apiCall } from "@/lib/api";
+import toast from "react-hot-toast";
+import { Loader2, Download } from "lucide-react";
 
 import dynamic from 'next/dynamic';
 
@@ -54,14 +58,63 @@ export default function AdminDashboard() {
     fetchData();
   }, []);
 
-  const handleExport = async (format: 'csv' | 'pdf') => {
+  const handleExportPDF = async () => {
+    if (!summary) return;
     setExporting(true);
     try {
-      await exportReport(format);
+      // Fetch latest campaigns for the report
+      const campaignsRes = await apiCall('/analytics/campaigns?period=30');
+      const campaigns = campaignsRes?.data || [];
+      
+      await generatePDFReport({
+        title: 'Executive Performance Summary',
+        clientName: 'Global Portfolio',
+        period: '30',
+        metrics: {
+          totalSpent: summary.totalSpend,
+          totalRevenue: summary.totalSpend * (summary.avgRoas || 0), // Calculate revenue from ROAS
+          totalClicks: summary.totalClicks,
+          totalImpressions: summary.totalImpressions,
+          totalConversions: summary.totalConversions,
+          avgROAS: (summary.avgRoas || 0).toFixed(2)
+        },
+        campaigns: campaigns,
+        channels: stats,
+        branding: {
+          agencyName: branding?.agencyName,
+          primaryColor: branding?.primaryColor,
+          logoUrl: branding?.logoUrl
+        }
+      });
+      toast.success('PDF Exported successfully');
     } catch (err) {
       console.error("Export failed:", err);
+      toast.error('Failed to export PDF');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    try {
+      const headers = ['Metric', 'Value'];
+      const rows = [
+        ['Total Spend', summary?.totalSpend],
+        ['Total Conversions', summary?.totalConversions],
+        ['Avg ROAS', summary?.avgRoas],
+        ['Active Campaigns', summary?.activeCampaigns]
+      ];
+      const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `admin_summary_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('CSV Exported successfully');
+    } catch (err) {
+      toast.error('CSV Export failed');
     }
   };
 
@@ -89,21 +142,21 @@ export default function AdminDashboard() {
               </div>
               <div className="flex gap-4">
                 <button 
-                  onClick={() => handleExport('csv')}
+                  onClick={handleExportCSV}
                   disabled={exporting}
                   className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  <Download size={16} />
                   Export CSV
                 </button>
                 <button 
-                  onClick={() => handleExport('pdf')}
+                  onClick={handleExportPDF}
                   disabled={exporting}
                   style={{ backgroundColor: primaryColor }}
                   className="px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                  Export PDF
+                  {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                  {exporting ? 'Generating...' : 'Export PDF'}
                 </button>
               </div>
             </div>

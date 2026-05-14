@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { apiCall } from '@/lib/api';
+import { generatePDFReport } from '@/lib/exportUtils';
 import { 
   FileText, Download, Filter, Search, 
   Calendar, CheckCircle2, Clock, AlertCircle,
@@ -22,6 +23,7 @@ export default function UnifiedReportsPage() {
   const [dateFilter, setDateFilter] = useState('Last 30 Days');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -113,8 +115,43 @@ export default function UnifiedReportsPage() {
     }
   };
 
-  // FIX 4: CSV Download (Option B)
-  const handleDownload = (report: any) => {
+  const handleDownloadPDF = async (report: any) => {
+    setDownloading(report.id);
+    try {
+      // Fetch fresh data for the PDF
+      const query = `clientId=${report.client_id || ''}&period=${(report.period || '30').replace(/\D/g, '')}`;
+      const [over, chan, camp] = await Promise.all([
+        apiCall(`/analytics/overview?${query}`),
+        apiCall(`/analytics/channels?${query}`),
+        apiCall(`/analytics/campaigns?${query}`)
+      ]);
+
+      await generatePDFReport({
+        title: report.report_name || report.name || 'Performance Report',
+        clientName: report.clientName || report.client_name || 'Global',
+        period: (report.period || '30').replace(/\D/g, ''),
+        metrics: {
+          totalSpent: over?.data?.totalSpent || report.totalSpent || 0,
+          totalRevenue: over?.data?.totalRevenue || (report.conversions * 150) || 0,
+          totalClicks: over?.data?.totalClicks || report.clicks || 0,
+          totalImpressions: over?.data?.totalImpressions || report.impressions || 0,
+          totalConversions: over?.data?.totalConversions || report.conversions || 0,
+          avgROAS: over?.data?.avgROAS || (report.roas || 0).toFixed(1)
+        },
+        campaigns: camp?.data || [],
+        channels: chan?.data || [],
+        branding: {} // Will use defaults
+      });
+      toast.success("PDF Downloaded successfully");
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      toast.error("Failed to generate PDF");
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const handleDownloadCSV = (report: any) => {
     const rows = [
       ['FIELD', 'VALUE'],
       ['Report Name', report.report_name || report.name],
@@ -122,7 +159,7 @@ export default function UnifiedReportsPage() {
       ['Period', report.period || 'Last 30 Days'],
       ['Type', report.type],
       ['Status', report.status],
-      ['Total Spend', `$${(report.totalSpend || 0).toLocaleString()}`],
+      ['Total Spent', `$${(report.totalSpent || 0).toLocaleString()}`],
       ['Impressions', (report.impressions || 0).toLocaleString()],
       ['Clicks', (report.clicks || 0).toLocaleString()],
       ['Conversions', (report.conversions || 0).toLocaleString()],
@@ -212,7 +249,7 @@ export default function UnifiedReportsPage() {
               </div>
             </div>
 
-            {/* Professional Table (FIX 1, 5) */}
+            {/* Professional Table */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse min-w-[1000px]">
@@ -265,7 +302,6 @@ export default function UnifiedReportsPage() {
                             </div>
                           </td>
                           <td className="px-6 py-5">
-                            {/* FIX 2: Show real client name */}
                             <span className="text-gray-700 text-sm font-medium">
                               {report.clientName || report.client_name || 'N/A'}
                             </span>
@@ -273,7 +309,6 @@ export default function UnifiedReportsPage() {
                           <td className="px-6 py-5">
                             <div className="flex items-center gap-2 text-xs text-gray-600 font-medium">
                               <Calendar size={14} className="text-gray-400" />
-                              {/* FIX 3: Fallback period */}
                               {report.period || 'Last 30 Days'}
                             </div>
                           </td>
@@ -291,7 +326,15 @@ export default function UnifiedReportsPage() {
                           <td className="px-6 py-5 text-right">
                             <div className="flex justify-end items-center gap-2">
                               <button 
-                                onClick={() => handleDownload(report)}
+                                onClick={() => handleDownloadPDF(report)}
+                                disabled={downloading === report.id}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg transition-all text-xs font-bold hover:bg-slate-800 disabled:opacity-50"
+                              >
+                                {downloading === report.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                                PDF
+                              </button>
+                              <button 
+                                onClick={() => handleDownloadCSV(report)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-200 hover:border-blue-600 rounded-lg transition-all text-xs font-bold"
                               >
                                 <Download size={14} />

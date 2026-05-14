@@ -7,6 +7,7 @@ import RoleGuard from '@/components/RoleGuard';
 import ClientSelector from '@/components/ClientSelector';
 import PeriodSelector from '@/components/PeriodSelector';
 import { apiCall } from '@/lib/api';
+import { generatePDFReport } from '@/lib/exportUtils';
 import { 
   BarChart as _BarChart, Bar as _Bar, LineChart as _LineChart, Line as _Line, 
   XAxis as _XAxis, YAxis as _YAxis, CartesianGrid as _CartesianGrid, 
@@ -15,7 +16,7 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, TrendingDown, DollarSign, MousePointer2, 
-  Target, BarChart3, Download, Activity, Globe, Mail, AlertCircle
+  Target, BarChart3, Download, Activity, Globe, Mail, AlertCircle, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -43,6 +44,7 @@ export default function AnalyticsPage() {
   const [channels, setChannels] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchBranding();
@@ -86,37 +88,39 @@ export default function AnalyticsPage() {
   };
 
   const handleExport = async () => {
+    if (!overview || campaigns.length === 0) {
+      toast.error('No data available to export');
+      return;
+    }
+    
+    setExporting(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com';
-      // Normalize URL to avoid double /api
-      const baseApi = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
-      
-      const response = await fetch(`${baseApi}/analytics/export-pdf`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      await generatePDFReport({
+        title: 'Performance Analytics Report',
+        clientName: selectedClient ? ((campaigns[0] as any)?.clientName || 'Selected Client') : 'All Clients',
+        period: selectedPeriod,
+        metrics: {
+          totalSpent: overview.totalSpent,
+          totalRevenue: overview.totalRevenue,
+          totalClicks: overview.totalClicks,
+          totalImpressions: overview.totalImpressions,
+          totalConversions: overview.totalConversions,
+          avgROAS: overview.avgROAS
         },
-        body: JSON.stringify({
-          clientId: selectedClient,
-          period: selectedPeriod,
-          metrics: overview
-        })
+        campaigns,
+        channels,
+        branding: {
+          agencyName: branding?.agencyName,
+          primaryColor: branding?.primaryColor,
+          logoUrl: branding?.logoUrl
+        }
       });
-      
-      if (!response.ok) throw new Error('Export failed');
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Analytics_Report_${new Date().toISOString().split('T')[0]}.html`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
+      toast.success('Report exported successfully');
     } catch (err) {
       console.error('Export error:', err);
-      toast.error('Failed to export report');
+      toast.error('Failed to export PDF report');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -144,10 +148,11 @@ export default function AnalyticsPage() {
                 <PeriodSelector onSelect={setSelectedPeriod} />
                 <button 
                   onClick={handleExport}
-                  disabled={loading}
+                  disabled={loading || exporting}
                   className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-lg hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                 >
-                  <Download size={18} /> Export Report
+                  {exporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                  {exporting ? 'Generating...' : 'Export Report'}
                 </button>
               </div>
             </div>

@@ -6,11 +6,17 @@ import Header from "@/components/Header";
 import RoleGuard from "@/components/RoleGuard";
 import apiCall from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { generatePDFReport } from "@/lib/exportUtils";
+import { useBranding } from "@/context/BrandingContext";
+import { Download, Loader2, FileText, CheckCircle2 } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function ClientReportsPage() {
   const { user } = useAuth();
+  const { branding } = useBranding();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   const fetchReports = async () => {
     try {
@@ -30,40 +36,35 @@ export default function ClientReportsPage() {
     if (user) fetchReports();
   }, [user]);
 
-  const downloadCampaignPDF = (campaign: any) => {
-    const win = window.open('', '_blank');
-    if (win) {
-      win.document.write(`
-        <html><head>
-          <title>Report - ${campaign.name}</title>
-          <style>
-            body { font-family: sans-serif; padding: 40px; color: #1f2937; line-height: 1.5; }
-            h1 { color: #4f46e5; border-bottom: 2px solid #f3f4f6; padding-bottom: 15px; margin-bottom: 30px; }
-            .section { margin-bottom: 30px; }
-            .label { font-size: 12px; font-weight: bold; color: #6b7280; text-transform: uppercase; margin-bottom: 5px; }
-            .value { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
-            .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
-            .box { background: #f9fafb; padding: 20px; border-radius: 12px; border: 1px solid #e5e7eb; }
-          </style>
-        </head>
-        <body>
-          <h1>Performance Audit: ${campaign.name}</h1>
-          <div class="section">
-            <div class="label">Date Range</div>
-            <div class="value">${new Date(campaign.start_date || Date.now()).toLocaleDateString()} - ${new Date(campaign.end_date || Date.now()).toLocaleDateString()}</div>
-          </div>
-          <div class="grid">
-            <div class="box"><div class="label">Total Impressions</div><div class="value">${Number(campaign.impressions).toLocaleString()}</div></div>
-            <div class="box"><div class="label">Total Clicks</div><div class="value">${Number(campaign.clicks).toLocaleString()}</div></div>
-            <div class="box"><div class="label">Conversions</div><div class="value">${Number(campaign.conversions).toLocaleString()}</div></div>
-            <div class="box"><div class="label">Budget Allocation</div><div class="value">$${Number(campaign.budget).toLocaleString()}</div></div>
-            <div class="box"><div class="label">Actual Spend</div><div class="value">$${Number(campaign.spent).toLocaleString()}</div></div>
-            <div class="box"><div class="label">CTR</div><div class="value">${campaign.impressions > 0 ? ((campaign.clicks/campaign.impressions)*100).toFixed(2) : 0}%</div></div>
-          </div>
-        </body></html>
-      `);
-      win.document.close();
-      win.print();
+  const handleDownloadPDF = async (campaign: any) => {
+    setDownloading(campaign.id);
+    try {
+      await generatePDFReport({
+        title: `Performance Report: ${campaign.name}`,
+        clientName: user?.name || 'Valued Client',
+        period: '30',
+        metrics: {
+          totalSpent: campaign.spent,
+          totalRevenue: Number(campaign.conversions || 0) * 150, // Fallback revenue
+          totalClicks: campaign.clicks,
+          totalImpressions: campaign.impressions,
+          totalConversions: campaign.conversions,
+          avgROAS: campaign.spent > 0 ? (campaign.conversions * 150 / campaign.spent).toFixed(1) : '0.0'
+        },
+        campaigns: [campaign],
+        channels: [{ channel: campaign.platform || 'Other', spent: campaign.spent, conversions: campaign.conversions }],
+        branding: {
+          agencyName: branding?.agencyName,
+          primaryColor: branding?.primaryColor,
+          logoUrl: branding?.logoUrl
+        }
+      });
+      toast.success("PDF Downloaded successfully");
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      toast.error("Failed to generate PDF");
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -82,6 +83,7 @@ export default function ClientReportsPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.success("CSV Exported successfully");
   };
 
   if (loading) {
@@ -90,7 +92,10 @@ export default function ClientReportsPage() {
         <Sidebar role="client" />
         <div className="flex-1 ml-[260px]">
           <Header />
-          <div className="p-8 text-center py-24 text-slate-400 italic">Generating reports...</div>
+          <div className="p-8 text-center py-24 text-slate-400 italic flex flex-col items-center gap-4">
+             <Loader2 className="animate-spin text-indigo-600" size={32} />
+             Generating reports...
+          </div>
         </div>
       </div>
     );
@@ -105,23 +110,23 @@ export default function ClientReportsPage() {
           <main className="p-8 max-w-7xl mx-auto w-full">
             <div className="mb-8 flex justify-between items-end">
               <div>
-                <h1 className="text-3xl font-bold text-slate-900">Performance Archives</h1>
-                <p className="text-slate-500">Comprehensive campaign audit logs and exports.</p>
+                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Performance Archives</h1>
+                <p className="text-slate-500 mt-1">Comprehensive campaign audit logs and professional exports.</p>
               </div>
               <button 
                 onClick={exportAllCSV}
-                className="px-6 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-2"
+                className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg"
               >
-                <span>📥</span> Export All (CSV)
+                <Download size={16} /> Export All (CSV)
               </button>
             </div>
 
             {/* Summary Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-              <ReportMetric label="Total Campaigns" value={data?.summary?.totalCampaigns || 0} />
-              <ReportMetric label="Total Budget" value={`$${(data?.summary?.totalBudget || 0).toLocaleString()}`} />
-              <ReportMetric label="Total Spent" value={`$${(data?.summary?.totalSpent || 0).toLocaleString()}`} />
-              <ReportMetric label="Avg. ROAS" value={`${data?.summary?.roas || '0.00'}x`} color="text-indigo-600" />
+              <ReportMetric label="Total Campaigns" value={data?.summary?.totalCampaigns || 0} icon={<FileText size={16} />} />
+              <ReportMetric label="Total Budget" value={`$${(data?.summary?.totalBudget || 0).toLocaleString()}`} icon={<CheckCircle2 size={16} />} />
+              <ReportMetric label="Total Spent" value={`$${(data?.summary?.totalSpent || 0).toLocaleString()}`} icon={<Loader2 size={16} />} />
+              <ReportMetric label="Avg. ROAS" value={`${data?.summary?.roas || '0.00'}x`} color="text-indigo-600" icon={<CheckCircle2 size={16} />} />
             </div>
 
             <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
@@ -135,30 +140,31 @@ export default function ClientReportsPage() {
                         <th className="px-6 py-4">Impr.</th>
                         <th className="px-6 py-4">Clicks</th>
                         <th className="px-6 py-4">Conv.</th>
-                        <th className="px-6 py-4">CTR</th>
-                        <th className="px-6 py-4">Download</th>
+                        <th className="px-6 py-4 text-right">Download</th>
                      </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                      {data?.campaigns?.map((c: any) => (
                         <tr key={c.id} className="hover:bg-slate-50/50 transition-all">
                            <td className="px-6 py-4 font-bold text-slate-900 text-sm">{c.name}</td>
-                           <td className="px-6 py-4 text-[10px] font-black text-indigo-500 uppercase">{c.platform || 'Google'}</td>
-                           <td className="px-6 py-4 text-sm text-slate-600">${Number(c.budget).toLocaleString()}</td>
-                           <td className="px-6 py-4 text-sm font-bold text-slate-900">${Number(c.spent).toLocaleString()}</td>
-                           <td className="px-6 py-4 text-sm text-slate-600">{Number(c.impressions).toLocaleString()}</td>
-                           <td className="px-6 py-4 text-sm text-slate-600">{Number(c.clicks).toLocaleString()}</td>
-                           <td className="px-6 py-4 text-sm text-slate-600">{Number(c.conversions).toLocaleString()}</td>
-                           <td className="px-6 py-4 text-sm font-bold text-indigo-600">
-                              {c.impressions > 0 ? ((c.clicks/c.impressions)*100).toFixed(2) : 0}%
-                           </td>
                            <td className="px-6 py-4">
+                              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded uppercase">
+                                {c.platform || 'Google'}
+                              </span>
+                           </td>
+                           <td className="px-6 py-4 text-sm text-slate-600 font-medium">${Number(c.budget).toLocaleString()}</td>
+                           <td className="px-6 py-4 text-sm font-bold text-slate-900">${Number(c.spent).toLocaleString()}</td>
+                           <td className="px-6 py-4 text-sm text-slate-500 font-medium">{Number(c.impressions).toLocaleString()}</td>
+                           <td className="px-6 py-4 text-sm text-slate-500 font-medium">{Number(c.clicks).toLocaleString()}</td>
+                           <td className="px-6 py-4 text-sm text-slate-500 font-medium">{Number(c.conversions).toLocaleString()}</td>
+                           <td className="px-6 py-4 text-right">
                               <button 
-                                 onClick={() => downloadCampaignPDF(c)}
-                                 className="p-2 hover:bg-indigo-50 text-indigo-600 rounded-lg transition-all"
-                                 title="Download PDF"
+                                 onClick={() => handleDownloadPDF(c)}
+                                 disabled={downloading === c.id}
+                                 className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-indigo-600 hover:text-white text-indigo-600 rounded-lg transition-all text-xs font-bold disabled:opacity-50"
                               >
-                                 📄
+                                 {downloading === c.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                                 PDF
                               </button>
                            </td>
                         </tr>
@@ -173,10 +179,13 @@ export default function ClientReportsPage() {
   );
 }
 
-function ReportMetric({ label, value, color = "text-slate-900" }: any) {
+function ReportMetric({ label, value, color = "text-slate-900", icon }: any) {
   return (
-    <div className="bg-white p-6 rounded-2xl border border-slate-100">
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-100 transition-all">
+      <div className="flex justify-between items-center mb-1">
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+        <div className="text-slate-300">{icon}</div>
+      </div>
       <p className={`text-2xl font-black ${color}`}>{value}</p>
     </div>
   );
