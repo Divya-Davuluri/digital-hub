@@ -402,34 +402,43 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
   }
   await db.insert(analytics).values(analyticsData);
 
-  // 3. Create Starter Report
-  await db.insert(reports).values({
-    id: uuidv4(),
-    tenantId,
-    workspaceId,
-    clientId,
-    campaignId: null,
-    name: 'Initial Strategy & Setup Report',
-    url: '#',
-    report_name: 'Initial Strategy & Setup Report',
-    client_name: null,
-    campaign: 'All Campaigns',
-    type: 'PERFORMANCE',
-    period: 'April 2026',
-    startDate: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-      .toISOString().split('T')[0],
-    endDate: now.toISOString().split('T')[0],
-    status: 'completed',
-    totalSpend: 2090,
-    impressions: 45000,
-    clicks: 1240,
-    conversions: 97,
-    roas: 4,
-    file_url: '#',
-    requestedBy: null,
-    createdAt: now.toISOString(),
-    updatedAt: now.toISOString(),
+  // 3. Create Starter Report (FIX 6: Duplicate Prevention)
+  const existingReport = await db.query.reports.findFirst({
+    where: and(
+      eq(reports.workspaceId, workspaceId),
+      eq(reports.report_name, 'Initial Strategy & Setup Report')
+    )
   });
+
+  if (!existingReport) {
+    await db.insert(reports).values({
+      id: uuidv4(),
+      tenantId,
+      workspaceId,
+      clientId,
+      campaignId: null,
+      name: 'Initial Strategy & Setup Report',
+      url: '#',
+      report_name: 'Initial Strategy & Setup Report',
+      client_name: null,
+      campaign: 'All Campaigns',
+      type: 'PERFORMANCE',
+      period: 'April 2026',
+      startDate: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString().split('T')[0],
+      endDate: now.toISOString().split('T')[0],
+      status: 'completed',
+      totalSpend: 2090,
+      impressions: 45000,
+      clicks: 1240,
+      conversions: 97,
+      roas: 4,
+      file_url: '#',
+      requestedBy: null,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    });
+  }
 
   // 4. Create Starter Report Request so Client Reports page isn't empty
   await db.insert(reportRequests).values({

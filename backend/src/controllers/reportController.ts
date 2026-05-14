@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import { campaigns, clients, workspaces, reports, users } from '../db/schema';
-import { eq, and, sql, or, like, inArray } from 'drizzle-orm';
+import { eq, and, sql, or, like, inArray, desc } from 'drizzle-orm';
 import PDFDocument from 'pdfkit';
 import { v4 as uuidv4 } from 'uuid';
 import { AppError, asyncHandler } from '../utils/errors';
@@ -22,7 +22,6 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
     if (role === 'client') {
       filters.push(eq(reports.workspaceId, userWorkspaceId));
     } else if (role === 'team') {
-      // Team members see reports they requested OR reports for clients they are assigned to
       const assignedClients = await db.select({ id: clients.id }).from(clients).where(eq(clients.assignedTeamMemberId, userId));
       const clientIds = assignedClients.map(c => c.id);
       
@@ -41,11 +40,14 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
       filters.push(like(reports.report_name, `%${search}%`) as any);
     }
 
+    // FIX 2: Join with clients to get real client name
     const allReports = await db
       .select({
         id: reports.id,
         report_name: reports.report_name,
+        name: reports.name,
         client_name: reports.client_name,
+        clientName: clients.name, // Real client name from join
         campaign: reports.campaign,
         type: reports.type,
         period: reports.period,
@@ -56,11 +58,13 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
         clicks: reports.clicks,
         conversions: reports.conversions,
         roas: reports.roas,
-        file_url: reports.file_url
+        file_url: reports.file_url,
+        url: reports.url
       })
       .from(reports)
+      .leftJoin(clients, eq(reports.clientId, clients.id))
       .where(and(...filters))
-      .orderBy(sql`${reports.createdAt} DESC`);
+      .orderBy(desc(reports.createdAt));
 
     console.log('Reports found:', allReports.length);
     
@@ -90,13 +94,7 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
     campaign 
   } = req.body;
 
-  console.log('generateReport called with:', {
-    tenantId,
-    clientId,
-    reportName,
-    type,
-    period
-  });
+  console.log('generateReport called with:', { tenantId, clientId, reportName, type, period });
 
   try {
     const reportId = uuidv4();
@@ -109,25 +107,14 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
     else if (period === 'Last 90 Days') startDate.setDate(startDate.getDate() - 90);
     else startDate.setDate(startDate.getDate() - 30);
 
-    // Get workspace from clientId - Simplified lookup (Fix 1)
+    // Get workspace from clientId
     let workspace = await db.query.workspaces.findFirst({
       where: eq(workspaces.clientId, clientId)
     });
 
-    console.log('Workspace found:', workspace);
-
-    // Fallback: Create workspace if missing (Fix 2)
     if (!workspace) {
-      console.log('Workspace not found. Attempting to create one for clientId:', clientId);
-      
-      // Get client details to create workspace
-      const client = await db.query.clients.findFirst({
-        where: eq(clients.id, clientId)
-      });
-      
-      if (!client) {
-        throw new AppError(`Client not found for clientId: ${clientId}`, 404);
-      }
+      const client = await db.query.clients.findFirst({ where: eq(clients.id, clientId) });
+      if (!client) throw new AppError(`Client not found for clientId: ${clientId}`, 404);
       
       const workspaceId = uuidv4();
       await db.insert(workspaces).values({
@@ -141,31 +128,25 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
-      
-      workspace = await db.query.workspaces.findFirst({
-        where: eq(workspaces.id, workspaceId)
-      });
-      
-      console.log('Workspace created on-the-fly:', workspace?.id);
+      workspace = await db.query.workspaces.findFirst({ where: eq(workspaces.id, workspaceId) });
     }
 
-    if (!workspace) {
-       throw new AppError(`Workspace not found and could not be created for clientId: ${clientId}`, 404);
-    }
+    if (!workspace) throw new AppError(`Workspace resolution failed for clientId: ${clientId}`, 404);
 
+    // FIX 3: Ensure period is always saved
     await db.insert(reports).values({
       id: reportId,
       tenantId,
       workspaceId: workspace.id,
       clientId: clientId || null,
       campaignId: campaignId || null,
-      name: reportName,         // Satisfies old DB column
-      url: `/api/reports/${reportId}/download`, // Satisfies old DB column
-      report_name: reportName,  // Satisfies new schema field
+      name: reportName,
+      url: `/api/reports/${reportId}/download`,
+      report_name: reportName,
       client_name: clientName || null,
       campaign: campaign || 'All Campaigns',
       type: type || 'PERFORMANCE',
-      period: period || 'Last 30 Days',
+      period: period || 'Last 30 Days', // Fallback
       startDate: startDate.toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0],
       status: 'completed',
@@ -180,9 +161,7 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
       updatedAt: new Date().toISOString(),
     });
 
-    const newReport = await db.query.reports.findFirst({
-      where: eq(reports.id, reportId)
-    });
+    const newReport = await db.query.reports.findFirst({ where: eq(reports.id, reportId) });
 
     return res.status(201).json({
       success: true,
@@ -192,10 +171,7 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
 
   } catch (err: any) {
     console.error('Report generation failed:', err);
-    res.status(err.statusCode || 500).json({
-      success: false,
-      error: err.message || 'Internal Server Error'
-    });
+    res.status(err.statusCode || 500).json({ success: false, error: err.message || 'Internal Server Error' });
   }
 });
 
@@ -227,23 +203,18 @@ export const downloadReport = asyncHandler(async (req: any, res: Response) => {
 
   if (!report) throw new AppError('Report not found', 404);
 
-  // Fetch context names
-  const workspace = await db.query.workspaces.findFirst({ where: eq(workspaces.id, report.workspaceId) });
-  const campaign = report.campaignId ? await db.query.campaigns.findFirst({ where: eq(campaigns.id, report.campaignId) }) : null;
-
   const doc = new PDFDocument({ margin: 50 });
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename=report-${report.report_name.replace(/\s+/g, '-')}.pdf`);
   doc.pipe(res);
 
-  // PDF CONTENT
   doc.fontSize(24).font('Helvetica-Bold').text('PERFORMANCE REPORT', { align: 'center' });
   doc.moveDown();
   doc.fontSize(16).text(report.report_name, { align: 'center' });
   doc.moveDown(2);
 
   doc.fontSize(12).font('Helvetica-Bold').text('Report Details:');
-  doc.font('Helvetica').text(`Client/Workspace: ${report.client_name || workspace?.name || 'N/A'}`);
+  doc.font('Helvetica').text(`Client: ${report.client_name || 'N/A'}`);
   doc.text(`Campaign: ${report.campaign || 'All Campaigns'}`);
   doc.text(`Type: ${report.type}`);
   doc.text(`Period: ${report.period}`);
@@ -255,19 +226,15 @@ export const downloadReport = asyncHandler(async (req: any, res: Response) => {
   const startY = doc.y + 20;
   doc.fontSize(10).text('TOTAL SPEND', 70, startY);
   doc.fontSize(18).text(`$${(report.totalSpend || 0).toLocaleString()}`, 70, startY + 15);
-
   doc.fontSize(10).text('IMPRESSIONS', 200, startY);
   doc.fontSize(18).text((report.impressions || 0).toLocaleString(), 200, startY + 15);
-
   doc.fontSize(10).text('CLICKS', 330, startY);
   doc.fontSize(18).text((report.clicks || 0).toLocaleString(), 330, startY + 15);
-
   doc.fontSize(10).text('CONVERSIONS', 460, startY);
   doc.fontSize(18).text((report.conversions || 0).toLocaleString(), 460, startY + 15);
 
   doc.moveDown(8);
   doc.fontSize(12).font('Helvetica-Bold').text('ROAS: ' + (report.roas || 0).toFixed(2));
-  
   doc.moveDown(4);
   doc.fontSize(10).font('Helvetica').text('Generated by Digital Marketing Hub', { align: 'center' });
 
@@ -285,9 +252,9 @@ export const deleteReport = asyncHandler(async (req: any, res: Response) => {
   res.json({ success: true, message: 'Report deleted' });
 });
 
-// Legacy exports for compatibility
-export const exportReport = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy. Use new report endpoints.' });
-export const requestCustomReport = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy. Use new report endpoints.' });
-export const getReportRequests = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy. Use new report endpoints.' });
-export const exportClientPDF = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy. Use new report endpoints.' });
-export const updateReportRequestStatus = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy. Use new report endpoints.' });
+// Legacy exports
+export const exportReport = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy' });
+export const requestCustomReport = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy' });
+export const getReportRequests = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy' });
+export const exportClientPDF = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy' });
+export const updateReportRequestStatus = (req: Request, res: Response) => res.status(501).json({ message: 'Legacy' });
