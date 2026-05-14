@@ -382,25 +382,30 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
     }
   ]);
 
-  // 2. Create Sample Analytics Summary (last 7 days)
-  const analyticsData = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    analyticsData.push({
-      tenantId,
-      workspaceId,
-      campaignId: campaign1Id,
-      date: d.toISOString().split('T')[0],
-      clicks: Math.floor(Math.random() * 200),
-      impressions: Math.floor(Math.random() * 10000),
-      conversions: Math.floor(Math.random() * 20),
-      spent: Math.floor(Math.random() * 500),
-      totalSpent: Math.floor(Math.random() * 5000),
-      roas: Math.floor(Math.random() * 10) + 2,
-    });
+  // 2. Create Sample Analytics Summary (last 30 days)
+  const existingAnalytics = await db.query.analytics.findFirst({
+    where: eq(analytics.workspaceId, workspaceId)
+  });
+
+  if (!existingAnalytics) {
+    const analyticsData = [];
+    for (let i = 0; i < 30; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      analyticsData.push({
+        tenantId,
+        workspaceId,
+        campaignId: campaign1Id,
+        date: d.toISOString().split('T')[0],
+        clicks: Math.floor(Math.random() * 200),
+        impressions: Math.floor(Math.random() * 10000),
+        conversions: Math.floor(Math.random() * 20),
+        spent: Math.floor(Math.random() * 500),
+        roas: parseFloat((Math.random() * 5 + 1).toFixed(2)),
+      });
+    }
+    await db.insert(analytics).values(analyticsData);
   }
-  await db.insert(analytics).values(analyticsData);
 
   // 3. Create Starter Report (FIX 6: Duplicate Prevention)
   const existingReport = await db.query.reports.findFirst({

@@ -19,16 +19,11 @@ cloudinary.config({
  */
 export const getBranding = asyncHandler(async (req: any, res: Response) => {
   const { tenantId } = req.user;
-  
-  console.log('Fetching branding for tenantId:', tenantId);
-
   const tenant = await db.query.tenants.findFirst({
     where: eq(tenants.id, tenantId)
   });
-  
   if (!tenant) throw new AppError('Tenant not found', 404);
   
-  // Return fields matching EXACTLY what frontend expects (Fix 1)
   res.json({
     agencyName:      tenant.name || '',
     primaryColor:    tenant.primaryColor || '#6366f1',
@@ -48,41 +43,28 @@ export const getBranding = asyncHandler(async (req: any, res: Response) => {
  */
 export const updateBranding = asyncHandler(async (req: any, res: Response) => {
   const { tenantId } = req.user;
-  const { 
-    agencyName,
-    primaryColor,
-    secondaryColor,
-    logoUrl,
-    faviconUrl,
-    customCss,
-    footerText,
-    supportEmail,
-    removePoweredBy
+  const {
+    agencyName, primaryColor, secondaryColor,
+    logoUrl, faviconUrl, customCss,
+    footerText, supportEmail, removePoweredBy
   } = req.body;
-  
-  console.log('Saving branding for tenant:', tenantId);
-  console.log('Branding data received:', { agencyName, primaryColor, hasLogo: !!logoUrl });
-  
+
+  const updateData: any = {};
+  if (agencyName !== undefined) updateData.name = agencyName;
+  if (primaryColor !== undefined) updateData.primaryColor = primaryColor;
+  if (secondaryColor !== undefined) updateData.secondaryColor = secondaryColor;
+  if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
+  if (faviconUrl !== undefined) updateData.faviconUrl = faviconUrl;
+  if (customCss !== undefined) updateData.customCss = customCss;
+  if (footerText !== undefined) updateData.footerText = footerText;
+  if (supportEmail !== undefined) updateData.supportEmail = supportEmail;
+  if (removePoweredBy !== undefined) updateData.removePoweredBy = removePoweredBy;
+
   await db.update(tenants)
-    .set({
-      name:            agencyName  || undefined,
-      primaryColor:    primaryColor || undefined,
-      secondaryColor:  secondaryColor || undefined,
-      logoUrl:         logoUrl !== undefined ? logoUrl : undefined,
-      faviconUrl:      faviconUrl !== undefined ? faviconUrl : undefined,
-      customCss:       customCss || undefined,
-      footerText:      footerText || undefined,
-      supportEmail:    supportEmail || undefined,
-      removePoweredBy: removePoweredBy !== undefined ? Number(removePoweredBy) : undefined,
-    })
+    .set(updateData)
     .where(eq(tenants.id, tenantId));
-  
-  console.log('Branding saved successfully to tenants table');
-  
-  res.json({ 
-    success: true, 
-    message: 'Branding saved successfully' 
-  });
+
+  res.json({ success: true, message: 'Branding saved' });
 });
 
 /**

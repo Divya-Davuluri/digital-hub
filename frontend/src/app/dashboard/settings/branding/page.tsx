@@ -42,7 +42,17 @@ export default function BrandingSettingsPage() {
           apiCall('/branding'),
           apiCall('/branding/domain')
         ]);
-        setBranding(bData);
+        setBranding({
+          agencyName:      bData.agencyName || '',
+          primaryColor:    bData.primaryColor || '#6366f1',
+          secondaryColor:  bData.secondaryColor || '#4f46e5',
+          logoUrl:         bData.logoUrl || '',
+          faviconUrl:      bData.faviconUrl || '',
+          customCss:       bData.customCss || '',
+          footerText:      bData.footerText || '',
+          supportEmail:    bData.supportEmail || '',
+          removePoweredBy: bData.removePoweredBy || 0,
+        });
         setDomains(dData);
       } catch (err) {
         console.error("Failed to load branding data", err);

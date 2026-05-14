@@ -34,6 +34,8 @@ import campaignRoutes from './routes/campaignRoutes';
 import automationRoutes from './routes/automationRoutes';
 import clientPortalRoutes from './routes/clientPortalRoutes';
 import assetRoutes from './routes/assetRoutes';
+import analyticsRoutes from './routes/analytics';
+import budgetRoutes from './routes/budget';
 
 
 import { authMiddleware, authorize } from './middleware/authMiddleware';
@@ -110,7 +112,6 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // --- API Route Mounting ---
-import budgetRoutes from './routes/budget';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
@@ -128,6 +129,8 @@ app.use('/api/assets', assetRoutes);
 
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/budget', budgetRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/onboarding', onboardingRoutes);

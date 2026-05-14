@@ -34,6 +34,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
     if (role === 'admin') {
       return [
         { name: 'Overview', href: '/dashboard/admin', icon: '🏠' },
+        { name: 'Analytics', href: '/dashboard/analytics', icon: '📊' },
         { name: 'Manage Clients', href: '/dashboard/admin/clients', icon: '🏢' },
         { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
         { name: 'Budget', href: '/dashboard/budget', icon: '💰' },
@@ -47,6 +48,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
     if (role === 'team') {
       return [
         { name: 'Overview', href: '/dashboard/team', icon: '🏠' },
+        { name: 'Analytics', href: '/dashboard/analytics', icon: '📊' },
         { name: 'Assigned Clients', href: '/dashboard/team/assigned-clients', icon: '💼' },
         { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
         { name: 'Budget', href: '/dashboard/budget', icon: '💰' },
