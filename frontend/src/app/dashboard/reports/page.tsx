@@ -55,12 +55,12 @@ export default function UnifiedReportsPage() {
 
   const fetchData = async () => {
     try {
-      const [wData, cData] = await Promise.all([
-        apiCall('/agency/workspaces'),
+      const [cData, campData] = await Promise.all([
+        apiCall('/agency/clients'),
         apiCall('/campaigns')
       ]);
-      setWorkspaces(Array.isArray(wData) ? wData : []);
-      setCampaigns(Array.isArray(cData) ? cData : []);
+      setWorkspaces(Array.isArray(cData) ? cData : []);
+      setCampaigns(Array.isArray(campData) ? campData : []);
     } catch (err) {
       console.error("Failed to load form data", err);
     }
@@ -325,13 +325,19 @@ export default function UnifiedReportsPage() {
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                       value={formData.workspaceId}
                       onChange={e => {
-                        const ws = workspaces.find(w => w.id === e.target.value);
-                        setFormData({...formData, workspaceId: e.target.value, clientId: ws?.clientId || ''});
+                        const ws = workspaces.find(w => (w.workspaceId || w.workspace_id) === e.target.value);
+                        setFormData({
+                          ...formData, 
+                          workspaceId: e.target.value, 
+                          clientId: ws?.id || ws?.clientId || ''
+                        });
                       }}
                     >
                       <option value="">Select Workspace</option>
                       {workspaces.map(w => (
-                        <option key={w.id} value={w.id}>{w.name}</option>
+                        <option key={w.id} value={w.workspaceId || w.workspace_id}>
+                          {w.companyName || w.name} ({w.workspace_slug || 'Workspace'})
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -344,7 +350,7 @@ export default function UnifiedReportsPage() {
                       onChange={e => setFormData({...formData, campaignId: e.target.value})}
                     >
                       <option value="">All Campaigns</option>
-                      {campaigns.filter(c => c.workspaceId === formData.workspaceId).map(c => (
+                      {campaigns.filter(c => (c.workspaceId || c.workspace_id) === formData.workspaceId).map(c => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
