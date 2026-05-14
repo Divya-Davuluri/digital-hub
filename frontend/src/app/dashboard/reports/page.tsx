@@ -81,7 +81,18 @@ export default function UnifiedReportsPage() {
       });
       toast.success("Report generated successfully");
       setIsModalOpen(false);
-      fetchReports();
+      
+      // Reset filters to ensure the new report is visible
+      const filtersWereDefault = typeFilter === 'All Types' && dateFilter === 'Last 30 Days' && searchTerm === '';
+      
+      setTypeFilter('All Types');
+      setDateFilter('Last 30 Days');
+      setSearchTerm('');
+      
+      // If filters were already default, useEffect won't trigger, so fetch manually
+      if (filtersWereDefault) {
+        fetchReports();
+      }
       setFormData({
         name: '', type: 'PERFORMANCE', period: 'Last 30 Days',
         workspaceId: '', clientId: '', campaignId: '', startDate: '', endDate: ''

@@ -49,9 +49,11 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
   }
 
   // Query filters
-  if (queryWorkspaceId) filters.push(eq(reports.workspaceId, queryWorkspaceId));
-  if (clientId) filters.push(eq(reports.clientId, clientId));
+  if (queryWorkspaceId && queryWorkspaceId !== 'undefined') filters.push(eq(reports.workspaceId, queryWorkspaceId));
+  if (clientId && clientId !== 'undefined') filters.push(eq(reports.clientId, clientId));
   if (type && type !== 'All Types') filters.push(eq(reports.type, type.toUpperCase()));
+  if (period && period !== 'All Time') filters.push(eq(reports.period, period));
+  
   if (search) {
     filters.push(or(
       like(reports.name, `%${search}%`),
@@ -93,11 +95,11 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
     conversions: acc.conversions + (c.conversions || 0)
   }), { spent: 0, impressions: 0, clicks: 0, conversions: 0 });
 
-  const roas = totals.spent > 0 ? (totals.conversions * 50) / totals.spent : 0; // Simulated value
+  const roas = totals.spent > 0 ? (totals.conversions * 50) / totals.spent : 0;
 
   // 2. Save Report to DB
   const reportId = uuidv4();
-  const newReport = {
+  const reportData = {
     id: reportId,
     tenantId,
     workspaceId,
@@ -116,12 +118,17 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
     roas,
     pdfUrl: `/api/reports/${reportId}/download`,
     requestedBy: userId,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 
-  await db.insert(reports).values(newReport);
+  await db.insert(reports).values(reportData);
 
-  res.status(201).json(newReport);
+  res.status(201).json({
+    success: true,
+    message: 'Report generated successfully',
+    report: reportData
+  });
 });
 
 /**
