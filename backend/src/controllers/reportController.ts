@@ -8,9 +8,6 @@ import { AppError, asyncHandler } from '../utils/errors';
 
 /**
  * GET /api/reports
- * Admin: all reports
- * Team: assigned workspace reports
- * Client: own workspace reports
  */
 export const getReports = asyncHandler(async (req: any, res: Response) => {
   const { tenantId, workspaceId: userWorkspaceId, role, id: userId } = req.user;
@@ -20,7 +17,7 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
 
   let query = db.select({
     id: reports.id,
-    name: reports.name,
+    report_name: reports.report_name,
     type: reports.type,
     period: reports.period,
     status: reports.status,
@@ -31,7 +28,8 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
     impressions: reports.impressions,
     clicks: reports.clicks,
     conversions: reports.conversions,
-    roas: reports.roas
+    roas: reports.roas,
+    file_url: reports.file_url
   })
   .from(reports)
   .leftJoin(workspaces, eq(reports.workspaceId, workspaces.id))
@@ -63,8 +61,6 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
     filters.push(eq(reports.type, type.toUpperCase()));
   }
   if (period && period !== 'All Time' && period !== 'Last 30 Days' && period !== 'Last 7 Days') {
-    // If it's a specific period, filter by it. Default to showing all if period is just a general label.
-    // However, the user wants "Last 30 Days" filter to work.
     filters.push(eq(reports.period, period));
   } else if (period && period !== 'All Time') {
     filters.push(eq(reports.period, period));
@@ -72,7 +68,7 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
   
   if (search) {
     filters.push(or(
-      like(reports.name, `%${search}%`),
+      like(reports.report_name, `%${search}%`),
       like(workspaces.name, `%${search}%`),
       like(clients.name, `%${search}%`)
     ) as any);
@@ -104,70 +100,85 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
 
   console.log('[POST_REPORT_BODY]', req.body);
 
-  // 1. Validation
   if (!report_name || !workspace_id) {
     throw new AppError('Report name and Workspace are required', 400);
   }
 
-  // 2. Calculate Metrics from Campaigns
-  let campaignQuery = db.select().from(campaigns).where(and(
-    eq(campaigns.tenantId, tenantId),
-    campaign_id ? eq(campaigns.id, campaign_id) : eq(campaigns.workspaceId, workspace_id)
-  ));
-
-  const campaignData = await campaignQuery;
-
-  const totals = campaignData.reduce((acc, c) => ({
-    spent: acc.spent + (c.spent || 0),
-    impressions: acc.impressions + (c.impressions || 0),
-    clicks: acc.clicks + (c.clicks || 0),
-    conversions: acc.conversions + (c.conversions || 0)
-  }), { spent: 0, impressions: 0, clicks: 0, conversions: 0 });
-
-  const roas = totals.spent > 0 ? (totals.conversions * 50) / totals.spent : 0;
-
-  // 3. Save Report to DB
   const reportId = uuidv4();
-  const reportData = {
+  
+  // 1. Insert initial pending record
+  const initialReport = {
     id: reportId,
     tenantId,
     workspaceId: workspace_id,
     clientId: client_id || null,
     campaignId: campaign_id || null,
-    name: report_name,
+    report_name,
     type: report_type || 'PERFORMANCE',
     period: period || 'Last 30 Days',
     startDate: start_date || null,
     endDate: end_date || null,
-    status: 'READY',
-    totalSpend: totals.spent,
-    impressions: totals.impressions,
-    clicks: totals.clicks,
-    conversions: totals.conversions,
-    roas,
-    pdfUrl: `/api/reports/${reportId}/download`,
+    status: 'pending',
+    totalSpend: 0,
+    impressions: 0,
+    clicks: 0,
+    conversions: 0,
+    roas: 0,
+    file_url: `/api/reports/${reportId}/download`,
     requestedBy: userId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
 
-  await db.insert(reports).values(reportData);
-  console.log('[REPORT_INSERTED]', reportId);
+  await db.insert(reports).values(initialReport);
 
-  // 4. Verify insertion immediately
-  const verifiedReport = await db.query.reports.findFirst({
-    where: eq(reports.id, reportId)
-  });
+  // 2. Start "Processing" in background (simulated)
+  // In a real BullMQ setup, we would add to queue here.
+  // For now, we update it to 'generating' then 'completed'
+  
+  setTimeout(async () => {
+    try {
+      // Update to generating
+      await db.update(reports).set({ status: 'generating' }).where(eq(reports.id, reportId));
+      
+      // Calculate Metrics
+      let campaignQuery = db.select().from(campaigns).where(and(
+        eq(campaigns.tenantId, tenantId),
+        campaign_id ? eq(campaigns.id, campaign_id) : eq(campaigns.workspaceId, workspace_id)
+      ));
 
-  if (!verifiedReport) {
-    console.error('[REPORT_VERIFICATION_FAILED]', reportId);
-    throw new AppError('Critical Error: Report was not saved to database. Please try again.', 500);
-  }
+      const campaignData = await campaignQuery;
+      const totals = campaignData.reduce((acc, c) => ({
+        spent: acc.spent + (c.spent || 0),
+        impressions: acc.impressions + (c.impressions || 0),
+        clicks: acc.clicks + (c.clicks || 0),
+        conversions: acc.conversions + (c.conversions || 0)
+      }), { spent: 0, impressions: 0, clicks: 0, conversions: 0 });
+
+      const roas = totals.spent > 0 ? (totals.conversions * 50) / totals.spent : 0;
+
+      // Update to completed
+      await db.update(reports).set({ 
+        status: 'completed',
+        totalSpend: totals.spent,
+        impressions: totals.impressions,
+        clicks: totals.clicks,
+        conversions: totals.conversions,
+        roas,
+        updatedAt: new Date().toISOString()
+      }).where(eq(reports.id, reportId));
+      
+      console.log(`[REPORT_COMPLETED] ${reportId}`);
+    } catch (err) {
+      console.error(`[REPORT_FAILED] ${reportId}`, err);
+      await db.update(reports).set({ status: 'failed' }).where(eq(reports.id, reportId));
+    }
+  }, 2000); // Wait 2 seconds to show the flow
 
   res.status(201).json({
     success: true,
-    message: 'Report generated successfully',
-    report: verifiedReport
+    message: 'Report generation started',
+    report: initialReport
   });
 });
 
@@ -198,6 +209,7 @@ export const downloadReport = asyncHandler(async (req: any, res: Response) => {
   });
 
   if (!report) throw new AppError('Report not found', 404);
+  if (report.status !== 'completed') throw new AppError('Report is not ready for download', 400);
 
   // Fetch context names
   const workspace = await db.query.workspaces.findFirst({ where: eq(workspaces.id, report.workspaceId) });
@@ -205,13 +217,13 @@ export const downloadReport = asyncHandler(async (req: any, res: Response) => {
 
   const doc = new PDFDocument({ margin: 50 });
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename=report-${report.name.replace(/\s+/g, '-')}.pdf`);
+  res.setHeader('Content-Disposition', `attachment; filename=report-${report.report_name.replace(/\s+/g, '-')}.pdf`);
   doc.pipe(res);
 
   // PDF CONTENT
   doc.fontSize(24).font('Helvetica-Bold').text('PERFORMANCE REPORT', { align: 'center' });
   doc.moveDown();
-  doc.fontSize(16).text(report.name, { align: 'center' });
+  doc.fontSize(16).text(report.report_name, { align: 'center' });
   doc.moveDown(2);
 
   doc.fontSize(12).font('Helvetica-Bold').text('Report Details:');

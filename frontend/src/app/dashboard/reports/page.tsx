@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { apiCall } from '@/lib/api';
 import { 
   FileText, Download, Filter, Search, 
   Calendar, CheckCircle2, Clock, AlertCircle,
-  MoreVertical, ExternalLink, Plus, X, Trash2
+  MoreVertical, ExternalLink, Plus, X, Trash2, 
+  RefreshCw, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -20,6 +21,7 @@ export default function UnifiedReportsPage() {
   const [dateFilter, setDateFilter] = useState('Last 30 Days');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -39,10 +41,14 @@ export default function UnifiedReportsPage() {
   useEffect(() => {
     fetchReports();
     fetchData();
+    
+    // Polling setup
+    return () => {
+      if (pollingInterval.current) clearInterval(pollingInterval.current);
+    };
   }, [typeFilter, dateFilter]);
 
   const fetchReports = async () => {
-    setLoading(true);
     try {
       console.log("[DEBUG] Fetching reports with filters:", { typeFilter, dateFilter });
       const response = await apiCall(`/reports?type=${typeFilter}&period=${dateFilter}`);
@@ -50,11 +56,33 @@ export default function UnifiedReportsPage() {
       
       const reportList = response.reports || (Array.isArray(response) ? response : []);
       setReports(reportList);
+      setLoading(false);
+
+      // Check if we need to poll
+      const hasPending = reportList.some((r: any) => r.status === 'pending' || r.status === 'generating');
+      if (hasPending && !pollingInterval.current) {
+        startPolling();
+      } else if (!hasPending && pollingInterval.current) {
+        stopPolling();
+      }
     } catch (err) {
       console.error("[DEBUG] Failed to load reports", err);
       toast.error("Failed to load reports");
-    } finally {
       setLoading(false);
+    }
+  };
+
+  const startPolling = () => {
+    if (pollingInterval.current) return;
+    console.log("[POLLING] Started status polling...");
+    pollingInterval.current = setInterval(fetchReports, 5000);
+  };
+
+  const stopPolling = () => {
+    if (pollingInterval.current) {
+      console.log("[POLLING] Stopped status polling.");
+      clearInterval(pollingInterval.current);
+      pollingInterval.current = null;
     }
   };
 
@@ -88,20 +116,15 @@ export default function UnifiedReportsPage() {
       console.log("[DEBUG] Create report response:", res);
 
       if (res.success) {
-        toast.success("Report generated successfully");
+        toast.success("Report generation started");
         setIsModalOpen(false);
         
         // Reset filters to ensure the new report is visible
-        const filtersWereDefault = typeFilter === 'All Types' && dateFilter === 'Last 30 Days' && searchTerm === '';
-        
         setTypeFilter('All Types');
         setDateFilter('Last 30 Days');
         setSearchTerm('');
         
-        // If filters were already default, useEffect won't trigger, so fetch manually
-        if (filtersWereDefault) {
-          fetchReports();
-        }
+        fetchReports();
         
         setFormData({
           report_name: '', report_type: 'PERFORMANCE', period: 'Last 30 Days',
@@ -118,23 +141,26 @@ export default function UnifiedReportsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteReport = async (id: string) => {
     if (!confirm("Are you sure you want to delete this report?")) return;
     try {
       await apiCall(`/reports/${id}`, { method: 'DELETE' });
       toast.success("Report deleted");
-      setReports(reports.filter(r => r.id !== id));
+      fetchReports();
     } catch (err) {
       toast.error("Failed to delete report");
     }
   };
 
   const handleDownload = async (report: any) => {
+    if (report.status !== 'completed') {
+      toast.error("Report is still being generated...");
+      return;
+    }
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com'}/api/reports/${report.id}/download`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com/api'}${report.file_url}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
       
@@ -144,293 +170,349 @@ export default function UnifiedReportsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `report-${report.name.replace(/\s+/g, '-')}.pdf`;
+      a.download = `report-${report.report_name.replace(/\s+/g, '-')}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      toast.error("Failed to download report");
+      console.error("Download error:", err);
+      toast.error("Failed to download PDF");
     }
   };
 
-  const filteredReports = useMemo(() => {
-    return reports.filter(r => 
-      r.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.workspaceName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.clientName?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [reports, searchTerm]);
+  const filteredReports = reports.filter(r => 
+    r.report_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.workspaceName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.clientName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar />
-      <div className="flex-1 ml-[260px]">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        <main className="p-8 max-w-[1400px] mx-auto">
-          <div className="flex justify-between items-end mb-8">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Performance Reports</h1>
-              <p className="text-slate-500 mt-1">Access and manage all generated campaign reports and analytics.</p>
+        
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+          <div className="max-w-7xl mx-auto space-y-6">
+            
+            {/* Action Bar */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+              <div>
+                <h1 className="text-2xl font-black text-slate-800">Reports Engine</h1>
+                <p className="text-slate-500">Manage and track performance reports for all workspaces.</p>
+              </div>
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
+              >
+                <Plus size={20} />
+                Request New Report
+              </button>
             </div>
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all flex items-center gap-2"
-            >
-              <Plus size={18} /> Request New Report
-            </button>
-          </div>
 
-          {/* Filters Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-6 flex items-center justify-between">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search reports by name or client..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-              />
-            </div>
-            <div className="flex items-center gap-3">
+            {/* Filters */}
+            <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-wrap items-center gap-4">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Search reports..."
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none border-none"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
+              
               <select 
+                className="px-4 py-3 bg-slate-50 rounded-2xl text-sm font-semibold text-slate-600 outline-none border-none"
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                onChange={e => setTypeFilter(e.target.value)}
               >
                 <option>All Types</option>
-                <option>Performance</option>
-                <option>Campaign</option>
-                <option>Analytics</option>
-                <option>Budget</option>
-                <option>Client Summary</option>
+                <option>PERFORMANCE</option>
+                <option>CAMPAIGN</option>
+                <option>ANALYTICS</option>
+                <option>BUDGET</option>
               </select>
+
               <select 
+                className="px-4 py-3 bg-slate-50 rounded-2xl text-sm font-semibold text-slate-600 outline-none border-none"
                 value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                onChange={e => setDateFilter(e.target.value)}
               >
+                <option>All Time</option>
                 <option>Last 7 Days</option>
                 <option>Last 30 Days</option>
                 <option>Last 90 Days</option>
-                <option>This Month</option>
               </select>
             </div>
-          </div>
 
-          {/* Reports Table */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Report Name</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Client / Workspace</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Period</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      <td colSpan={6} className="px-6 py-8"><div className="h-4 bg-slate-100 rounded w-full" /></td>
+            {/* Reports Table */}
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50/50 border-b border-slate-100">
+                    <tr>
+                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Report Name</th>
+                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Client / Workspace</th>
+                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Period</th>
+                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Type</th>
+                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                     </tr>
-                  ))
-                ) : filteredReports.length > 0 ? (
-                  filteredReports.map((report) => (
-                    <tr key={report.id} className="hover:bg-slate-50/80 transition-all group">
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><FileText size={18} /></div>
-                          <div>
-                            <div className="text-sm font-bold text-slate-900">{report.name}</div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Created {new Date(report.createdAt).toLocaleDateString()}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="text-sm font-bold text-slate-700">{report.workspaceName || 'Global'}</div>
-                        <div className="text-[10px] text-slate-400 uppercase font-black">{report.clientName}</div>
-                      </td>
-                      <td className="px-6 py-5 text-sm text-slate-500 font-medium">{report.period}</td>
-                      <td className="px-6 py-5">
-                        <span className="text-[10px] font-black uppercase px-2 py-1 bg-slate-100 rounded-md text-slate-500 tracking-tighter">
-                          {report.type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                          report.status === 'READY' ? 'bg-green-50 text-green-600 border border-green-100' : 
-                          'bg-slate-50 text-slate-500 border border-slate-100'
-                        }`}>
-                          {report.status === 'READY' ? <CheckCircle2 size={12} /> : <Clock size={12} />}
-                          {report.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => handleDownload(report)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Download PDF"
-                          >
-                            <Download size={16} />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(report.id)}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-24 text-center">
-                      <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl shadow-inner border border-slate-100">📊</div>
-                      <h3 className="text-xl font-black text-slate-900 mb-2">No reports found</h3>
-                      <p className="text-slate-500 max-w-sm mx-auto text-sm leading-relaxed">
-                        No performance reports matched your current filters.
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-20 text-center">
+                          <Loader2 className="mx-auto text-indigo-500 animate-spin" size={40} />
+                          <p className="mt-4 text-slate-500 font-medium">Loading reports...</p>
+                        </td>
+                      </tr>
+                    ) : filteredReports.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-20 text-center">
+                          <FileText className="mx-auto text-slate-200" size={60} />
+                          <p className="mt-4 text-slate-400 font-bold text-xl">No reports found</p>
+                          <p className="text-slate-400">Generate your first report to see it here.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredReports.map((report) => (
+                        <tr key={report.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                <FileText size={20} />
+                              </div>
+                              <div>
+                                <div className="font-bold text-slate-800">{report.report_name}</div>
+                                <div className="text-xs text-slate-400">Created {new Date(report.createdAt).toLocaleDateString()}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm">
+                            <div className="font-semibold text-slate-700">{report.clientName || 'Direct Workspace'}</div>
+                            <div className="text-xs text-slate-400">{report.workspaceName}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-100 w-fit px-3 py-1 rounded-full font-medium">
+                              <Calendar size={14} />
+                              {report.period}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                             <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">
+                               {report.type}
+                             </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {report.status === 'completed' && (
+                              <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-sm">
+                                <CheckCircle2 size={16} />
+                                Completed
+                              </div>
+                            )}
+                            {report.status === 'pending' && (
+                              <div className="flex items-center gap-1.5 text-amber-500 font-bold text-sm">
+                                <Clock size={16} className="animate-pulse" />
+                                Pending
+                              </div>
+                            )}
+                            {report.status === 'generating' && (
+                              <div className="flex items-center gap-1.5 text-indigo-600 font-bold text-sm">
+                                <Loader2 size={16} className="animate-spin" />
+                                Generating...
+                              </div>
+                            )}
+                            {report.status === 'failed' && (
+                              <div className="flex items-center gap-1.5 text-rose-500 font-bold text-sm">
+                                <AlertCircle size={16} />
+                                Failed
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end items-center gap-2">
+                              {report.status === 'completed' ? (
+                                <button 
+                                  onClick={() => handleDownload(report)}
+                                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                  title="Download PDF"
+                                >
+                                  <Download size={18} />
+                                </button>
+                              ) : report.status === 'failed' ? (
+                                <button 
+                                  onClick={() => {
+                                    setFormData({
+                                      report_name: report.report_name,
+                                      report_type: report.type,
+                                      period: report.period,
+                                      workspace_id: report.workspaceId,
+                                      client_id: report.clientId,
+                                      campaign_id: report.campaignId || '',
+                                      start_date: '',
+                                      end_date: ''
+                                    });
+                                    setIsModalOpen(true);
+                                  }}
+                                  className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                  title="Retry Generation"
+                                >
+                                  <RefreshCw size={18} />
+                                </button>
+                              ) : null}
+                              <button 
+                                onClick={() => handleDeleteReport(report.id)}
+                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                title="Delete"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </main>
+
+        {/* Modal */}
+        <AnimatePresence>
+          {isModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsModalOpen(false)}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="relative w-full max-w-xl bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white/20"
+              >
+                <div className="p-8 lg:p-10">
+                  <div className="flex justify-between items-start mb-8">
+                    <div>
+                      <h2 className="text-3xl font-black text-slate-800">Generate New Report</h2>
+                      <p className="text-slate-500">Configure report parameters and metrics.</p>
+                    </div>
+                    <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                      <X size={24} className="text-slate-400" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCreateReport} className="grid grid-cols-2 gap-6">
+                    <div className="col-span-2 space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Report Name</label>
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="e.g., Monthly Performance - June 2024"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        value={formData.report_name}
+                        onChange={e => setFormData({...formData, report_name: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Client / Workspace</label>
+                      <select 
+                        required
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        value={formData.workspace_id}
+                        onChange={e => {
+                          const ws = workspaces.find(w => (w.workspaceId || w.workspace_id) === e.target.value);
+                          setFormData({
+                            ...formData, 
+                            workspace_id: e.target.value, 
+                            client_id: ws?.id || ws?.clientId || ''
+                          });
+                        }}
+                      >
+                        <option value="">Select Workspace</option>
+                        {workspaces.map(w => (
+                          <option key={w.id} value={w.workspaceId || w.workspace_id}>
+                            {w.companyName || w.name} ({w.workspace_slug || 'Workspace'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Campaign (Optional)</label>
+                      <select 
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        value={formData.campaign_id}
+                        onChange={e => setFormData({...formData, campaign_id: e.target.value})}
+                      >
+                        <option value="">All Campaigns</option>
+                        {campaigns.filter(c => (c.workspaceId || c.workspace_id) === formData.workspace_id).map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Report Type</label>
+                      <select 
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        value={formData.report_type}
+                        onChange={e => setFormData({...formData, report_type: e.target.value})}
+                      >
+                        <option value="PERFORMANCE">Performance</option>
+                        <option value="CAMPAIGN">Campaign Detail</option>
+                        <option value="ANALYTICS">Analytics Deep-dive</option>
+                        <option value="BUDGET">Budget Allocation</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Period</label>
+                      <select 
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        value={formData.period}
+                        onChange={e => setFormData({...formData, period: e.target.value})}
+                      >
+                        <option>Last 7 Days</option>
+                        <option>Last 30 Days</option>
+                        <option>Last 90 Days</option>
+                        <option>This Month</option>
+                      </select>
+                    </div>
+
+                    <div className="col-span-2 pt-6 flex gap-4">
+                      <button 
+                        type="button"
+                        onClick={() => setIsModalOpen(false)}
+                        className="flex-1 px-6 py-4 bg-slate-50 text-slate-600 rounded-2xl font-bold hover:bg-slate-100 transition-colors"
+                      >
+                        CANCEL
+                      </button>
+                      <button 
+                        type="submit"
+                        disabled={creating}
+                        className="flex-[2] px-6 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {creating ? <Loader2 className="animate-spin" /> : null}
+                        GENERATE REPORT
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
-
-      {/* Create Report Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden"
-            >
-              <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <div>
-                  <h3 className="text-xl font-black text-slate-900">Generate New Report</h3>
-                  <p className="text-sm text-slate-500">Configure report parameters and metrics.</p>
-                </div>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-white rounded-full transition-all text-slate-400 hover:text-slate-900">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <form onSubmit={handleCreateReport} className="p-8 space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="col-span-2 space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Report Name</label>
-                    <input 
-                      type="text" 
-                      required
-                      placeholder="e.g., Monthly Performance - June 2024"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={formData.report_name}
-                      onChange={e => setFormData({...formData, report_name: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Client / Workspace</label>
-                    <select 
-                      required
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={formData.workspace_id}
-                      onChange={e => {
-                        const ws = workspaces.find(w => (w.workspaceId || w.workspace_id) === e.target.value);
-                        setFormData({
-                          ...formData, 
-                          workspace_id: e.target.value, 
-                          client_id: ws?.id || ws?.clientId || ''
-                        });
-                      }}
-                    >
-                      <option value="">Select Workspace</option>
-                      {workspaces.map(w => (
-                        <option key={w.id} value={w.workspaceId || w.workspace_id}>
-                          {w.companyName || w.name} ({w.workspace_slug || 'Workspace'})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Campaign (Optional)</label>
-                    <select 
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={formData.campaign_id}
-                      onChange={e => setFormData({...formData, campaign_id: e.target.value})}
-                    >
-                      <option value="">All Campaigns</option>
-                      {campaigns.filter(c => (c.workspaceId || c.workspace_id) === formData.workspace_id).map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Report Type</label>
-                    <select 
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={formData.report_type}
-                      onChange={e => setFormData({...formData, report_type: e.target.value})}
-                    >
-                      <option value="PERFORMANCE">Performance</option>
-                      <option value="CAMPAIGN">Campaign Detail</option>
-                      <option value="ANALYTICS">Analytics Deep-dive</option>
-                      <option value="BUDGET">Budget Allocation</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Period</label>
-                    <select 
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={formData.period}
-                      onChange={e => setFormData({...formData, period: e.target.value})}
-                    >
-                      <option>Last 7 Days</option>
-                      <option>Last 30 Days</option>
-                      <option>Last 90 Days</option>
-                      <option>This Month</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="pt-6 border-t border-slate-100 flex gap-4">
-                  <button 
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="flex-1 py-4 px-6 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit"
-                    disabled={creating}
-                    className="flex-[2] py-4 px-6 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {creating ? 'Generating...' : 'Generate Report'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

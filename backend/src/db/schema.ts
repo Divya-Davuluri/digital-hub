@@ -245,18 +245,18 @@ export const reports = sqliteTable('reports', {
   workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
   campaignId: text('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
+  report_name: text('report_name').notNull(),
   type: text('type').default('PERFORMANCE'), // PERFORMANCE, CAMPAIGN, ANALYTICS, BUDGET, CLIENT_SUMMARY
   period: text('period'), // Last 7 Days, Last 30 Days, etc.
   startDate: text('start_date'),
   endDate: text('end_date'),
-  status: text('status').default('READY'), // READY, GENERATING, FAILED
+  status: text('status').default('pending'), // pending, generating, completed, failed
   totalSpend: real('total_spend').default(0),
   impressions: integer('impressions').default(0),
   clicks: integer('clicks').default(0),
   conversions: integer('conversions').default(0),
   roas: real('roas').default(0),
-  pdfUrl: text('pdf_url'),
+  file_url: text('file_url'),
   requestedBy: text('requested_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
