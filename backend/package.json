@@ -21,6 +21,7 @@
     "@types/express-session": "^1.19.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.1.0",
     "@types/node": "^20.19.39",
     "@types/passport": "^1.0.17",
     "@types/passport-facebook": "^3.0.4",
@@ -55,7 +56,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/multer": "^2.1.0",
     "drizzle-kit": "^0.31.10",
     "ts-node": "^10.9.2"
   }
