@@ -80,9 +80,21 @@ export default function BudgetPage() {
   };
 
   const getScoreBadge = (score: number) => {
-    if (score >= 6) return <span className="px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-bold">{score.toFixed(1)}</span>;
-    if (score >= 3) return <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-xs font-bold">{score.toFixed(1)}</span>;
-    return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold">{score.toFixed(1)}</span>;
+    if (!score || score === 0) return <span className="px-2 py-1 bg-slate-100 text-slate-400 rounded-full text-xs font-bold">No data</span>;
+    if (score >= 6) return <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">{score.toFixed(1)}</span>;
+    if (score >= 3) return <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold">{score.toFixed(1)}</span>;
+    return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold">{score.toFixed(1)}</span>;
+  };
+
+  const getRoasElement = (roas: number) => {
+    if (!roas || roas === 0) return <span className="text-slate-400 font-bold">—</span>;
+    if (roas < 2) return <span className="text-red-500 font-bold">{roas.toFixed(1)}x</span>;
+    if (roas <= 3) return <span className="text-yellow-600 font-bold">{roas.toFixed(1)}x</span>;
+    return <span className="text-green-600 font-black">{roas.toFixed(1)}x</span>;
+  };
+
+  const openMetricsModal = (allocation: any) => {
+    toast('Metrics modal coming soon', { icon: '📊' });
   };
 
   const handleCreatePool = async (e: React.FormEvent) => {
@@ -253,9 +265,11 @@ export default function BudgetPage() {
                           <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest">Channel</th>
                           <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Allocated</th>
                           <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Spent</th>
+                          <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Remaining</th>
                           <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">ROAS</th>
                           <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Score</th>
                           <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Auto</th>
+                          <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
@@ -269,7 +283,8 @@ export default function BudgetPage() {
                             </td>
                             <td className="p-4 text-right font-bold text-sm text-slate-900">${(alloc.allocatedAmount || 0).toLocaleString()}</td>
                             <td className="p-4 text-right font-bold text-sm text-slate-500">${(alloc.spentAmount || 0).toLocaleString()}</td>
-                            <td className="p-4 text-center font-bold text-sm text-slate-700">{alloc.roas?.toFixed(1)}x</td>
+                            <td className="p-4 text-right font-bold text-sm text-slate-500">${((alloc.allocatedAmount || 0) - (alloc.spentAmount || 0)).toLocaleString()}</td>
+                            <td className="p-4 text-center text-sm">{getRoasElement(alloc.roas)}</td>
                             <td className="p-4 text-center">{getScoreBadge(alloc.performanceScore || 0)}</td>
                             <td className="p-4 text-center">
                               <button 
@@ -277,6 +292,14 @@ export default function BudgetPage() {
                                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${alloc.autoAdjust ? 'bg-indigo-500' : 'bg-slate-200'}`}
                               >
                                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${alloc.autoAdjust ? 'translate-x-6' : 'translate-x-1'}`} />
+                              </button>
+                            </td>
+                            <td className="p-4 text-center">
+                              <button 
+                                onClick={() => openMetricsModal(alloc)}
+                                className="text-xs px-3 py-1.5 border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50 font-bold transition-all whitespace-nowrap"
+                              >
+                                + Add Metrics
                               </button>
                             </td>
                           </tr>
@@ -292,7 +315,13 @@ export default function BudgetPage() {
                       {/* @ts-ignore */}
                       <ResponsiveContainer width="100%" height="100%">
                         {/* @ts-ignore */}
-                        <BarChart data={selectedPool.allocations} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                        <BarChart 
+                          data={selectedPool.allocations.map((a: any) => ({
+                            ...a,
+                            channel: a.channel.charAt(0).toUpperCase() + a.channel.slice(1)
+                          }))} 
+                          margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                        >
                           <XAxis dataKey="channel" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} style={{ textTransform: 'capitalize' }} />
                           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(val: number) => `$${val/1000}k`} />
                           <Tooltip 
