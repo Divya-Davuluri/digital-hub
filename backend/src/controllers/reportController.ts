@@ -99,7 +99,13 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
     campaign 
   } = req.body;
 
-  console.log('[POST_REPORT_BODY]', req.body);
+  console.log('generateReport called with:', {
+    tenantId,
+    clientId,
+    reportName,
+    type,
+    period
+  });
 
   try {
     const reportId = uuidv4();
@@ -112,15 +118,50 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
     else if (period === 'Last 90 Days') startDate.setDate(startDate.getDate() - 90);
     else startDate.setDate(startDate.getDate() - 30);
 
-    // Get workspace from clientId
-    const workspace = await db.query.workspaces.findFirst({
-      where: and(
-        eq(workspaces.tenantId, tenantId),
-        eq(workspaces.clientId, clientId)
-      )
+    // Get workspace from clientId - Simplified lookup (Fix 1)
+    let workspace = await db.query.workspaces.findFirst({
+      where: eq(workspaces.clientId, clientId)
     });
-    
-    if (!workspace) throw new AppError('Workspace not found', 404);
+
+    console.log('Workspace found:', workspace);
+
+    // Fallback: Create workspace if missing (Fix 2)
+    if (!workspace) {
+      console.log('Workspace not found. Attempting to create one for clientId:', clientId);
+      
+      // Get client details to create workspace
+      const client = await db.query.clients.findFirst({
+        where: eq(clients.id, clientId)
+      });
+      
+      if (!client) {
+        throw new AppError(`Client not found for clientId: ${clientId}`, 404);
+      }
+      
+      const workspaceId = uuidv4();
+      await db.insert(workspaces).values({
+        id: workspaceId,
+        tenantId,
+        clientId,
+        name: client.name,
+        slug: client.name.toLowerCase().replace(/\s+/g, '-'),
+        settings: JSON.stringify({
+          theme: 'light',
+          modules: ['campaigns', 'analytics', 'reports', 'creatives']
+        }),
+        createdAt: new Date().toISOString(),
+      });
+      
+      workspace = await db.query.workspaces.findFirst({
+        where: eq(workspaces.id, workspaceId)
+      });
+      
+      console.log('Workspace created on-the-fly:', workspace?.id);
+    }
+
+    if (!workspace) {
+       throw new AppError(`Workspace not found and could not be created for clientId: ${clientId}`, 404);
+    }
 
     await db.insert(reports).values({
       id: reportId,
