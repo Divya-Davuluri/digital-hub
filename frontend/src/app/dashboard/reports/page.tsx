@@ -8,7 +8,8 @@ import {
   FileText, Download, Filter, Search, 
   Calendar, CheckCircle2, Clock, AlertCircle,
   MoreVertical, ExternalLink, Plus, X, Trash2, 
-  RefreshCw, Loader2
+  RefreshCw, Loader2, ArrowRight, BarChart3,
+  ChevronRight, LayoutGrid
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -37,30 +38,19 @@ export default function UnifiedReportsPage() {
   const [workspaces, setWorkspaces] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
 
-  // FIX 5: Load reports on mount and when filters change
   useEffect(() => {
     fetchReports();
     fetchData();
   }, [typeFilter, dateFilter]);
 
-  // FIX 2 & 6: Comprehensive fetchReports with debugging
   const fetchReports = async () => {
     setLoading(true);
     try {
-      console.log("[DEBUG] Fetching reports with filters:", { typeFilter, dateFilter });
       const response = await apiCall(`/reports?type=${typeFilter}&period=${dateFilter}`);
-      
-      console.log("[DEBUG] Raw API response:", response);
-      
-      // Handle various response structures (FIX 2)
       const reportList = response.reports || response.data || (Array.isArray(response) ? response : []);
-      
-      console.log("[DEBUG] Reports array:", reportList);
-      console.log("[DEBUG] Reports count:", reportList.length);
-      
       setReports(reportList);
     } catch (err) {
-      console.error("[DEBUG] Failed to load reports:", err);
+      console.error("Failed to load reports:", err);
       toast.error("Failed to load reports");
     } finally {
       setLoading(false);
@@ -80,7 +70,6 @@ export default function UnifiedReportsPage() {
     }
   };
 
-  // FIX 1: Refetch after successful creation
   const handleCreateReport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.report_name || !formData.client_id) {
@@ -90,26 +79,15 @@ export default function UnifiedReportsPage() {
 
     setCreating(true);
     try {
-      console.log("[DEBUG] Creating report payload:", formData);
       const res = await apiCall('/reports', {
         method: 'POST',
         body: JSON.stringify(formData)
       });
-      console.log("[DEBUG] Create report response:", res);
 
       if (res.success) {
         toast.success("Report generated successfully!");
         setIsModalOpen(false);
-        
-        // Option 1: Immediate optimistic update
-        const newReport = res.data?.data || res.data || res.report;
-        if (newReport) {
-           setReports(prev => [newReport, ...prev]);
-        }
-        
-        // Option 2: Full refetch (FIX 1)
         await fetchReports();
-        
         setFormData({
           report_name: '', report_type: 'Performance', period: 'Last 30 Days',
           workspace_id: '', client_id: '', campaign_id: '', client_name: '', campaign: 'All Campaigns'
@@ -118,9 +96,7 @@ export default function UnifiedReportsPage() {
         toast.error(res.error || "Failed to generate report");
       }
     } catch (err: any) {
-      console.error("[DEBUG] Create report error:", err);
-      const errorMsg = err.response?.data?.error || err.message || "Failed to generate report";
-      toast.error(errorMsg);
+      toast.error(err.message || "Failed to generate report");
     } finally {
       setCreating(false);
     }
@@ -139,7 +115,8 @@ export default function UnifiedReportsPage() {
 
   const handleDownload = async (report: any) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com/api'}${report.file_url}`, {
+      const downloadUrl = report.file_url || report.url;
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com/api'}${downloadUrl}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -151,12 +128,11 @@ export default function UnifiedReportsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `report-${report.report_name.replace(/\s+/g, '-')}.pdf`;
+      a.download = `report-${(report.report_name || report.name).replace(/\s+/g, '-')}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Download error:", err);
       toast.error("Failed to download PDF");
     }
   };
@@ -167,159 +143,224 @@ export default function UnifiedReportsPage() {
   );
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden font-sans">
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Subtle Background Elements */}
+        <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-indigo-500/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[30%] h-[30%] bg-purple-500/5 blur-[120px] rounded-full pointer-events-none" />
+
         <Header />
         
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto space-y-6">
+        <main className="flex-1 overflow-y-auto px-6 py-8 lg:px-12 scrollbar-hide">
+          <div className="max-w-[1400px] mx-auto space-y-10">
             
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-              <div>
-                <h1 className="text-2xl font-black text-slate-800">Reports Engine</h1>
-                <p className="text-slate-500">Manage and track performance reports for all workspaces.</p>
+            {/* Page Title Section */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm tracking-widest uppercase">
+                  <BarChart3 size={16} />
+                  Analytics Center
+                </div>
+                <h1 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">
+                  Reporting <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">Hub</span>
+                </h1>
+                <p className="text-slate-500 text-lg font-medium max-w-xl">
+                  Strategic performance insights and campaign analysis for your workspaces.
+                </p>
               </div>
-              <button 
+              <motion.button 
+                whileHover={{ scale: 1.02, translateY: -2 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
+                className="group flex items-center gap-3 px-8 py-4 bg-indigo-600 text-white rounded-[24px] font-bold shadow-xl shadow-indigo-200/50 hover:bg-indigo-700 transition-all"
               >
-                <Plus size={20} />
-                Request New Report
-              </button>
+                <Plus size={20} strokeWidth={3} />
+                <span>Request New Report</span>
+                <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform opacity-50" />
+              </motion.button>
             </div>
 
-            <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-wrap items-center gap-4">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            {/* Filters Bar */}
+            <div className="bg-white/80 backdrop-blur-xl p-3 rounded-[32px] border border-white shadow-xl shadow-slate-200/40 flex flex-wrap items-center gap-4">
+              <div className="relative flex-1 min-w-[300px]">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                 <input 
                   type="text" 
-                  placeholder="Search reports..."
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none border-none"
+                  placeholder="Search by report name or client..."
+                  className="w-full pl-14 pr-6 py-4 bg-slate-50/50 rounded-[24px] text-base font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none border-none transition-all placeholder:text-slate-400"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                 />
               </div>
               
-              <select 
-                className="px-4 py-3 bg-slate-50 rounded-2xl text-sm font-semibold text-slate-600 outline-none border-none"
-                value={typeFilter}
-                onChange={e => setTypeFilter(e.target.value)}
-              >
-                <option>All Types</option>
-                <option value="PERFORMANCE">Performance</option>
-                <option value="CAMPAIGN">Campaign Detail</option>
-                <option value="ANALYTICS">Analytics Deep-dive</option>
-                <option value="BUDGET">Budget Allocation</option>
-              </select>
+              <div className="flex items-center gap-3 pr-2">
+                <div className="h-8 w-[1px] bg-slate-200 mx-2 hidden lg:block" />
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest hidden lg:block">Filter by</span>
+                  <select 
+                    className="px-6 py-4 bg-slate-50 rounded-[20px] text-sm font-bold text-slate-700 outline-none border-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer hover:bg-slate-100"
+                    value={typeFilter}
+                    onChange={e => setTypeFilter(e.target.value)}
+                  >
+                    <option>All Types</option>
+                    <option value="PERFORMANCE">Performance</option>
+                    <option value="CAMPAIGN">Campaign Detail</option>
+                    <option value="ANALYTICS">Analytics Deep-dive</option>
+                    <option value="BUDGET">Budget Allocation</option>
+                  </select>
 
-              <select 
-                className="px-4 py-3 bg-slate-50 rounded-2xl text-sm font-semibold text-slate-600 outline-none border-none"
-                value={dateFilter}
-                onChange={e => setDateFilter(e.target.value)}
-              >
-                <option>All Time</option>
-                <option>Last 7 Days</option>
-                <option>Last 30 Days</option>
-                <option>Last 90 Days</option>
-              </select>
+                  <select 
+                    className="px-6 py-4 bg-slate-50 rounded-[20px] text-sm font-bold text-slate-700 outline-none border-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer hover:bg-slate-100"
+                    value={dateFilter}
+                    onChange={e => setDateFilter(e.target.value)}
+                  >
+                    <option>All Time</option>
+                    <option>Last 7 Days</option>
+                    <option>Last 30 Days</option>
+                    <option>Last 90 Days</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            {/* Reports Table Area */}
+            <div className="bg-white/70 backdrop-blur-md rounded-[40px] border border-white shadow-2xl shadow-slate-200/30 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 border-b border-slate-100">
-                    <tr>
-                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Report Name</th>
-                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Client</th>
-                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Period</th>
-                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Type</th>
-                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
-                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/30 border-b border-slate-100/80">
+                      <th className="pl-10 pr-6 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Report Metadata</th>
+                      <th className="px-6 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Client Context</th>
+                      <th className="px-6 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Timeframe</th>
+                      <th className="px-6 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Category</th>
+                      <th className="px-6 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Generation Status</th>
+                      <th className="pl-6 pr-10 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100/50">
                     {loading && reports.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-20 text-center">
-                          <Loader2 className="mx-auto text-indigo-500 animate-spin" size={40} />
-                          <p className="mt-4 text-slate-500 font-medium">Loading reports...</p>
+                        <td colSpan={6} className="px-6 py-32 text-center">
+                          <div className="flex flex-col items-center gap-4">
+                            <div className="relative">
+                              <Loader2 className="text-indigo-600 animate-spin" size={48} />
+                              <div className="absolute inset-0 bg-indigo-600/20 blur-xl animate-pulse rounded-full" />
+                            </div>
+                            <p className="text-slate-400 font-bold text-lg">Synchronizing data...</p>
+                          </div>
                         </td>
                       </tr>
                     ) : filteredReports.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-20 text-center">
-                          <FileText className="mx-auto text-slate-200" size={60} />
-                          <p className="mt-4 text-slate-400 font-bold text-xl">No reports found</p>
-                          <p className="text-slate-400">Generate your first report to see it here.</p>
+                        <td colSpan={6} className="px-6 py-32 text-center">
+                          <motion.div 
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="flex flex-col items-center gap-6"
+                          >
+                            <div className="w-24 h-24 bg-slate-100 rounded-[32px] flex items-center justify-center text-slate-300">
+                              <LayoutGrid size={48} />
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="text-2xl font-black text-slate-800 tracking-tight">No reports detected</h3>
+                              <p className="text-slate-400 max-w-xs mx-auto font-medium">
+                                Start by requesting a new report for your client campaigns.
+                              </p>
+                            </div>
+                          </motion.div>
                         </td>
                       </tr>
                     ) : (
-                      filteredReports.map((report) => (
-                        <tr key={report.id} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                                <FileText size={20} />
+                      filteredReports.map((report, idx) => (
+                        <motion.tr 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                          key={report.id} 
+                          className="hover:bg-slate-50/80 transition-all group relative"
+                        >
+                          <td className="pl-10 pr-6 py-6">
+                            <div className="flex items-center gap-4">
+                              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100/50 flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100/50">
+                                <FileText size={24} />
                               </div>
                               <div>
-                                <div className="font-bold text-slate-800">{report.report_name || report.name}</div>
-                                <div className="text-xs text-slate-400">Created {new Date(report.createdAt).toLocaleDateString()}</div>
+                                <div className="font-black text-slate-800 text-lg leading-tight group-hover:text-indigo-600 transition-colors">
+                                  {report.report_name || report.name}
+                                </div>
+                                <div className="text-xs text-slate-400 font-bold flex items-center gap-1.5 mt-1">
+                                  <Clock size={12} />
+                                  {new Date(report.createdAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                                </div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-sm">
-                            <div className="font-semibold text-slate-700">{report.client_name || 'Direct Workspace'}</div>
+                          <td className="px-6 py-6">
+                            <div className="flex flex-col gap-1">
+                              <div className="font-black text-slate-700 text-sm tracking-tight">
+                                {report.client_name || 'Direct Workspace'}
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[10px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-lg w-fit uppercase tracking-wider">
+                                Client Unit
+                              </div>
+                            </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-100 w-fit px-3 py-1 rounded-full font-medium">
-                              <Calendar size={14} />
+                          <td className="px-6 py-6">
+                            <div className="flex items-center gap-2 text-xs font-black text-slate-500 bg-slate-100/80 px-4 py-2 rounded-[14px] w-fit border border-slate-200/50">
+                              <Calendar size={14} className="text-slate-400" />
                               {report.period}
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                             <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">
-                               {report.type}
-                             </span>
+                          <td className="px-6 py-6">
+                             <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-xl border border-purple-100 w-fit">
+                               <BarChart3 size={14} className="text-purple-600" />
+                               <span className="text-xs font-black text-purple-700 uppercase tracking-wider">
+                                 {report.type}
+                               </span>
+                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            {/* FIX 4: Status Badge Logic */}
+                          <td className="px-6 py-6">
                             {report.status === 'completed' || report.status === 'READY' ? (
-                              <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-sm bg-emerald-50 px-3 py-1 rounded-full w-fit border border-emerald-100">
-                                <CheckCircle2 size={16} />
+                              <div className="flex items-center gap-2 text-emerald-600 font-black text-[11px] bg-emerald-50 px-4 py-2 rounded-full w-fit border border-emerald-100 uppercase tracking-widest shadow-sm">
+                                <CheckCircle2 size={14} strokeWidth={3} />
                                 Completed
                               </div>
                             ) : report.status === 'failed' ? (
-                              <div className="flex items-center gap-1.5 text-rose-600 font-bold text-sm bg-rose-50 px-3 py-1 rounded-full w-fit border border-rose-100">
-                                <AlertCircle size={16} />
+                              <div className="flex items-center gap-2 text-rose-600 font-black text-[11px] bg-rose-50 px-4 py-2 rounded-full w-fit border border-rose-100 uppercase tracking-widest shadow-sm">
+                                <AlertCircle size={14} strokeWidth={3} />
                                 Failed
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1.5 text-amber-600 font-bold text-sm bg-amber-50 px-3 py-1 rounded-full w-fit border border-amber-100">
-                                <Clock size={16} className="animate-pulse" />
-                                Pending
+                              <div className="flex items-center gap-2 text-amber-600 font-black text-[11px] bg-amber-50 px-4 py-2 rounded-full w-fit border border-amber-100 uppercase tracking-widest shadow-sm">
+                                <Clock size={14} className="animate-spin-slow" />
+                                Processing
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex justify-end items-center gap-2">
-                              <button 
+                          <td className="pl-6 pr-10 py-6 text-right">
+                            <div className="flex justify-end items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <motion.button 
+                                whileHover={{ scale: 1.1, backgroundColor: '#4f46e5', color: '#ffffff' }}
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => handleDownload(report)}
-                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                                title="Download PDF"
+                                className="p-3 text-indigo-600 bg-indigo-50 rounded-xl transition-all shadow-sm border border-indigo-100"
+                                title="Download Full Report"
                               >
-                                <Download size={18} />
-                              </button>
-                              <button 
+                                <Download size={20} strokeWidth={2.5} />
+                              </motion.button>
+                              <motion.button 
+                                whileHover={{ scale: 1.1, backgroundColor: '#ef4444', color: '#ffffff' }}
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => handleDeleteReport(report.id)}
-                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                title="Delete"
+                                className="p-3 text-rose-500 bg-rose-50 rounded-xl transition-all shadow-sm border border-rose-100"
+                                title="Permanently Delete"
                               >
-                                <Trash2 size={18} />
-                              </button>
+                                <Trash2 size={20} strokeWidth={2.5} />
+                              </motion.button>
                             </div>
                           </td>
-                        </tr>
+                        </motion.tr>
                       ))
                     )}
                   </tbody>
@@ -331,49 +372,50 @@ export default function UnifiedReportsPage() {
 
         <AnimatePresence>
           {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setIsModalOpen(false)}
-                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                className="absolute inset-0 bg-slate-900/80 backdrop-blur-md"
               />
               <motion.div 
-                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                initial={{ scale: 0.9, opacity: 0, y: 40 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="relative w-full max-w-xl bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white/20"
+                exit={{ scale: 0.9, opacity: 0, y: 40 }}
+                className="relative w-full max-w-2xl bg-white rounded-[48px] shadow-2xl overflow-hidden border border-white"
               >
-                <div className="p-8 lg:p-10">
-                  <div className="flex justify-between items-start mb-8">
-                    <div>
-                      <h2 className="text-3xl font-black text-slate-800">Generate New Report</h2>
-                      <p className="text-slate-500">Configure report parameters and metrics.</p>
+                <div className="p-10 lg:p-14">
+                  <div className="flex justify-between items-start mb-10">
+                    <div className="space-y-2">
+                      <div className="text-indigo-600 font-black text-xs uppercase tracking-[0.3em] mb-2">Configuration</div>
+                      <h2 className="text-4xl font-black text-slate-900 tracking-tight">Generate Strategy</h2>
+                      <p className="text-slate-500 text-lg font-medium">Define your parameters for the performance engine.</p>
                     </div>
-                    <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                      <X size={24} className="text-slate-400" />
+                    <button onClick={() => setIsModalOpen(false)} className="p-4 hover:bg-slate-100 rounded-full transition-all group active:scale-90">
+                      <X size={28} className="text-slate-400 group-hover:text-slate-600" />
                     </button>
                   </div>
 
-                  <form onSubmit={handleCreateReport} className="grid grid-cols-2 gap-6">
-                    <div className="col-span-2 space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Report Name</label>
+                  <form onSubmit={handleCreateReport} className="grid grid-cols-2 gap-8">
+                    <div className="col-span-2 space-y-3">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-2">Report Designation</label>
                       <input 
                         type="text" 
                         required
-                        placeholder="e.g., Monthly Performance - June 2024"
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="e.g. Q2 Performance Roadmap"
+                        className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-[24px] text-lg font-bold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none transition-all placeholder:text-slate-300"
                         value={formData.report_name}
                         onChange={e => setFormData({...formData, report_name: e.target.value})}
                       />
                     </div>
 
-                    <div className="col-span-2 space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Client / Workspace</label>
+                    <div className="col-span-2 space-y-3">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-2">Client Entity</label>
                       <select 
                         required
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-[24px] text-lg font-bold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none transition-all cursor-pointer appearance-none"
                         value={formData.client_id}
                         onChange={e => {
                           const ws = workspaces.find(w => w.id === e.target.value);
@@ -385,19 +427,19 @@ export default function UnifiedReportsPage() {
                           });
                         }}
                       >
-                        <option value="">Select Client</option>
+                        <option value="">Choose a Client...</option>
                         {workspaces.map(w => (
                           <option key={w.id} value={w.id}>
-                            {w.companyName || w.name} ({w.workspace_slug || 'Workspace'})
+                            {w.companyName || w.name} ({w.workspace_slug || 'SaaS'})
                           </option>
                         ))}
                       </select>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Campaign (Optional)</label>
+                    <div className="space-y-3">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-2">Campaign Anchor</label>
                       <select 
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-[20px] text-base font-bold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none transition-all cursor-pointer appearance-none"
                         value={formData.campaign_id}
                         onChange={e => {
                           const camp = campaigns.find(c => c.id === e.target.value);
@@ -408,57 +450,66 @@ export default function UnifiedReportsPage() {
                           });
                         }}
                       >
-                        <option value="">All Campaigns</option>
+                        <option value="">Global Performance</option>
                         {campaigns.filter(c => (c.workspaceId || c.workspace_id) === formData.workspace_id).map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Report Type</label>
+                    <div className="space-y-3">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-2">Analytics Type</label>
                       <select 
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-[20px] text-base font-bold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none transition-all cursor-pointer appearance-none"
                         value={formData.report_type}
                         onChange={e => setFormData({...formData, report_type: e.target.value})}
                       >
-                        <option value="PERFORMANCE">Performance</option>
-                        <option value="CAMPAIGN">Campaign Detail</option>
-                        <option value="ANALYTICS">Analytics Deep-dive</option>
-                        <option value="BUDGET">Budget Allocation</option>
+                        <option value="PERFORMANCE">Performance Metrics</option>
+                        <option value="CAMPAIGN">Campaign Deep-Dive</option>
+                        <option value="ANALYTICS">User Analytics</option>
+                        <option value="BUDGET">Budget Efficiency</option>
                       </select>
                     </div>
 
-                    <div className="col-span-2 space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Period</label>
-                      <select 
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.period}
-                        onChange={e => setFormData({...formData, period: e.target.value})}
-                      >
-                        <option>Last 7 Days</option>
-                        <option>Last 30 Days</option>
-                        <option>Last 90 Days</option>
-                        <option>This Month</option>
-                      </select>
+                    <div className="col-span-2 space-y-3">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-2">Temporal Window</label>
+                      <div className="grid grid-cols-4 gap-3">
+                        {['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'This Month'].map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setFormData({...formData, period: p})}
+                            className={`py-4 rounded-2xl text-sm font-black transition-all ${
+                              formData.period === p 
+                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                            }`}
+                          >
+                            {p.replace('Last ', '')}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
-                    <div className="col-span-2 pt-6 flex gap-4">
-                      <button 
+                    <div className="col-span-2 pt-10 flex gap-6">
+                      <motion.button 
+                        whileHover={{ backgroundColor: '#F1F5F9' }}
                         type="button"
                         onClick={() => setIsModalOpen(false)}
-                        className="flex-1 px-6 py-4 bg-slate-50 text-slate-600 rounded-2xl font-bold hover:bg-slate-100 transition-colors"
+                        className="flex-1 px-8 py-5 bg-slate-50 text-slate-600 rounded-[24px] font-black tracking-widest text-sm transition-all"
                       >
-                        CANCEL
-                      </button>
-                      <button 
+                        DISCARD
+                      </motion.button>
+                      <motion.button 
+                        whileHover={{ scale: 1.02, translateY: -2 }}
+                        whileTap={{ scale: 0.98 }}
                         type="submit"
                         disabled={creating}
-                        className="flex-[2] px-6 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="flex-[2] px-8 py-5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-[24px] font-black tracking-widest text-sm shadow-xl shadow-indigo-200/50 hover:from-indigo-700 hover:to-indigo-800 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
                       >
-                        {creating ? <Loader2 className="animate-spin" /> : null}
-                        GENERATE REPORT
-                      </button>
+                        {creating ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={20} strokeWidth={3} />}
+                        INITIATE ENGINE
+                      </motion.button>
                     </div>
                   </form>
                 </div>
