@@ -37,6 +37,7 @@ import assetRoutes from './routes/assetRoutes';
 import analyticsRoutes from './routes/analytics';
 import budgetRoutes from './routes/budget';
 import attributionRoutes from './routes/attribution';
+import socialRoutes from './routes/social';
 
 
 import { authMiddleware, authorize } from './middleware/authMiddleware';
@@ -136,6 +137,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/attribution', attributionRoutes);
+app.use('/api/social', socialRoutes);
 app.use('/api/budget', budgetRoutes);
 
 // --- 404 & Error Handling ---

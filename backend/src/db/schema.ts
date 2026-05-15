@@ -460,3 +460,61 @@ export const attributionResults = sqliteTable(
   createdAt: text('created_at')
     .default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
+// --- DAY 12: UNIFIED SOCIAL SCHEDULING ---
+
+// Social Posts Table
+export const socialPosts = sqliteTable('social_posts', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  clientId: text('client_id')
+    .references(() => clients.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  mediaUrl: text('media_url'),
+  mediaType: text('media_type'),
+  // 'image' | 'video' | 'carousel' | 'text'
+  platforms: text('platforms').notNull(),
+  // JSON string: '["meta","tiktok","linkedin"]'
+  scheduledAt: text('scheduled_at'),
+  publishedAt: text('published_at'),
+  status: text('status').default('draft'),
+  // 'draft'|'pending'|'approved'|'scheduled'
+  // |'published'|'rejected'|'failed'
+  approvedBy: text('approved_by')
+    .references(() => users.id, { onDelete: 'set null' }),
+  rejectedReason: text('rejected_reason'),
+  hashtags: text('hashtags'),
+  // JSON string: '["#marketing","#digital"]'
+  firstComment: text('first_comment'),
+  bestTimeScore: real('best_time_score').default(0),
+  createdBy: text('created_by')
+    .references(() => users.id, { onDelete: 'set null' }),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Content Library Table
+export const contentLibrary = sqliteTable('content_library', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  type: text('type').notNull(),
+  // 'template'|'caption'|'hashtag_set'|'asset'
+  content: text('content'),
+  mediaUrl: text('media_url'),
+  tags: text('tags'),
+  // JSON string: '["sale","summer"]'
+  usageCount: integer('usage_count').default(0),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});

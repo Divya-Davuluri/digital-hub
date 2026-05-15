@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { db } from '../db';
-import { clients, campaigns, users, workspaces, analytics, reports, reportRequests, transactions, budgetPools, budgetAllocations } from '../db/schema';
+import { clients, campaigns, users, workspaces, analytics, reports, reportRequests, transactions, budgetPools, budgetAllocations, socialPosts } from '../db/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -520,5 +520,68 @@ async function seedWorkspaceDemoData(tenantId: string, workspaceId: string, clie
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     });
+  }
+
+  // 6. Seed Social Posts
+  const existingPosts = await db.query.socialPosts.findFirst({
+    where: eq(socialPosts.workspaceId, workspaceId)
+  });
+
+  if (!existingPosts) {
+    const demoPosts = [
+      {
+        title: 'Brand Awareness Campaign',
+        content: 'Discover what makes us different. Quality, innovation, and results — every time. 🚀',
+        platforms: JSON.stringify(['meta','instagram']),
+        status: 'published',
+        scheduledAt: new Date(now.getTime() - 
+          5*24*60*60*1000).toISOString(),
+        publishedAt: new Date(now.getTime() - 
+          5*24*60*60*1000).toISOString(),
+      },
+      {
+        title: 'Product Highlight Post',
+        content: 'See why thousands of customers choose us every day. Your success is our mission. 💪',
+        platforms: JSON.stringify(['tiktok','linkedin']),
+        status: 'scheduled',
+        scheduledAt: new Date(now.getTime() + 
+          3*24*60*60*1000).toISOString(),
+        publishedAt: null,
+      },
+      {
+        title: 'Engagement Post',
+        content: 'What is your biggest marketing challenge right now? Let us help! Drop a comment below 👇',
+        platforms: JSON.stringify(['meta','linkedin','tiktok']),
+        status: 'pending',
+        scheduledAt: new Date(now.getTime() + 
+          7*24*60*60*1000).toISOString(),
+        publishedAt: null,
+      },
+    ];
+
+    for (const post of demoPosts) {
+      await db.insert(socialPosts).values({
+        id: uuidv4(),
+        tenantId,
+        workspaceId,
+        clientId,
+        title: post.title,
+        content: post.content,
+        mediaUrl: null,
+        mediaType: 'text',
+        platforms: post.platforms,
+        scheduledAt: post.scheduledAt,
+        publishedAt: post.publishedAt,
+        status: post.status as any,
+        approvedBy: null,
+        rejectedReason: null,
+        hashtags: null,
+        firstComment: null,
+        bestTimeScore: 0,
+        createdBy: null,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      });
+    }
   }
 }
