@@ -35,6 +35,107 @@ const PieChart = _PieChart as any;
 const Pie = _Pie as any;
 const Cell = _Cell as any;
 
+const getChannelDisplayName = (channel: string): string => {
+  const names: { [key: string]: string } = {
+    meta:      'Meta',
+    facebook:  'Meta',
+    tiktok:    'TikTok',
+    google:    'Google',
+    snapchat:  'Snapchat',
+    pinterest: 'Pinterest',
+    linkedin:  'LinkedIn',
+    instagram: 'Instagram',
+    twitter:   'Twitter',
+    x:         'X',
+  };
+  return names[channel?.toLowerCase()] || 
+    (channel ? channel.charAt(0).toUpperCase() + channel.slice(1) : 'Other');
+};
+
+const getChannelColor = (channel: string): string => {
+  const colors: { [key: string]: string } = {
+    meta:      '#1877F2',
+    facebook:  '#1877F2',
+    tiktok:    '#010101',
+    google:    '#4285F4',
+    snapchat:  '#FFFC00',
+    pinterest: '#E60023',
+    linkedin:  '#0A66C2',
+    instagram: '#E1306C',
+    twitter:   '#1DA1F2',
+    x:         '#000000',
+  };
+  return colors[channel?.toLowerCase()] || '#6366F1';
+};
+
+const normalizeChannels = (rawData: any[]) => {
+  if (!Array.isArray(rawData)) return [];
+  
+  const merged: { [key: string]: any } = {};
+
+  rawData.forEach(ch => {
+    const key = ch.channel?.toLowerCase()?.trim();
+    if (!key) return;
+
+    if (merged[key]) {
+      merged[key].spent += Number(ch.spent) || 0;
+      merged[key].revenue += Number(ch.revenue) || 0;
+      merged[key].clicks += Number(ch.clicks) || 0;
+      merged[key].impressions += Number(ch.impressions) || 0;
+      merged[key].conversions += Number(ch.conversions) || 0;
+    } else {
+      merged[key] = {
+        channel: key,
+        displayName: getChannelDisplayName(key),
+        color: getChannelColor(key),
+        spent: Number(ch.spent) || 0,
+        revenue: Number(ch.revenue) || 0,
+        clicks: Number(ch.clicks) || 0,
+        impressions: Number(ch.impressions) || 0,
+        conversions: Number(ch.conversions) || 0,
+        share: Number(ch.share) || 0,
+      };
+    }
+  });
+
+  // Recalculate share percentages after merge
+  const total = Object.values(merged).reduce(
+    (sum: number, ch: any) => sum + ch.spent, 0
+  );
+  
+  Object.values(merged).forEach((ch: any) => {
+    ch.share = total > 0
+      ? parseFloat(((ch.spent / total) * 100).toFixed(1))
+      : 0;
+    ch.roas = ch.spent > 0
+      ? parseFloat((ch.revenue / ch.spent).toFixed(2))
+      : 0;
+  });
+
+  return Object.values(merged);
+};
+
+const formatCurrency = (value: number) => {
+  if (!value || value <= 0) return '$0';
+  if (value > 1000000) return '$0'; // cap unrealistic values
+  if (value >= 1000) 
+    return `$${(value/1000).toFixed(1)}k`;
+  return `$${value.toFixed(0)}`;
+};
+
+const formatROAS = (value: number) => {
+  if (!value || value <= 0 || value > 20) return '0.0x';
+  return `${value.toFixed(1)}x`;
+};
+
+const formatClicks = (value: number) => {
+  if (!value || value <= 0) return '0';
+  if (value > 1000000) return '0'; // cap unrealistic
+  if (value >= 1000) 
+    return `${(value/1000).toFixed(1)}k`;
+  return value.toLocaleString();
+};
+
 export default function AnalyticsPage() {
   const [selectedClient, setSelectedClient] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState('30');
@@ -76,7 +177,7 @@ export default function AnalyticsPage() {
       
       if (overRes?.success) setOverview(overRes.data || null);
       if (timeRes?.success) setTimeseries(timeRes.data || []);
-      if (chanRes?.success) setChannels(chanRes.data || []);
+      if (chanRes?.success) setChannels(normalizeChannels(chanRes.data || []));
       if (campRes?.success) setCampaigns(campRes.data || []);
       
     } catch (err) {
@@ -100,7 +201,7 @@ export default function AnalyticsPage() {
         clientName: selectedClient ? ((campaigns[0] as any)?.clientName || 'Selected Client') : 'All Clients',
         period: selectedPeriod,
         metrics: {
-          totalSpent: overview.totalSpent,
+          totalSpend: overview.totalSpend,
           totalRevenue: overview.totalRevenue,
           totalClicks: overview.totalClicks,
           totalImpressions: overview.totalImpressions,
@@ -170,28 +271,28 @@ export default function AnalyticsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                   <KpiCard 
                     title="Total Spent" 
-                    value={`$${Number(overview?.totalSpent || 0).toLocaleString()}`} 
+                    value={formatCurrency(overview?.totalSpend)} 
                     change={overview?.spentChange || 0} 
                     icon={<DollarSign size={20} />} 
                     color="red" 
                   />
                   <KpiCard 
                     title="Total Revenue" 
-                    value={`$${Number(overview?.totalRevenue || 0).toLocaleString()}`} 
+                    value={formatCurrency(overview?.totalRevenue)} 
                     change={overview?.revenueChange || 0} 
                     icon={<Activity size={20} />} 
                     color="green" 
                   />
                   <KpiCard 
                     title="Total Clicks" 
-                    value={Number(overview?.totalClicks || 0).toLocaleString()} 
+                    value={formatClicks(overview?.totalClicks)} 
                     change={overview?.clicksChange || 0} 
                     icon={<MousePointer2 size={20} />} 
                     color="indigo" 
                   />
                   <KpiCard 
                     title="Avg ROAS" 
-                    value={`${overview?.avgROAS || '0.0'}x`} 
+                    value={formatROAS(overview?.avgROAS)} 
                     change={overview?.roasChange || 0} 
                     icon={<Target size={20} />} 
                     color="amber" 
@@ -215,9 +316,39 @@ export default function AnalyticsPage() {
                         <LineChart data={timeseries}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                          <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(v: any) => `$${v}`} />
-                          <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                          <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                          <YAxis
+                            yAxisId="left"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 12, fill: '#94a3b8' }}
+                            tickFormatter={(value: any) => {
+                              if (value >= 1000) return `$${(value/1000).toFixed(0)}k`;
+                              return `$${value}`;
+                            }}
+                            domain={[0, 'auto']}
+                            width={60}
+                          />
+                          <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 12, fill: '#94a3b8' }}
+                            tickFormatter={(value: any) => {
+                              if (value >= 1000) return `${(value/1000).toFixed(0)}k`;
+                              return `${value}`;
+                            }}
+                            domain={[0, 'auto']}
+                            width={50}
+                          />
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                            formatter={(value: number, name: string) => {
+                              if (name === 'Clicks') return [value.toLocaleString(), name];
+                              return [`$${value.toLocaleString()}`, name];
+                            }}
+                            labelFormatter={(label: any) => `Date: ${label}`}
+                          />
                           <Line yAxisId="left" type="monotone" dataKey="spent" stroke="#EF4444" strokeWidth={3} dot={false} />
                           <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#10B981" strokeWidth={3} dot={false} />
                           <Line yAxisId="right" type="monotone" dataKey="clicks" stroke="#6366F1" strokeWidth={3} dot={false} />
@@ -245,10 +376,10 @@ export default function AnalyticsPage() {
                               outerRadius={100}
                               paddingAngle={5}
                               dataKey="spent"
-                              nameKey="channel"
+                              nameKey="displayName"
                             >
                               {channels.map((entry: any, index: number) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                <Cell key={`cell-${index}`} fill={entry.color} name={entry.displayName} />
                               ))}
                             </Pie>
                             <Tooltip />
@@ -267,7 +398,7 @@ export default function AnalyticsPage() {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={channels}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="channel" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                            <XAxis dataKey="displayName" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
                             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
                             <Tooltip cursor={{ fill: '#f8fafc' }} />
                             <Bar dataKey="conversions" radius={[6, 6, 0, 0]}>

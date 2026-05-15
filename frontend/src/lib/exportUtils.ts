@@ -6,7 +6,7 @@ interface PDFReportData {
   clientName: string;
   period: string;
   metrics: {
-    totalSpent: number;
+    totalSpend: number;
     totalRevenue: number;
     totalClicks: number;
     totalImpressions: number;
@@ -50,7 +50,7 @@ export const generatePDFReport = async (data: PDFReportData) => {
 
   // KPI Grid
   const kpis = [
-    { label: 'Total Spent', value: `$${data.metrics.totalSpent.toLocaleString()}` },
+    { label: 'Total Spent', value: `$${data.metrics.totalSpend.toLocaleString()}` },
     { label: 'Total Revenue', value: `$${data.metrics.totalRevenue.toLocaleString()}` },
     { label: 'Total Clicks', value: data.metrics.totalClicks.toLocaleString() },
     { label: 'Avg ROAS', value: `${data.metrics.avgROAS}x` }

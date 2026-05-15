@@ -44,7 +44,7 @@ export default function ClientReportsPage() {
         clientName: user?.name || 'Valued Client',
         period: '30',
         metrics: {
-          totalSpent: campaign.spent,
+          totalSpend: campaign.spent,
           totalRevenue: Number(campaign.conversions || 0) * 150, // Fallback revenue
           totalClicks: campaign.clicks,
           totalImpressions: campaign.impressions,

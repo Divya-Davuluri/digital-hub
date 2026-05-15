@@ -131,7 +131,7 @@ export default function UnifiedReportsPage() {
         clientName: report.clientName || report.client_name || 'Global',
         period: (report.period || '30').replace(/\D/g, ''),
         metrics: {
-          totalSpent: over?.data?.totalSpent || report.totalSpent || 0,
+          totalSpend: over?.data?.totalSpend || report.totalSpend || 0,
           totalRevenue: over?.data?.totalRevenue || (report.conversions * 150) || 0,
           totalClicks: over?.data?.totalClicks || report.clicks || 0,
           totalImpressions: over?.data?.totalImpressions || report.impressions || 0,

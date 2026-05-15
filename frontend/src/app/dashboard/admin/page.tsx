@@ -71,7 +71,7 @@ export default function AdminDashboard() {
         clientName: 'Global Portfolio',
         period: '30',
         metrics: {
-          totalSpent: summary.totalSpend,
+          totalSpend: summary.totalSpend,
           totalRevenue: summary.totalSpend * (summary.avgRoas || 0), // Calculate revenue from ROAS
           totalClicks: summary.totalClicks,
           totalImpressions: summary.totalImpressions,
