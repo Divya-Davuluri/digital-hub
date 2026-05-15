@@ -458,8 +458,8 @@ export default function AnalyticsPage() {
                             <td className="px-8 py-4 font-bold text-slate-900">{camp.name}</td>
                             <td className="px-8 py-4">
                               <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${
-                                camp.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600' : 
-                                camp.status === 'PAUSED' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-600'
+                                camp.status?.toUpperCase() === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600' : 
+                                camp.status?.toUpperCase() === 'PAUSED' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-600'
                               }`}>
                                 {camp.status}
                               </span>
