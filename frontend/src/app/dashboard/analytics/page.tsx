@@ -175,7 +175,26 @@ export default function AnalyticsPage() {
         apiCall(`/analytics/campaigns?${query}`)
       ]);
       
-      if (overRes?.success) setOverview(overRes.data || null);
+      console.log('Overview response:', overRes);
+      
+      if (overRes) {
+        const overviewData = overRes.data || overRes;
+        setOverview({
+          totalSpend:       overviewData?.totalSpend || 0,
+          totalRevenue:     overviewData?.totalRevenue || 0,
+          totalClicks:      overviewData?.totalClicks || 0,
+          totalImpressions: overviewData?.totalImpressions || 0,
+          totalConversions: overviewData?.totalConversions || 0,
+          avgROAS:          overviewData?.avgROAS || 0,
+          avgCTR:           overviewData?.avgCTR || 0,
+          avgCVR:           overviewData?.avgCVR || 0,
+          spendChange:      overviewData?.spendChange || 0,
+          revenueChange:    overviewData?.revenueChange || 0,
+          clicksChange:     overviewData?.clicksChange || 0,
+          roasChange:       overviewData?.roasChange || 0,
+        });
+      }
+
       if (timeRes?.success) setTimeseries(timeRes.data || []);
       if (chanRes?.success) setChannels(normalizeChannels(chanRes.data || []));
       if (campRes?.success) setCampaigns(campRes.data || []);
