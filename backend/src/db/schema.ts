@@ -410,3 +410,53 @@ export const transactions = sqliteTable('transactions', {
   status: text('status').notNull(), // 'paid', 'pending', etc.
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
+// --- DAY 11: ATTRIBUTION REPORTING ENGINE ---
+
+// Customer Journey Touch Points
+export const touchpoints = sqliteTable('touchpoints', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  clientId: text('client_id')
+    .references(() => clients.id, { onDelete: 'cascade' }),
+  sessionId: text('session_id').notNull(),
+  channel: text('channel').notNull(),
+  campaignId: text('campaign_id'),
+  touchpointType: text('touchpoint_type').notNull(),
+  // 'impression','click','visit','lead','purchase'
+  revenue: real('revenue').default(0),
+  spend: real('spend').default(0),
+  position: integer('position').default(0),
+  // position in customer journey
+  occurredAt: text('occurred_at').notNull(),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+// Attribution Results per Model
+export const attributionResults = sqliteTable(
+  'attribution_results', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  clientId: text('client_id')
+    .references(() => clients.id, { onDelete: 'cascade' }),
+  channel: text('channel').notNull(),
+  model: text('model').notNull(),
+  // 'first_touch','last_touch','linear','time_decay'
+  attributedRevenue: real('attributed_revenue').default(0),
+  attributedConversions: real('attributed_conversions')
+    .default(0),
+  spend: real('spend').default(0),
+  roas: real('roas').default(0),
+  creditPercentage: real('credit_percentage').default(0),
+  period: text('period').default('Last 30 Days'),
+  calculatedAt: text('calculated_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
