@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { tenants, customDomains } from '../db/schema';
+import { tenants, customDomains, tenantBranding } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncHandler, AppError } from '../utils/errors';
@@ -15,33 +15,52 @@ cloudinary.config({
 
 /**
  * GET /api/branding
- * FIX 1: Returns branding from the tenants table with EXACT field names for the frontend.
+ * FIX: Returns branding from tenant_branding table with fallback.
  */
-export const getBranding = asyncHandler(async (req: any, res: Response) => {
+export const getBranding = asyncHandler(
+  async (req: any, res: Response) => {
   const { tenantId } = req.user;
-  const tenant = await db.query.tenants.findFirst({
-    where: eq(tenants.id, tenantId)
-  });
-  if (!tenant) throw new AppError('Tenant not found', 404);
   
-  res.json({
-    agencyName:      tenant.name || '',
-    primaryColor:    tenant.primaryColor || '#6366f1',
-    secondaryColor:  tenant.secondaryColor || '#4f46e5',
-    logoUrl:         tenant.logoUrl || '',
-    faviconUrl:      tenant.faviconUrl || '',
-    customCss:       tenant.customCss || '',
-    footerText:      tenant.footerText || '',
-    supportEmail:    tenant.supportEmail || '',
-    removePoweredBy: tenant.removePoweredBy || 0,
+  const branding = await db.query.tenantBranding.findFirst({
+    where: eq(tenantBranding.tenantId, tenantId)
+  });
+
+  if (!branding) {
+    const tenant = await db.query.tenants.findFirst({
+      where: eq(tenants.id, tenantId)
+    });
+    return res.json({
+      agencyName:      tenant?.name || 'My Agency',
+      primaryColor:    '#6366f1',
+      secondaryColor:  '#4f46e5',
+      logoUrl:         '',
+      faviconUrl:      '',
+      customCss:       '',
+      footerText:      '',
+      supportEmail:    '',
+      removePoweredBy: 0,
+    });
+  }
+
+  return res.json({
+    agencyName:      branding.agencyName      || '',
+    primaryColor:    branding.primaryColor    || '#6366f1',
+    secondaryColor:  branding.secondaryColor  || '#4f46e5',
+    logoUrl:         branding.logoUrl         || '',
+    faviconUrl:      branding.faviconUrl      || '',
+    customCss:       branding.customCss       || '',
+    footerText:      branding.footerText      || '',
+    supportEmail:    branding.supportEmail    || '',
+    removePoweredBy: branding.removePoweredBy || 0,
   });
 });
 
 /**
  * POST /api/branding
- * FIX 2: Updates all branding fields directly in the tenants table.
+ * FIX: Updates tenant_branding table.
  */
-export const updateBranding = asyncHandler(async (req: any, res: Response) => {
+export const updateBranding = asyncHandler(
+  async (req: any, res: Response) => {
   const { tenantId } = req.user;
   const {
     agencyName, primaryColor, secondaryColor,
@@ -49,22 +68,46 @@ export const updateBranding = asyncHandler(async (req: any, res: Response) => {
     footerText, supportEmail, removePoweredBy
   } = req.body;
 
-  const updateData: any = {};
-  if (agencyName !== undefined) updateData.name = agencyName;
-  if (primaryColor !== undefined) updateData.primaryColor = primaryColor;
-  if (secondaryColor !== undefined) updateData.secondaryColor = secondaryColor;
-  if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
-  if (faviconUrl !== undefined) updateData.faviconUrl = faviconUrl;
-  if (customCss !== undefined) updateData.customCss = customCss;
-  if (footerText !== undefined) updateData.footerText = footerText;
-  if (supportEmail !== undefined) updateData.supportEmail = supportEmail;
-  if (removePoweredBy !== undefined) updateData.removePoweredBy = removePoweredBy;
+  const existing = await db.query.tenantBranding.findFirst({
+    where: eq(tenantBranding.tenantId, tenantId)
+  });
 
-  await db.update(tenants)
-    .set(updateData)
-    .where(eq(tenants.id, tenantId));
+  const now = new Date().toISOString();
 
-  res.json({ success: true, message: 'Branding saved' });
+  if (existing) {
+    await db.update(tenantBranding)
+      .set({
+        agencyName:      agencyName      ?? existing.agencyName,
+        primaryColor:    primaryColor    ?? existing.primaryColor,
+        secondaryColor:  secondaryColor  ?? existing.secondaryColor,
+        logoUrl:         logoUrl         ?? existing.logoUrl,
+        faviconUrl:      faviconUrl      ?? existing.faviconUrl,
+        customCss:       customCss       ?? existing.customCss,
+        footerText:      footerText      ?? existing.footerText,
+        supportEmail:    supportEmail    ?? existing.supportEmail,
+        removePoweredBy: removePoweredBy ?? existing.removePoweredBy,
+        updatedAt: now,
+      })
+      .where(eq(tenantBranding.tenantId, tenantId));
+  } else {
+    await db.insert(tenantBranding).values({
+      id:              uuidv4(),
+      tenantId,
+      agencyName:      agencyName      || '',
+      primaryColor:    primaryColor    || '#6366f1',
+      secondaryColor:  secondaryColor  || '#4f46e5',
+      logoUrl:         logoUrl         || '',
+      faviconUrl:      faviconUrl      || '',
+      customCss:       customCss       || '',
+      footerText:      footerText      || '',
+      supportEmail:    supportEmail    || '',
+      removePoweredBy: removePoweredBy || 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  res.json({ success: true, message: 'Branding saved!' });
 });
 
 /**

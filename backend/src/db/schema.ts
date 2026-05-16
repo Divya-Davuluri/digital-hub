@@ -391,16 +391,33 @@ export const projects = sqliteTable('projects', {
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });
-export const tenantBranding = sqliteTable('tenant_branding', {
+export const tenantBranding = sqliteTable(
+  'tenant_branding', {
   id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
-  logoUrl: text('logo_url'),
-  primaryColor: text('primary_color').default('#4f46e5'),
-  secondaryColor: text('secondary_color').default('#10b981'),
-  subdomain: text('subdomain'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  agencyName: text('agency_name').default(''),
+  primaryColor: text('primary_color').default('#6366f1'),
+  secondaryColor: text('secondary_color').default('#4f46e5'),
+  logoUrl: text('logo_url').default(''),
+  faviconUrl: text('favicon_url').default(''),
+  supportEmail: text('support_email').default(''),
+  customCss: text('custom_css').default(''),
+  footerText: text('footer_text').default(''),
+  removePoweredBy: integer('remove_powered_by').default(0),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
 });
+export const creativeAssets = sqliteTable('creative_assets', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  name: text('name'),
+  url: text('url'),
+  type: text('type'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const transactions = sqliteTable('transactions', {
   id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),

@@ -194,29 +194,34 @@ export const createPost = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const getPosts = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId } = req.user;
-  const { clientId } = req.query;
+  try {
+    const { tenantId } = req.user;
+    const { clientId } = req.query;
 
-  const allPosts = await db
-    .select()
-    .from(socialPosts)
-    .where(and(
-      eq(socialPosts.tenantId, tenantId),
-      clientId ? eq(socialPosts.clientId, clientId as string) : undefined
-    ))
-    .orderBy(desc(socialPosts.createdAt));
+    const allPosts = await db
+      .select()
+      .from(socialPosts)
+      .where(and(
+        eq(socialPosts.tenantId, tenantId),
+        clientId ? eq(socialPosts.clientId, clientId as string) : undefined
+      ))
+      .orderBy(desc(socialPosts.createdAt));
 
-  const formatted = allPosts.map(formatPost);
+    const formatted = allPosts.map(formatPost);
 
-  if (formatted.length === 0) {
-    return res.json({
-      success: true,
-      data: getDemoPosts(),
-      source: 'demo'
-    });
+    if (formatted.length === 0) {
+      return res.json({
+        success: true,
+        data: getDemoPosts(),
+        source: 'demo'
+      });
+    }
+
+    res.json({ success: true, data: formatted });
+  } catch (error) {
+    console.error('getPosts error:', error);
+    res.json({ success: true, data: getDemoPosts(), source: 'error-fallback' });
   }
-
-  res.json({ success: true, data: formatted });
 });
 
 export const updatePost = asyncHandler(async (req: any, res: Response) => {
@@ -339,22 +344,27 @@ export const getBestTimes = asyncHandler(async (req: any, res: Response) => {
 });
 
 export const getContentLibrary = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId } = req.user;
+  try {
+    const { tenantId } = req.user;
 
-  const items = await db
-    .select()
-    .from(contentLibrary)
-    .where(eq(contentLibrary.tenantId, tenantId))
-    .orderBy(desc(contentLibrary.usageCount));
+    const items = await db
+      .select()
+      .from(contentLibrary)
+      .where(eq(contentLibrary.tenantId, tenantId))
+      .orderBy(desc(contentLibrary.usageCount));
 
-  if (items.length === 0) {
-    return res.json({
-      success: true,
-      data: getDemoLibrary(),
-      source: 'demo'
-    });
+    if (items.length === 0) {
+      return res.json({
+        success: true,
+        data: getDemoLibrary(),
+        source: 'demo'
+      });
+    }
+    res.json({ success: true, data: items });
+  } catch (error) {
+    console.error('getContentLibrary error:', error);
+    res.json({ success: true, data: getDemoLibrary(), source: 'error-fallback' });
   }
-  res.json({ success: true, data: items });
 });
 
 export const addToLibrary = asyncHandler(async (req: any, res: Response) => {

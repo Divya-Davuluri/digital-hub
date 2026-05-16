@@ -18,4 +18,5 @@ export default {
     url: isLocal ? `file:${path.join(process.cwd(), 'local.db')}` : dbUrl,
     authToken: isLocal ? undefined : dbToken,
   },
+  strict: false,
 } satisfies Config;
