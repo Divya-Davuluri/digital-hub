@@ -39,6 +39,8 @@ import budgetRoutes from './routes/budget';
 import attributionRoutes from './routes/attribution';
 import socialRoutes from './routes/social';
 import workflowRoutes from './routes/workflows';
+import linkRoutes from './routes/links';
+import { trackClick } from './controllers/linkController';
 
 
 import { authMiddleware, authorize } from './middleware/authMiddleware';
@@ -140,7 +142,10 @@ app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/attribution', attributionRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/workflows', workflowRoutes);
-app.use('/api/budget', budgetRoutes);
+app.use('/api/links', linkRoutes);
+
+// Root level short link redirect
+app.get('/l/:shortCode', trackClick);
 
 // --- 404 & Error Handling ---
 app.use('/api/*', (req: Request, res: Response) => {

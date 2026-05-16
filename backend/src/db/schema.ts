@@ -581,3 +581,97 @@ export const workflowTemplates = sqliteTable(
   createdAt: text('created_at')
     .default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
+
+// --- DAY 14: LINK MANAGEMENT MODULE ---
+
+// Bio Pages Table (Linktree-style)
+export const bioPages = sqliteTable('bio_pages', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  clientId: text('client_id')
+    .references(() => clients.id, { onDelete: 'cascade' }),
+  slug: text('slug').notNull().unique(),
+  // e.g. 'nikemkt' → dmhub.link/nikemkt
+  title: text('title').notNull(),
+  description: text('description'),
+  logoUrl: text('logo_url'),
+  backgroundType: text('background_type')
+    .default('color'),
+  // 'color' | 'gradient' | 'image'
+  backgroundColor: text('background_color')
+    .default('#6366f1'),
+  backgroundGradient: text('background_gradient'),
+  backgroundImage: text('background_image'),
+  fontFamily: text('font_family').default('Inter'),
+  buttonStyle: text('button_style').default('rounded'),
+  // 'rounded' | 'pill' | 'square'
+  buttonColor: text('button_color').default('#ffffff'),
+  buttonTextColor: text('button_text_color')
+    .default('#000000'),
+  links: text('links').notNull().default('[]'),
+  // JSON array of link objects
+  totalClicks: integer('total_clicks').default(0),
+  totalViews: integer('total_views').default(0),
+  isPublished: integer('is_published').default(1),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Short Links Table (Bitly-style)
+export const shortLinks = sqliteTable('short_links', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  clientId: text('client_id')
+    .references(() => clients.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  originalUrl: text('original_url').notNull(),
+  shortCode: text('short_code').notNull().unique(),
+  // e.g. 'abc123'
+  customAlias: text('custom_alias'),
+  // e.g. 'summer-sale'
+  campaignId: text('campaign_id'),
+  // group links by campaign
+  campaignName: text('campaign_name'),
+  totalClicks: integer('total_clicks').default(0),
+  uniqueClicks: integer('unique_clicks').default(0),
+  qrCodeUrl: text('qr_code_url'),
+  isActive: integer('is_active').default(1),
+  expiresAt: text('expires_at'),
+  metaPixelId: text('meta_pixel_id'),
+  tiktokPixelId: text('tiktok_pixel_id'),
+  googleTagId: text('google_tag_id'),
+  clickData: text('click_data').default('[]'),
+  // JSON array of click events
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Link Click Events Table
+export const linkClicks = sqliteTable('link_clicks', {
+  id: text('id').primaryKey(),
+  linkId: text('link_id').notNull(),
+  // references shortLinks.id or bioPages.id
+  linkType: text('link_type').notNull(),
+  // 'short_link' | 'bio_page'
+  country: text('country'),
+  city: text('city'),
+  device: text('device'),
+  // 'mobile' | 'desktop' | 'tablet'
+  browser: text('browser'),
+  os: text('os'),
+  referrer: text('referrer'),
+  ipAddress: text('ip_address'),
+  clickedAt: text('clicked_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+

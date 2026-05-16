@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useBranding } from '@/context/BrandingContext';
-import { Zap } from 'lucide-react';
+import { Zap, Link as LinkIcon } from 'lucide-react';
 
 interface SidebarProps {
   role?: 'admin' | 'team' | 'client';
@@ -39,6 +39,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
         { name: 'Attribution', href: '/dashboard/attribution', icon: '🌿' },
         { name: 'Social', href: '/dashboard/social', icon: '📅' },
         { name: 'Workflows', href: '/dashboard/workflows', icon: <Zap size={18} /> },
+        { name: 'Links', href: '/dashboard/links', icon: <LinkIcon size={18} /> },
         { name: 'Manage Clients', href: '/dashboard/admin/clients', icon: '🏢' },
         { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
         { name: 'Budget', href: '/dashboard/budget', icon: '💰' },
@@ -56,6 +57,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
         { name: 'Attribution', href: '/dashboard/attribution', icon: '🌿' },
         { name: 'Social', href: '/dashboard/social', icon: '📅' },
         { name: 'Workflows', href: '/dashboard/workflows', icon: <Zap size={18} /> },
+        { name: 'Links', href: '/dashboard/links', icon: <LinkIcon size={18} /> },
         { name: 'Assigned Clients', href: '/dashboard/team/assigned-clients', icon: '💼' },
         { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
         { name: 'Budget', href: '/dashboard/budget', icon: '💰' },
