@@ -535,3 +535,49 @@ export const contentLibrary = sqliteTable('content_library', {
   updatedAt: text('updated_at')
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const workflows = sqliteTable('workflows', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  clientId: text('client_id')
+    .references(() => clients.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  status: text('status').default('draft'),
+  // 'draft' | 'active' | 'paused' | 'archived'
+  triggerType: text('trigger_type').default('form_submit'),
+  // 'form_submit'|'email_open'|'link_click'
+  // |'purchase'|'ad_engagement'|'new_lead'|'scheduled'
+  nodes: text('nodes').notNull().default('[]'),
+  // JSON string of ReactFlow nodes array
+  edges: text('edges').notNull().default('[]'),
+  // JSON string of ReactFlow edges array
+  enrolledCount: integer('enrolled_count').default(0),
+  completedCount: integer('completed_count').default(0),
+  conversionCount: integer('conversion_count').default(0),
+  conversionRate: real('conversion_rate').default(0),
+  lastRunAt: text('last_run_at'),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const workflowTemplates = sqliteTable(
+  'workflow_templates', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  category: text('category').notNull(),
+  // 'welcome'|'retargeting'|'abandoned_cart'
+  // |'nurture'|'reengagement'
+  icon: text('icon').default('⚡'),
+  nodes: text('nodes').notNull().default('[]'),
+  edges: text('edges').notNull().default('[]'),
+  usageCount: integer('usage_count').default(0),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
