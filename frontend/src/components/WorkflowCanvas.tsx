@@ -2,12 +2,12 @@
 
 import ReactFlow, {
   Node, Edge, Controls, Background,
-  MiniMap, addEdge, useNodesState,
-  useEdgesState, BackgroundVariant,
+  MiniMap, addEdge, BackgroundVariant,
   Panel, NodeTypes, Connection,
+  OnNodesChange, OnEdgesChange, OnConnect,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { useCallback } from 'react';
+import { DragEvent } from 'react';
 
 // TriggerNode — green border
 const TriggerNode = ({ data }: { data: any }) => (
@@ -81,39 +81,41 @@ const nodeTypes: NodeTypes = {
 };
 
 interface WorkflowCanvasProps {
-  initialNodes: Node[];
-  initialEdges: Edge[];
-  onSave: (nodes: Node[], edges: Edge[]) => void;
+  nodes: Node[];
+  edges: Edge[];
+  onNodesChange: OnNodesChange;
+  onEdgesChange: OnEdgesChange;
+  onConnect: OnConnect;
+  onNodeClick: (event: React.MouseEvent, node: Node) => void;
+  onDrop: (event: DragEvent) => void;
+  onDragOver: (event: DragEvent) => void;
+  onSave: () => void;
   readOnly?: boolean;
 }
 
 export default function WorkflowCanvas({
-  initialNodes,
-  initialEdges,
+  nodes,
+  edges,
+  onNodesChange,
+  onEdgesChange,
+  onConnect,
+  onNodeClick,
+  onDrop,
+  onDragOver,
   onSave,
   readOnly = false,
 }: WorkflowCanvasProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
-  const onConnect = useCallback(
-    (params: Connection) => 
-      setEdges(eds => addEdge({
-        ...params,
-        animated: true,
-        style: { stroke: '#6366f1', strokeWidth: 2 }
-      }, eds)),
-    [setEdges]
-  );
-
   return (
-    <div style={{ width: '100%', height: '600px' }}>
+    <div style={{ width: '100%', height: '100%' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={readOnly ? undefined : onNodesChange}
         onEdgesChange={readOnly ? undefined : onEdgesChange}
         onConnect={readOnly ? undefined : onConnect}
+        onNodeClick={onNodeClick}
+        onDrop={onDrop}
+        onDragOver={onDragOver}
         nodeTypes={nodeTypes}
         fitView
         attributionPosition="bottom-left"
@@ -148,10 +150,10 @@ export default function WorkflowCanvas({
         {!readOnly && (
           <Panel position="top-right">
             <button
-              onClick={() => onSave(nodes, edges)}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg hover:bg-indigo-700 transition-all"
+              onClick={onSave}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2"
             >
-              💾 Save Workflow
+              <span>💾</span> Save Workflow
             </button>
           </Panel>
         )}
