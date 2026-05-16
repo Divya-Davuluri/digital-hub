@@ -648,7 +648,28 @@ export default function SocialPage() {
 
             <div className="flex gap-3">
               {['draft', 'pending', 'rejected'].includes(selectedPost.status) && (
-                <button className="flex-1 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100">Submit Approval</button>
+                <button 
+                  onClick={async () => {
+                    try {
+                      if (selectedPost.id.startsWith('demo-') || selectedPost.id.startsWith('fp-')) {
+                        toast.error('Demo posts cannot be modified');
+                        return;
+                      }
+                      await apiCall(`/social/posts/${selectedPost.id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ status: 'pending' })
+                      });
+                      toast.success('Submitted for approval!');
+                      setSelectedPost(null);
+                      loadPosts();
+                    } catch (err) {
+                      toast.error('Failed to submit for approval');
+                    }
+                  }}
+                  className="flex-1 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100"
+                >
+                  Submit Approval
+                </button>
               )}
               <button onClick={() => handleDelete(selectedPost.id)} className="flex-1 py-3.5 bg-rose-50 text-rose-600 rounded-2xl font-bold border border-rose-100">Delete Post</button>
             </div>
