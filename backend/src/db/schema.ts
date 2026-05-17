@@ -675,3 +675,62 @@ export const linkClicks = sqliteTable('link_clicks', {
     .default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+// --- DAY 15: INSTAGRAM DM AUTOMATION ---
+
+export const dmAutomations = sqliteTable(
+  'dm_automations', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  clientId: text('client_id')
+    .references(() => clients.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  type: text('type').notNull(),
+  // 'comment_to_dm' | 'story_reply' | 'story_reaction'
+  // | 'live_automation' | 'dm_sequence' | 'auto_reply'
+  triggerKeyword: text('trigger_keyword'),
+  triggerCondition: text('trigger_condition')
+    .default('contains'),
+  // 'contains' | 'equals' | 'starts_with' | 'any'
+  replyMessage: text('reply_message').notNull(),
+  followUpMessages: text('follow_up_messages')
+    .default('[]'),
+  // JSON: [{day:3, message:"..."}, {day:7, ...}]
+  isActive: integer('is_active').default(1),
+  totalTriggered: integer('total_triggered').default(0),
+  totalReplied: integer('total_replied').default(0),
+  totalConverted: integer('total_converted').default(0),
+  instagramAccountId: text('instagram_account_id'),
+  postId: text('post_id').default('any'),
+  excludeKeywords: text('exclude_keywords')
+    .default('[]'),
+  dailyLimit: integer('daily_limit').default(100),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const dmSequences = sqliteTable(
+  'dm_sequences', {
+  id: text('id').primaryKey(),
+  automationId: text('automation_id').notNull()
+    .references(() => dmAutomations.id,
+      { onDelete: 'cascade' }),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  contactId: text('contact_id').notNull(),
+  contactUsername: text('contact_username'),
+  currentStep: integer('current_step').default(0),
+  status: text('status').default('active'),
+  // 'active'|'completed'|'paused'|'unsubscribed'
+  lastMessageAt: text('last_message_at'),
+  nextMessageAt: text('next_message_at'),
+  convertedAt: text('converted_at'),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+
