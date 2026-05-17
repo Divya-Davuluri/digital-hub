@@ -242,7 +242,7 @@ export default function LinksPage() {
                     </div>
 
                     <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100 mb-6">
-                      <span className="text-xs font-bold text-slate-500 truncate mr-4">dmhub.link/{page.slug}</span>
+                      <span className="text-xs font-bold text-slate-500 truncate mr-4">{typeof window !== 'undefined' ? window.location.host : 'hub.link'}/bio/{page.slug}</span>
                       <button 
                         onClick={() => copyToClipboard(`${window.location.origin}/bio/${page.slug}`)}
                         className="p-2 hover:bg-white rounded-xl text-indigo-600 transition-all"
@@ -293,7 +293,7 @@ export default function LinksPage() {
                       </td>
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-indigo-600">hub.link/{link.shortCode}</span>
+                          <span className="text-xs font-bold text-indigo-600">{typeof window !== 'undefined' ? window.location.host : 'hub.link'}/l/{link.shortCode}</span>
                           <button 
                             onClick={() => copyToClipboard(`${window.location.origin}/l/${link.shortCode}`)}
                             className="p-1.5 hover:bg-white border border-transparent hover:border-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-all"
@@ -375,7 +375,7 @@ export default function LinksPage() {
                 <div>
                   <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Slug</label>
                   <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">hub.link/</span>
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">{typeof window !== 'undefined' ? window.location.host : 'hub.link'}/bio/</span>
                     <input 
                       type="text" 
                       value={newBio.slug}
@@ -527,7 +527,7 @@ export default function LinksPage() {
               />
             </div>
 
-            <p className="text-sm font-black text-indigo-600 mb-8">hub.link/{showQRModal.shortCode}</p>
+            <p className="text-sm font-black text-indigo-600 mb-8">{typeof window !== 'undefined' ? window.location.host : 'hub.link'}/l/{showQRModal.shortCode}</p>
 
             <div className="flex gap-4">
               <button 

@@ -356,9 +356,10 @@ export const deleteShortLink = asyncHandler(
 export const trackClick = asyncHandler(
   async (req: Request, res: Response) => {
   const { shortCode } = req.params;
+  const lowerShortCode = shortCode.toLowerCase();
 
   const link = await db.query.shortLinks.findFirst({
-    where: eq(shortLinks.shortCode, shortCode)
+    where: eq(shortLinks.shortCode, lowerShortCode)
   });
 
   if (!link || link.isActive !== 1) {
@@ -394,9 +395,10 @@ export const trackClick = asyncHandler(
 export const trackClickApi = asyncHandler(
   async (req: Request, res: Response) => {
   const { shortCode } = req.params;
+  const lowerShortCode = shortCode.toLowerCase();
 
   const link = await db.query.shortLinks.findFirst({
-    where: eq(shortLinks.shortCode, shortCode)
+    where: eq(shortLinks.shortCode, lowerShortCode)
   });
 
   if (!link) {
