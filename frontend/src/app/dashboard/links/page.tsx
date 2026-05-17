@@ -12,6 +12,16 @@ import {
   Monitor, Smartphone, Tablet, Users
 } from 'lucide-react';
 
+const getLinksArray = (links: any): any[] => {
+  if (!links) return [];
+  if (Array.isArray(links)) return links;
+  if (typeof links === 'string') {
+    try { return JSON.parse(links); }
+    catch { return []; }
+  }
+  return [];
+};
+
 export default function LinksPage() {
   const [activeTab, setActiveTab] = useState<'bio-pages' | 'short-links'>('bio-pages');
   const [bioPages, setBioPages] = useState<any[]>([]);
@@ -215,7 +225,7 @@ export default function LinksPage() {
                       <div className="flex gap-4">
                         <div>
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Links</p>
-                          <p className="font-black text-slate-900">{(Array.isArray(page.links) ? page.links.length : 0)}</p>
+                          <p className="font-black text-slate-900">{getLinksArray(page.links).length}</p>
                         </div>
                         <div className="w-px h-8 bg-slate-100" />
                         <div>

@@ -24,11 +24,26 @@ const generateShortCode = () => {
   return code;
 };
 
-const formatBioPage = (page: any) => ({
-  ...page,
-  links: safeJsonParse(page.links, []),
-  isPublished: page.isPublished === 1,
-});
+const formatBioPage = (page: any) => {
+  let parsedLinks = [];
+  
+  if (Array.isArray(page.links)) {
+    parsedLinks = page.links;
+  } else if (typeof page.links === 'string') {
+    try {
+      parsedLinks = JSON.parse(page.links);
+    } catch {
+      parsedLinks = [];
+    }
+  }
+  
+  return {
+    ...page,
+    links: parsedLinks,
+    isPublished: page.isPublished === 1 || 
+                 page.isPublished === true,
+  };
+};
 
 const formatShortLink = (link: any) => ({
   ...link,
@@ -427,12 +442,12 @@ function getDemoBioPages() {
       totalClicks: 1234,
       totalViews: 5678,
       isPublished: 1,
-      links: JSON.stringify([
+      links: [
         { id:'l1', title:'🌐 Official Website', url:'https://nike.com', type:'website', clicks:456, isActive:true },
         { id:'l2', title:'📸 Instagram', url:'https://instagram.com/nike', type:'instagram', clicks:389, isActive:true },
         { id:'l3', title:'🎵 TikTok', url:'https://tiktok.com/@nike', type:'tiktok', clicks:234, isActive:true },
         { id:'l4', title:'🛍️ Shop Now', url:'https://nike.com/shop', type:'shop', clicks:155, isActive:true },
-      ]),
+      ],
       createdAt: new Date(Date.now()-30*86400000).toISOString(),
     },
     {
@@ -447,11 +462,11 @@ function getDemoBioPages() {
       totalClicks: 891,
       totalViews: 3456,
       isPublished: 1,
-      links: JSON.stringify([
+      links: [
         { id:'l5', title:'🛒 Shop All Deals', url:'https://amazon.com/deals', type:'shop', clicks:445, isActive:true },
         { id:'l6', title:'⚡ Lightning Deals', url:'https://amazon.com/lightning', type:'website', clicks:289, isActive:true },
         { id:'l7', title:'📦 Track Order', url:'https://amazon.com/orders', type:'website', clicks:157, isActive:true },
-      ]),
+      ],
       createdAt: new Date(Date.now()-20*86400000).toISOString(),
     },
   ];
