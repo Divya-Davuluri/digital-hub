@@ -391,6 +391,51 @@ export const trackClick = asyncHandler(
   res.redirect(link.originalUrl);
 });
 
+export const trackClickApi = asyncHandler(
+  async (req: Request, res: Response) => {
+  const { shortCode } = req.params;
+
+  const link = await db.query.shortLinks.findFirst({
+    where: eq(shortLinks.shortCode, shortCode)
+  });
+
+  if (!link) {
+    return res.status(404).json({ success: false, message: 'not_found' });
+  }
+
+  if (link.isActive !== 1) {
+    return res.status(400).json({ success: false, message: 'inactive' });
+  }
+
+  // Record click
+  await db.insert(linkClicks).values({
+    id: uuidv4(),
+    linkId: link.id,
+    linkType: 'short_link',
+    country: 'Unknown',
+    city: null,
+    device: req.headers['user-agent']?.includes('Mobile') ? 'mobile' : 'desktop',
+    browser: 'Unknown',
+    os: 'Unknown',
+    referrer: req.headers['referer'] || null,
+    ipAddress: null,
+    clickedAt: new Date().toISOString(),
+  });
+
+  // Increment clicks
+  await db.update(shortLinks)
+    .set({
+      totalClicks: (link.totalClicks || 0) + 1,
+      updatedAt: new Date().toISOString()
+    })
+    .where(eq(shortLinks.id, link.id));
+
+  res.json({
+    success: true,
+    data: { originalUrl: link.originalUrl }
+  });
+});
+
 export const getLinkAnalytics = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;

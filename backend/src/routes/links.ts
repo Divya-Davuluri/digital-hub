@@ -5,7 +5,7 @@ import {
   updateBioPage, deleteBioPage,
   getBioPageBySlug, createShortLink,
   getShortLinks, deleteShortLink,
-  trackClick, getLinkAnalytics,
+  trackClick, trackClickApi, getLinkAnalytics,
 } from '../controllers/linkController';
 
 const router = Router();
@@ -26,5 +26,6 @@ router.get('/analytics/:linkId', authMiddleware, getLinkAnalytics);
 // Public routes (no auth)
 router.get('/bio/:slug', getBioPageBySlug);
 router.get('/l/:shortCode', trackClick);
+router.get('/track/:shortCode', trackClickApi);
 
 export default router;
