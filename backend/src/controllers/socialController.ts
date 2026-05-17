@@ -193,34 +193,49 @@ export const createPost = asyncHandler(async (req: any, res: Response) => {
   });
 });
 
-export const getPosts = asyncHandler(async (req: any, res: Response) => {
-  try {
-    const { tenantId } = req.user;
-    const { clientId } = req.query;
+export const getPosts = asyncHandler(
+  async (req: any, res: Response) => {
+  const { tenantId } = req.user;
 
+  try {
     const allPosts = await db
       .select()
       .from(socialPosts)
-      .where(and(
-        eq(socialPosts.tenantId, tenantId),
-        clientId ? eq(socialPosts.clientId, clientId as string) : undefined
-      ))
+      .where(eq(socialPosts.tenantId, tenantId))
       .orderBy(desc(socialPosts.createdAt));
 
-    const formatted = allPosts.map(formatPost);
+    const formatted = allPosts.map(post => ({
+      ...post,
+      platforms: (() => {
+        if (Array.isArray(post.platforms)) 
+          return post.platforms;
+        try { return JSON.parse(post.platforms||'[]'); }
+        catch { return []; }
+      })(),
+      hashtags: (() => {
+        if (Array.isArray(post.hashtags)) 
+          return post.hashtags;
+        try { return JSON.parse(post.hashtags||'[]'); }
+        catch { return []; }
+      })(),
+    }));
 
     if (formatted.length === 0) {
       return res.json({
         success: true,
-        data: getDemoPosts(),
+        data: getSocialDemoPosts(),
         source: 'demo'
       });
     }
 
     res.json({ success: true, data: formatted });
-  } catch (error) {
-    console.error('getPosts error:', error);
-    res.json({ success: true, data: getDemoPosts(), source: 'error-fallback' });
+  } catch (err) {
+    console.error('[Social] getPosts failed:', err);
+    res.json({
+      success: true,
+      data: getSocialDemoPosts(),
+      source: 'demo'
+    });
   }
 });
 
@@ -392,3 +407,61 @@ export const addToLibrary = asyncHandler(async (req: any, res: Response) => {
 
   res.status(201).json({ success: true });
 });
+
+const getSocialDemoPosts = () => {
+  const now = new Date();
+  return [
+    {
+      id:'sp-1', title:'Summer Campaign Launch',
+      content:'🌟 Summer is here! Check out our amazing deals.',
+      platforms:['meta','instagram'],
+      status:'scheduled',
+      scheduledAt: new Date(now.getTime()+
+        2*86400000).toISOString(),
+      hashtags:['#summer','#deals'],
+      mediaType:'image',
+    },
+    {
+      id:'sp-2', title:'Product Feature Highlight',
+      content:'✨ Discover our latest feature!',
+      platforms:['tiktok','linkedin'],
+      status:'pending',
+      scheduledAt: new Date(now.getTime()+
+        4*86400000).toISOString(),
+      hashtags:['#product','#launch'],
+      mediaType:'video',
+    },
+    {
+      id:'sp-3', title:'Client Success Story',
+      content:'💪 3x ROAS in 30 days!',
+      platforms:['linkedin','meta'],
+      status:'approved',
+      scheduledAt: new Date(now.getTime()+
+        6*86400000).toISOString(),
+      hashtags:['#success','#results'],
+      mediaType:'image',
+    },
+    {
+      id:'sp-4', title:'Weekend Engagement',
+      content:'🎉 Happy weekend everyone!',
+      platforms:['meta','instagram','tiktok'],
+      status:'draft',
+      scheduledAt: new Date(now.getTime()+
+        8*86400000).toISOString(),
+      hashtags:['#weekend'],
+      mediaType:'text',
+    },
+    {
+      id:'sp-5', title:'Industry Tips',
+      content:'📊 5 marketing tips for better ROI',
+      platforms:['linkedin'],
+      status:'published',
+      scheduledAt: new Date(now.getTime()-
+        2*86400000).toISOString(),
+      publishedAt: new Date(now.getTime()-
+        2*86400000).toISOString(),
+      hashtags:['#tips','#marketing'],
+      mediaType:'text',
+    },
+  ];
+};

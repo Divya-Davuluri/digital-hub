@@ -20,17 +20,50 @@ cloudinary.config({
 export const getBranding = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
-  
-  const branding = await db.query.tenantBranding.findFirst({
-    where: eq(tenantBranding.tenantId, tenantId)
-  });
 
-  if (!branding) {
+  try {
+    // Check tenant_branding table first
+    const branding = await db.query.tenantBranding
+      .findFirst({
+        where: eq(tenantBranding.tenantId, tenantId)
+      });
+
+    if (branding) {
+      return res.json({
+        agencyName:      branding.agencyName      || '',
+        primaryColor:    branding.primaryColor    
+                         || '#6366f1',
+        secondaryColor:  branding.secondaryColor  
+                         || '#4f46e5',
+        logoUrl:         branding.logoUrl         || '',
+        faviconUrl:      branding.faviconUrl      || '',
+        customCss:       branding.customCss       || '',
+        footerText:      branding.footerText      || '',
+        supportEmail:    branding.supportEmail    || '',
+        removePoweredBy: branding.removePoweredBy || 0,
+      });
+    }
+
+    // Fallback to tenants table
     const tenant = await db.query.tenants.findFirst({
       where: eq(tenants.id, tenantId)
     });
+
     return res.json({
-      agencyName:      tenant?.name || 'My Agency',
+      agencyName:      tenant?.name || '',
+      primaryColor:    '#6366f1',
+      secondaryColor:  '#4f46e5',
+      logoUrl:         '',
+      faviconUrl:      '',
+      customCss:       '',
+      footerText:      '',
+      supportEmail:    '',
+      removePoweredBy: 0,
+    });
+  } catch (err) {
+    console.error('[Branding] GET failed:', err);
+    return res.json({
+      agencyName:      '',
       primaryColor:    '#6366f1',
       secondaryColor:  '#4f46e5',
       logoUrl:         '',
@@ -41,24 +74,8 @@ export const getBranding = asyncHandler(
       removePoweredBy: 0,
     });
   }
-
-  return res.json({
-    agencyName:      branding.agencyName      || '',
-    primaryColor:    branding.primaryColor    || '#6366f1',
-    secondaryColor:  branding.secondaryColor  || '#4f46e5',
-    logoUrl:         branding.logoUrl         || '',
-    faviconUrl:      branding.faviconUrl      || '',
-    customCss:       branding.customCss       || '',
-    footerText:      branding.footerText      || '',
-    supportEmail:    branding.supportEmail    || '',
-    removePoweredBy: branding.removePoweredBy || 0,
-  });
 });
 
-/**
- * POST /api/branding
- * FIX: Updates tenant_branding table.
- */
 export const updateBranding = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
@@ -68,46 +85,62 @@ export const updateBranding = asyncHandler(
     footerText, supportEmail, removePoweredBy
   } = req.body;
 
-  const existing = await db.query.tenantBranding.findFirst({
-    where: eq(tenantBranding.tenantId, tenantId)
-  });
-
   const now = new Date().toISOString();
 
-  if (existing) {
-    await db.update(tenantBranding)
-      .set({
-        agencyName:      agencyName      ?? existing.agencyName,
-        primaryColor:    primaryColor    ?? existing.primaryColor,
-        secondaryColor:  secondaryColor  ?? existing.secondaryColor,
-        logoUrl:         logoUrl         ?? existing.logoUrl,
-        faviconUrl:      faviconUrl      ?? existing.faviconUrl,
-        customCss:       customCss       ?? existing.customCss,
-        footerText:      footerText      ?? existing.footerText,
-        supportEmail:    supportEmail    ?? existing.supportEmail,
-        removePoweredBy: removePoweredBy ?? existing.removePoweredBy,
-        updatedAt: now,
-      })
-      .where(eq(tenantBranding.tenantId, tenantId));
-  } else {
-    await db.insert(tenantBranding).values({
-      id:              uuidv4(),
-      tenantId,
-      agencyName:      agencyName      || '',
-      primaryColor:    primaryColor    || '#6366f1',
-      secondaryColor:  secondaryColor  || '#4f46e5',
-      logoUrl:         logoUrl         || '',
-      faviconUrl:      faviconUrl      || '',
-      customCss:       customCss       || '',
-      footerText:      footerText      || '',
-      supportEmail:    supportEmail    || '',
-      removePoweredBy: removePoweredBy || 0,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
+  try {
+    const existing = await db.query.tenantBranding
+      .findFirst({
+        where: eq(tenantBranding.tenantId, tenantId)
+      });
 
-  res.json({ success: true, message: 'Branding saved!' });
+    if (existing) {
+      await db.update(tenantBranding)
+        .set({
+          agencyName:      agencyName ?? 
+                           existing.agencyName,
+          primaryColor:    primaryColor ?? 
+                           existing.primaryColor,
+          secondaryColor:  secondaryColor ?? 
+                           existing.secondaryColor,
+          logoUrl:         logoUrl !== undefined
+                           ? logoUrl : existing.logoUrl,
+          faviconUrl:      faviconUrl !== undefined
+                           ? faviconUrl 
+                           : existing.faviconUrl,
+          customCss:       customCss ?? existing.customCss,
+          footerText:      footerText ?? 
+                           existing.footerText,
+          supportEmail:    supportEmail ?? 
+                           existing.supportEmail,
+          removePoweredBy: removePoweredBy ?? 
+                           existing.removePoweredBy,
+          updatedAt: now,
+        })
+        .where(eq(tenantBranding.tenantId, tenantId));
+    } else {
+      await db.insert(tenantBranding).values({
+        id: uuidv4(),
+        tenantId,
+        agencyName:      agencyName      || '',
+        primaryColor:    primaryColor    || '#6366f1',
+        secondaryColor:  secondaryColor  || '#4f46e5',
+        logoUrl:         logoUrl         || '',
+        faviconUrl:      faviconUrl      || '',
+        customCss:       customCss       || '',
+        footerText:      footerText      || '',
+        supportEmail:    supportEmail    || '',
+        removePoweredBy: removePoweredBy || 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    res.json({ success: true, 
+      message: 'Branding saved!' });
+  } catch (err) {
+    console.error('[Branding] POST failed:', err);
+    throw new AppError('Failed to save branding', 500);
+  }
 });
 
 /**

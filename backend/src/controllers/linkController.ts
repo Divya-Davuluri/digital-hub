@@ -25,21 +25,19 @@ const generateShortCode = () => {
 };
 
 const formatBioPage = (page: any) => {
-  let parsedLinks = [];
-  
+  let links = [];
   if (Array.isArray(page.links)) {
-    parsedLinks = page.links;
-  } else if (typeof page.links === 'string') {
+    links = page.links;
+  } else {
     try {
-      parsedLinks = JSON.parse(page.links);
+      links = JSON.parse(page.links || '[]');
     } catch {
-      parsedLinks = [];
+      links = [];
     }
   }
-  
   return {
     ...page,
-    links: parsedLinks,
+    links,
     isPublished: page.isPublished === 1 || 
                  page.isPublished === true,
   };
@@ -475,49 +473,63 @@ export const getLinkAnalytics = asyncHandler(
 
 // DEMO DATA
 
-function getDemoBioPages() {
-  return [
-    {
-      id: 'demo-bio-1',
-      slug: 'nike-marketing',
-      title: 'Nike Marketing',
-      description: 'Official links for Nike Marketing',
-      backgroundColor: '#111827',
-      buttonStyle: 'rounded',
-      buttonColor: '#ffffff',
-      buttonTextColor: '#000000',
-      totalClicks: 1234,
-      totalViews: 5678,
-      isPublished: 1,
-      links: [
-        { id:'l1', title:'🌐 Official Website', url:'https://nike.com', type:'website', clicks:456, isActive:true },
-        { id:'l2', title:'📸 Instagram', url:'https://instagram.com/nike', type:'instagram', clicks:389, isActive:true },
-        { id:'l3', title:'🎵 TikTok', url:'https://tiktok.com/@nike', type:'tiktok', clicks:234, isActive:true },
-        { id:'l4', title:'🛍️ Shop Now', url:'https://nike.com/shop', type:'shop', clicks:155, isActive:true },
-      ],
-      createdAt: new Date(Date.now()-30*86400000).toISOString(),
-    },
-    {
-      id: 'demo-bio-2',
-      slug: 'amazon-cart',
-      title: 'Amazon Cart Deals',
-      description: 'Best deals and offers',
-      backgroundColor: '#FF9900',
-      buttonStyle: 'pill',
-      buttonColor: '#232F3E',
-      buttonTextColor: '#ffffff',
-      totalClicks: 891,
-      totalViews: 3456,
-      isPublished: 1,
-      links: [
-        { id:'l5', title:'🛒 Shop All Deals', url:'https://amazon.com/deals', type:'shop', clicks:445, isActive:true },
-        { id:'l6', title:'⚡ Lightning Deals', url:'https://amazon.com/lightning', type:'website', clicks:289, isActive:true },
-        { id:'l7', title:'📦 Track Order', url:'https://amazon.com/orders', type:'website', clicks:157, isActive:true },
-      ],
-      createdAt: new Date(Date.now()-20*86400000).toISOString(),
-    },
-  ];
-}
+const getDemoBioPages = () => ([
+  {
+    id: 'demo-bio-1',
+    slug: 'nike-marketing',
+    title: 'Nike Marketing',
+    description: 'Official links for Nike Marketing',
+    backgroundColor: '#111827',
+    buttonStyle: 'rounded',
+    buttonColor: '#ffffff',
+    buttonTextColor: '#000000',
+    totalClicks: 1234,
+    totalViews: 5678,
+    isPublished: true,
+    links: [
+      { id:'l1', title:'🌐 Official Website',
+        url:'https://nike.com', type:'website',
+        clicks:456, isActive:true },
+      { id:'l2', title:'📸 Instagram',
+        url:'https://instagram.com/nike',
+        type:'instagram', clicks:389, isActive:true },
+      { id:'l3', title:'🎵 TikTok',
+        url:'https://tiktok.com/@nike',
+        type:'tiktok', clicks:234, isActive:true },
+      { id:'l4', title:'🛍️ Shop Now',
+        url:'https://nike.com/shop',
+        type:'shop', clicks:155, isActive:true },
+    ],
+    createdAt: new Date(
+      Date.now()-30*86400000).toISOString(),
+  },
+  {
+    id: 'demo-bio-2',
+    slug: 'amazon-cart',
+    title: 'Amazon Cart Deals',
+    description: 'Best deals and offers',
+    backgroundColor: '#FF9900',
+    buttonStyle: 'pill',
+    buttonColor: '#232F3E',
+    buttonTextColor: '#ffffff',
+    totalClicks: 891,
+    totalViews: 3456,
+    isPublished: true,
+    links: [
+      { id:'l5', title:'🛒 Shop All Deals',
+        url:'https://amazon.com/deals',
+        type:'shop', clicks:445, isActive:true },
+      { id:'l6', title:'⚡ Lightning Deals',
+        url:'https://amazon.com/lightning',
+        type:'website', clicks:289, isActive:true },
+      { id:'l7', title:'📦 Track Order',
+        url:'https://amazon.com/orders',
+        type:'website', clicks:157, isActive:true },
+    ],
+    createdAt: new Date(
+      Date.now()-20*86400000).toISOString(),
+  },
+]);
 
 function getDemoShortLinks() {
   return [

@@ -379,64 +379,124 @@ export const getCustomerJourney = asyncHandler(async (req: any, res: Response) =
   }
 });
 
-export const getAttributionComparison = asyncHandler(async (req: any, res: Response) => {
-  const channels = ['meta', 'tiktok', 'google'];
-  // const totalRevenue = 19760;
+export const getAttributionComparison = asyncHandler(
+  async (req: any, res: Response) => {
+  const { tenantId } = req.user;
 
-  res.json({
-    success: true,
-    data: {
-      channels,
-      models: {
-        first_touch: {
-          label: 'First Touch',
-          description: '100% credit to first interaction',
-          results: [
-            { channel: 'google', revenue: 19760, 
-              credit: 100, roas: 23.5 },
-            { channel: 'meta',   revenue: 0, 
-              credit: 0, roas: 0 },
-            { channel: 'tiktok', revenue: 0, 
-              credit: 0, roas: 0 },
-          ]
-        },
-        last_touch: {
-          label: 'Last Touch',
-          description: '100% credit to last interaction',
-          results: [
-            { channel: 'meta',   revenue: 19760, 
-              credit: 100, roas: 6.4 },
-            { channel: 'google', revenue: 0, 
-              credit: 0, roas: 0 },
-            { channel: 'tiktok', revenue: 0, 
-              credit: 0, roas: 0 },
-          ]
-        },
-        linear: {
-          label: 'Linear',
-          description: 'Equal credit across all channels',
-          results: [
-            { channel: 'meta',   revenue: 6587, 
-              credit: 33.3, roas: 2.1 },
-            { channel: 'tiktok', revenue: 6587, 
-              credit: 33.3, roas: 2.1 },
-            { channel: 'google', revenue: 6586, 
-              credit: 33.3, roas: 7.8 },
-          ]
-        },
-        time_decay: {
-          label: 'Time Decay',
-          description: 'Recent channels get more credit',
-          results: [
-            { channel: 'meta',   revenue: 11280, 
-              credit: 57.1, roas: 3.6 },
-            { channel: 'tiktok', revenue: 5640, 
-              credit: 28.6, roas: 1.8 },
-            { channel: 'google', revenue: 2840, 
-              credit: 14.3, roas: 3.4 },
-          ]
-        },
-      }
+  try {
+    const results = await db
+      .select()
+      .from(attributionResults)
+      .where(eq(attributionResults.tenantId, tenantId))
+      .orderBy(desc(attributionResults.calculatedAt));
+
+    if (results.length === 0) {
+      return res.json({
+        success: true,
+        data: getDemoComparisonResults(),
+        source: 'demo'
+      });
     }
-  });
+
+    // Process from DB to group by model
+    const models: any = {};
+    const modelLabels: any = {
+      first_touch: 'First Touch',
+      last_touch: 'Last Touch',
+      linear: 'Linear',
+      time_decay: 'Time Decay'
+    };
+
+    const channels = Array.from(new Set(results.map(r => r.channel)));
+
+    ['first_touch','last_touch','linear','time_decay']
+      .forEach(m => {
+      const modelRows = results.filter(r => r.model === m);
+      models[m] = {
+        label: modelLabels[m] || m,
+        description: m === 'first_touch' 
+          ? '100% credit to first interaction'
+          : m === 'last_touch' 
+          ? '100% credit to last interaction'
+          : m === 'linear' 
+          ? 'Equal credit across all channels'
+          : 'Recent channels get more credit',
+        results: modelRows.map(r => ({
+          channel: r.channel,
+          revenue: r.attributedRevenue || 0,
+          credit: r.creditPercentage || 0,
+          roas: r.roas || 0
+        }))
+      };
+    });
+
+    res.json({
+      success: true,
+      data: { channels, models }
+    });
+  } catch (err) {
+    console.error('[Attribution] Comparison failed:', err);
+    res.json({
+      success: true,
+      data: getDemoComparisonResults(),
+      source: 'demo'
+    });
+  }
 });
+
+const getDemoComparisonResults = () => {
+  const channels = ['meta', 'tiktok', 'google'];
+  return {
+    channels,
+    models: {
+      first_touch: {
+        label: 'First Touch',
+        description: '100% credit to first interaction',
+        results: [
+          { channel: 'google', revenue: 19760, 
+            credit: 100, roas: 23.5 },
+          { channel: 'meta',   revenue: 0, 
+            credit: 0, roas: 0 },
+          { channel: 'tiktok', revenue: 0, 
+            credit: 0, roas: 0 },
+        ]
+      },
+      last_touch: {
+        label: 'Last Touch',
+        description: '100% credit to last interaction',
+        results: [
+          { channel: 'meta',   revenue: 19760, 
+            credit: 100, roas: 6.4 },
+          { channel: 'google', revenue: 0, 
+            credit: 0, roas: 0 },
+          { channel: 'tiktok', revenue: 0, 
+            credit: 0, roas: 0 },
+        ]
+      },
+      linear: {
+        label: 'Linear',
+        description: 'Equal credit across all channels',
+        results: [
+          { channel: 'meta',   revenue: 6587, 
+            credit: 33.3, roas: 2.1 },
+          { channel: 'tiktok', revenue: 6587, 
+            credit: 33.3, roas: 2.1 },
+          { channel: 'google', revenue: 6586, 
+            credit: 33.3, roas: 7.8 },
+        ]
+      },
+      time_decay: {
+        label: 'Time Decay',
+        description: 'Recent channels get more credit',
+        results: [
+          { channel: 'meta',   revenue: 11280, 
+            credit: 57.1, roas: 3.6 },
+          { channel: 'tiktok', revenue: 5640, 
+            credit: 28.6, roas: 1.8 },
+          { channel: 'google', revenue: 2840, 
+            credit: 14.3, roas: 3.4 },
+        ]
+      },
+    }
+  };
+};
