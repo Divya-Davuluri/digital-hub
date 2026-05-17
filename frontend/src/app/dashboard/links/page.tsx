@@ -259,7 +259,10 @@ export default function LinksPage() {
                       >
                         <Eye size={14} /> Preview
                       </a>
-                      <button className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+                      <button 
+                        onClick={() => toast.success('Edit Page feature coming soon!')}
+                        className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                      >
                         <Edit size={14} /> Edit Page
                       </button>
                     </div>
@@ -326,7 +329,12 @@ export default function LinksPage() {
                       </td>
                       <td className="px-8 py-5">
                         <div className="flex gap-2">
-                          <button className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-indigo-600 border border-transparent hover:border-slate-100 transition-all"><Edit size={16} /></button>
+                          <button 
+                            onClick={() => toast.success('Edit Link feature coming soon!')}
+                            className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-indigo-600 border border-transparent hover:border-slate-100 transition-all"
+                          >
+                            <Edit size={16} />
+                          </button>
                           <button onClick={() => handleDeleteLink(link.id)} className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-rose-600 border border-transparent hover:border-slate-100 transition-all"><Trash2 size={16} /></button>
                         </div>
                       </td>

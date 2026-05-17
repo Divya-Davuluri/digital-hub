@@ -41,6 +41,20 @@ export default function BioPage() {
             { id:'l4', title:'🛍️ Shop Now', url:'https://nike.com/shop' },
           ]
         });
+      } else if (slug === 'amazon-cart') {
+        setPage({
+          title: 'Amazon Cart Deals',
+          description: 'Best deals and offers',
+          backgroundColor: '#FF9900',
+          buttonStyle: 'pill',
+          buttonColor: '#232F3E',
+          buttonTextColor: '#ffffff',
+          links: [
+            { id:'l5', title:'🛒 Shop All Deals', url:'https://amazon.com/deals' },
+            { id:'l6', title:'⚡ Lightning Deals', url:'https://amazon.com/lightning' },
+            { id:'l7', title:'📦 Track Order', url:'https://amazon.com/orders' },
+          ]
+        });
       } else {
         setError(true);
       }
