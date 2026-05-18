@@ -14,7 +14,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     if (loading) return;
 
     // Public pages
-    const publicPages = ['/login', '/signup', '/'];
+    const publicPages = ['/login', '/signup', '/', '/contact'];
     if (publicPages.includes(pathname)) {
       setIsAuthorized(true);
       return;

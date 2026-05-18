@@ -733,4 +733,14 @@ export const dmSequences = sqliteTable(
     .default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+export const contacts = sqliteTable('contacts', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id'),
+  workspaceId: text('workspace_id'),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  message: text('message').notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 

@@ -18,6 +18,7 @@ export default function Home() {
           DigitalMarketing<span className="text-primary">Hub</span>
         </div>
         <div className="flex gap-16 items-center">
+          <Link href="/contact" className="text-text-muted hover:text-text transition-colors font-medium">Contact Us</Link>
           <Link href="/login" className="text-text-muted hover:text-text transition-colors font-medium">Login</Link>
           <Link href="/signup" className="btn-primary !px-16 !py-8 text-sm">
             Get Started

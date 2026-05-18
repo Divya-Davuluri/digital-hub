@@ -70,6 +70,15 @@ async function fix() {
       period TEXT DEFAULT 'Last 30 Days',
       calculated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS contacts (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT,
+      workspace_id TEXT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`
   ];
 
