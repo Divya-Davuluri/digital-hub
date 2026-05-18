@@ -86,6 +86,88 @@ export default function SocialPage() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkCsv, setBulkCsv] = useState('');
   const [uploadingBulk, setUploadingBulk] = useState(false);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+
+  const handleEditClick = (post: any) => {
+    let platformsArr: string[] = [];
+    try {
+      platformsArr = Array.isArray(post.platforms) 
+        ? post.platforms 
+        : JSON.parse(post.platforms || '[]');
+    } catch {
+      platformsArr = [];
+    }
+
+    let hashtagsArr: string[] = [];
+    try {
+      hashtagsArr = Array.isArray(post.hashtags) 
+        ? post.hashtags 
+        : JSON.parse(post.hashtags || '[]');
+    } catch {
+      hashtagsArr = [];
+    }
+
+    let dateStr = '';
+    let timeStr = '';
+    if (post.scheduledAt) {
+      const d = new Date(post.scheduledAt);
+      dateStr = d.toISOString().split('T')[0];
+      timeStr = d.toTimeString().split(' ')[0].slice(0, 5);
+    }
+
+    setForm({
+      title: post.title || '',
+      content: post.content || '',
+      platforms: platformsArr,
+      scheduledDate: dateStr,
+      scheduledTime: timeStr,
+      hashtags: hashtagsArr,
+      firstComment: post.firstComment || '',
+      mediaUrl: post.mediaUrl || '',
+      mediaType: post.mediaType || 'text'
+    });
+
+    setEditingPostId(post.id);
+    setShowCreateModal(true);
+  };
+
+  const handleUpdatePost = async () => {
+    if (!form.title.trim()) { toast.error('Title is required'); return; }
+    if (!form.content.trim()) { toast.error('Content is required'); return; }
+    if (form.platforms.length === 0) { toast.error('Select at least one platform'); return; }
+    
+    try {
+      const scheduledAt = form.scheduledDate && form.scheduledTime
+        ? new Date(`${form.scheduledDate}T${form.scheduledTime}`).toISOString()
+        : null;
+
+      const res = await apiCall(`/social/posts/${editingPostId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          title: form.title,
+          content: form.content,
+          platforms: form.platforms,
+          scheduledAt,
+          hashtags: form.hashtags,
+          firstComment: form.firstComment,
+          mediaUrl: form.mediaUrl,
+          mediaType: form.mediaType
+        })
+      });
+      
+      toast.success('Post updated successfully!');
+      setShowCreateModal(false);
+      setEditingPostId(null);
+      setForm({
+        title: '', content: '', platforms: [], scheduledDate: '',
+        scheduledTime: '', hashtags: [], firstComment: '',
+        mediaUrl: '', mediaType: 'text'
+      });
+      loadPosts();
+    } catch (err) {
+      toast.error('Failed to update post');
+    }
+  };
 
   const handleBulkUpload = async (csvText: string) => {
     if (!csvText.trim()) {
@@ -562,7 +644,7 @@ export default function SocialPage() {
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button onClick={() => setSelectedPost(post)} className="p-2 hover:bg-white rounded-lg text-slate-400 hover:text-indigo-600"><Eye size={16} /></button>
-                              <button className="p-2 hover:bg-white rounded-lg text-slate-400 hover:text-indigo-600"><Edit size={16} /></button>
+                              <button onClick={() => handleEditClick(post)} className="p-2 hover:bg-white rounded-lg text-slate-400 hover:text-indigo-600"><Edit size={16} /></button>
                               <button onClick={() => handleDelete(post.id)} className="p-2 hover:bg-white rounded-lg text-slate-400 hover:text-rose-600"><Trash2 size={16} /></button>
                             </div>
                           </td>
@@ -642,10 +724,10 @@ export default function SocialPage() {
           <div className="bg-white rounded-[40px] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-white/20">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900">Create New Post</h2>
-                <p className="text-slate-500 text-sm">Schedule content across multiple channels.</p>
+                <h2 className="text-2xl font-bold text-slate-900">{editingPostId ? 'Edit Scheduled Post' : 'Create New Post'}</h2>
+                <p className="text-slate-500 text-sm">{editingPostId ? 'Update post content and platforms.' : 'Schedule content across multiple channels.'}</p>
               </div>
-              <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-white rounded-full transition-colors border border-slate-100 shadow-sm">
+              <button onClick={() => { setShowCreateModal(false); setEditingPostId(null); }} className="p-2 hover:bg-white rounded-full transition-colors border border-slate-100 shadow-sm">
                 <X size={24} className="text-slate-400" />
               </button>
             </div>
@@ -733,9 +815,15 @@ export default function SocialPage() {
             </div>
 
             <div className="p-8 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
-              <button onClick={() => setShowCreateModal(false)} className="px-6 py-3 rounded-2xl text-sm font-bold text-slate-500 hover:bg-white transition-all">Cancel</button>
-              <button onClick={() => handleCreatePost('draft')} className="px-6 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 transition-all shadow-sm">Save Draft</button>
-              <button onClick={() => handleCreatePost('pending')} className="px-8 py-3 rounded-2xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">Submit for Approval</button>
+              <button onClick={() => { setShowCreateModal(false); setEditingPostId(null); }} className="px-6 py-3 rounded-2xl text-sm font-bold text-slate-500 hover:bg-white transition-all">Cancel</button>
+              {editingPostId ? (
+                <button onClick={handleUpdatePost} className="px-8 py-3 rounded-2xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">Save Changes</button>
+              ) : (
+                <>
+                  <button onClick={() => handleCreatePost('draft')} className="px-6 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 transition-all shadow-sm">Save Draft</button>
+                  <button onClick={() => handleCreatePost('pending')} className="px-8 py-3 rounded-2xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">Submit for Approval</button>
+                </>
+              )}
             </div>
           </div>
         </div>
