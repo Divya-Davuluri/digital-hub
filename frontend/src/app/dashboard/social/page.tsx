@@ -83,6 +83,86 @@ export default function SocialPage() {
     mediaType: 'text'
   });
 
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkCsv, setBulkCsv] = useState('');
+  const [uploadingBulk, setUploadingBulk] = useState(false);
+
+  const handleBulkUpload = async (csvText: string) => {
+    if (!csvText.trim()) {
+      toast.error('Please paste some CSV data first');
+      return;
+    }
+    
+    setUploadingBulk(true);
+    try {
+      const lines = csvText.split('\n');
+      if (lines.length < 2) {
+        throw new Error('CSV must contain a header row and at least one data row.');
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      
+      const titleIndex = headers.indexOf('title');
+      const contentIndex = headers.indexOf('content');
+      const platformsIndex = headers.indexOf('platforms');
+      const dateIndex = headers.indexOf('scheduleddate');
+      const timeIndex = headers.indexOf('scheduledtime');
+      
+      if (titleIndex === -1 || contentIndex === -1 || platformsIndex === -1) {
+        throw new Error('CSV must contain title, content, and platforms columns.');
+      }
+      
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        // Simple CSV splitter that respects quotes
+        const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+        const row = matches.map(cell => cell.replace(/^"|"$/g, '').trim());
+        
+        if (row.length < Math.max(titleIndex, contentIndex, platformsIndex) + 1) {
+          continue;
+        }
+        
+        const title = row[titleIndex];
+        const content = row[contentIndex];
+        const platforms = row[platformsIndex] ? row[platformsIndex].split(';').map(p => p.trim()) : [];
+        const date = dateIndex !== -1 ? row[dateIndex] : '';
+        const time = timeIndex !== -1 ? row[timeIndex] : '';
+        
+        const scheduledAt = date && time ? new Date(`${date}T${time}`).toISOString() : null;
+        
+        try {
+          await apiCall('/social/posts', {
+            method: 'POST',
+            body: JSON.stringify({
+              title,
+              content,
+              platforms,
+              scheduledAt,
+              status: 'scheduled'
+            })
+          });
+          successCount++;
+        } catch (e) {
+          failCount++;
+        }
+      }
+      
+      toast.success(`Successfully uploaded ${successCount} posts! ${failCount > 0 ? `(${failCount} failed)` : ''}`);
+      setShowBulkModal(false);
+      setBulkCsv('');
+      loadPosts();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to parse CSV');
+    } finally {
+      setUploadingBulk(false);
+    }
+  };
+
   useEffect(() => {
     loadPosts();
     loadLibrary();
@@ -192,6 +272,19 @@ export default function SocialPage() {
     return days;
   };
 
+  const getDaysInWeek = (date: Date) => {
+    const startOfWeek = new Date(date);
+    const day = startOfWeek.getDay(); // 0 is Sunday, 1 is Monday...
+    startOfWeek.setDate(startOfWeek.getDate() - day); // Set to Sunday
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  };
+
   const filteredPosts = activeFilter === 'all'
     ? posts
     : posts.filter(p => {
@@ -245,7 +338,7 @@ export default function SocialPage() {
                 <BookOpen size={18} className="text-indigo-600" />
                 Library
               </button>
-              <button className="bg-white border border-slate-200 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
+              <button onClick={() => setShowBulkModal(true)} className="bg-white border border-slate-200 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
                 <Upload size={18} className="text-indigo-600" />
                 Bulk Upload
               </button>
@@ -356,6 +449,80 @@ export default function SocialPage() {
                             </button>
                           </>
                         )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {view === 'week' && (
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex flex-col">
+                    <h3 className="text-xl font-bold">
+                      Week of {getDaysInWeek(currentDate)[0].toLocaleDateString('default', { month: 'short', day: 'numeric' })} - {getDaysInWeek(currentDate)[6].toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1 font-semibold">Weekly calendar schedule</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)))} className="p-2 hover:bg-slate-50 rounded-lg">
+                      <ChevronLeft size={20} />
+                    </button>
+                    <button onClick={() => setCurrentDate(new Date())} className="px-4 py-1.5 text-xs font-bold bg-slate-50 rounded-lg hover:bg-slate-100">Today</button>
+                    <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 7)))} className="p-2 hover:bg-slate-50 rounded-lg">
+                      <ChevronRight size={20} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-7 border-t border-l border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+                  {getDaysInWeek(currentDate).map((day, idx) => {
+                    const dayPosts = getPostsForDay(day);
+                    const isToday = day.toDateString() === new Date().toDateString();
+                    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    return (
+                      <div key={idx} className={`min-h-[350px] p-4 border-r border-b border-slate-100 relative group transition-colors ${isToday ? 'bg-indigo-50/20' : 'hover:bg-slate-50/40 bg-white'}`}>
+                        <div className="text-center pb-4 border-b border-slate-100 mb-4">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{dayNames[day.getDay()].slice(0, 3)}</p>
+                          <div className={`text-base font-black mx-auto flex items-center justify-center w-8 h-8 rounded-full ${isToday ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-700'}`}>
+                            {day.getDate()}
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          {dayPosts.map(post => (
+                            <button
+                              key={post.id}
+                              onClick={() => setSelectedPost(post)}
+                              className={`w-full text-left p-3 rounded-2xl text-xs font-bold flex flex-col gap-2 transition-all hover:scale-[1.02] shadow-sm hover:shadow-md border ${
+                                post.status === 'scheduled' || post.status === 'approved' ? 'bg-indigo-50/50 text-indigo-700 border-indigo-100/80 hover:bg-indigo-50' :
+                                post.status === 'published' ? 'bg-slate-100/70 text-slate-600 border-slate-200' :
+                                post.status === 'pending' ? 'bg-amber-50/50 text-amber-700 border-amber-100/80 hover:bg-amber-50' :
+                                'bg-white border border-slate-100 text-slate-500'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-1 w-full">
+                                <PlatformBadge platform={(Array.isArray(post.platforms) ? post.platforms[0] : JSON.parse(post.platforms || '[]')[0]) || 'meta'} />
+                                <span className="text-[9px] font-black uppercase text-slate-400">
+                                  {post.scheduledAt ? new Date(post.scheduledAt).toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                </span>
+                              </div>
+                              <p className="font-extrabold truncate w-full text-slate-900">{post.title}</p>
+                              <p className="text-[10px] font-medium text-slate-500 line-clamp-2 leading-relaxed">"{post.content}"</p>
+                            </button>
+                          ))}
+                        </div>
+
+                        <button 
+                          onClick={() => {
+                            setForm({...form, scheduledDate: day.toISOString().split('T')[0]});
+                            setShowCreateModal(true);
+                          }}
+                          className="absolute bottom-4 right-4 p-2 opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 shadow-sm border border-indigo-100"
+                        >
+                          <Plus size={16} />
+                        </button>
                       </div>
                     );
                   })}
@@ -569,6 +736,129 @@ export default function SocialPage() {
               <button onClick={() => setShowCreateModal(false)} className="px-6 py-3 rounded-2xl text-sm font-bold text-slate-500 hover:bg-white transition-all">Cancel</button>
               <button onClick={() => handleCreatePost('draft')} className="px-6 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 transition-all shadow-sm">Save Draft</button>
               <button onClick={() => handleCreatePost('pending')} className="px-8 py-3 rounded-2xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">Submit for Approval</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Upload Modal */}
+      {showBulkModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-white/20">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Bulk Upload Posts</h2>
+                <p className="text-slate-500 text-sm">Upload multiple scheduled posts via CSV content.</p>
+              </div>
+              <button onClick={() => setShowBulkModal(false)} className="p-2 hover:bg-white rounded-full transition-colors border border-slate-100 shadow-sm">
+                <X size={24} className="text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-8 overflow-y-auto space-y-6">
+              {/* CSV Sample Table */}
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Required CSV Template Format</label>
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden p-4">
+                  <table className="w-full text-left text-xs font-bold text-slate-500">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="pb-2">title</th>
+                        <th className="pb-2">content</th>
+                        <th className="pb-2">platforms</th>
+                        <th className="pb-2">scheduledDate</th>
+                        <th className="pb-2">scheduledTime</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="text-slate-850">
+                        <td className="pt-2">Summer Sale</td>
+                        <td className="pt-2">50% off summer items!</td>
+                        <td className="pt-2">meta;instagram</td>
+                        <td className="pt-2">2026-06-01</td>
+                        <td className="pt-2">10:00</td>
+                      </tr>
+                      <tr className="text-slate-850">
+                        <td className="pt-2">AI Launch</td>
+                        <td className="pt-2">Introducing new AI updates!</td>
+                        <td className="pt-2">tiktok;linkedin</td>
+                        <td className="pt-2">2026-06-05</td>
+                        <td className="pt-2">14:30</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p className="text-[10px] text-slate-400 mt-3 font-semibold">⚠️ Note: Separate platforms with semicolons (;). Title, content, and platforms columns are strictly required.</p>
+                </div>
+              </div>
+
+              {/* Paste Area or file select */}
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paste CSV Content Here</label>
+                <textarea 
+                  value={bulkCsv}
+                  onChange={(e) => setBulkCsv(e.target.value)}
+                  rows={8}
+                  placeholder={`title,content,platforms,scheduledDate,scheduledTime\nSummer Promo,"Get 30% off today!",meta;linkedin,2026-05-20,11:30`}
+                  className="w-full px-5 py-4 rounded-3xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-mono text-xs text-slate-800 resize-none"
+                />
+              </div>
+
+              {/* CSV File Input Fallback */}
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Or Choose CSV File</label>
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-3xl cursor-pointer bg-slate-50 hover:bg-slate-100/50 transition-all">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload className="w-8 h-8 mb-3 text-slate-400" />
+                      <p className="mb-1 text-sm text-slate-500 font-bold">Click to upload or drag CSV file</p>
+                      <p className="text-xs text-slate-400">CSV format only</p>
+                    </div>
+                    <input 
+                      type="file" 
+                      accept=".csv"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (evt) => {
+                            setBulkCsv(evt.target?.result as string || '');
+                            toast.success(`Loaded ${file.name} successfully!`);
+                          };
+                          reader.readAsText(file);
+                        }
+                      }}
+                      className="hidden" 
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
+              <button 
+                onClick={() => setShowBulkModal(false)} 
+                className="px-6 py-3 rounded-2xl text-sm font-bold text-slate-500 hover:bg-white transition-all"
+                disabled={uploadingBulk}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handleBulkUpload(bulkCsv)} 
+                className="px-8 py-3 rounded-2xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-2"
+                disabled={uploadingBulk}
+              >
+                {uploadingBulk ? (
+                  <>
+                    <Clock className="animate-spin" size={16} />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload size={16} />
+                    Process & Upload
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
