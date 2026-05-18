@@ -21,15 +21,16 @@ export const submitContactForm = asyncHandler(async (req: Request, res: Response
   let resolvedWorkspaceId = workspaceId;
 
   if (!resolvedTenantId) {
-    const firstTenant = await db.query.tenants.findFirst();
-    resolvedTenantId = firstTenant?.id || 'default-tenant';
+    const firstTenantRows = await db.select({ id: tenants.id }).from(tenants).limit(1);
+    resolvedTenantId = firstTenantRows[0]?.id || 'default-tenant';
   }
 
   if (!resolvedWorkspaceId) {
-    const firstWorkspace = await db.query.workspaces.findFirst({
-      where: eq(workspaces.tenantId, resolvedTenantId)
-    });
-    resolvedWorkspaceId = firstWorkspace?.id || 'default-workspace';
+    const firstWorkspaceRows = await db.select({ id: workspaces.id })
+      .from(workspaces)
+      .where(eq(workspaces.tenantId, resolvedTenantId))
+      .limit(1);
+    resolvedWorkspaceId = firstWorkspaceRows[0]?.id || 'default-workspace';
   }
 
   // 1. Save contact into database
@@ -48,13 +49,13 @@ export const submitContactForm = asyncHandler(async (req: Request, res: Response
 
   // 2. Trigger workflow automation when form submitted
   // Connect to workflow engine: Find active workflows with triggerType = 'form_submit'
-  const activeWorkflows = await db.query.workflows.findMany({
-    where: and(
+  const activeWorkflows = await db.select()
+    .from(workflows)
+    .where(and(
       eq(workflows.tenantId, resolvedTenantId),
       eq(workflows.status, 'active'),
       eq(workflows.triggerType, 'form_submit')
-    )
-  });
+    ));
 
   console.log(`[WORKFLOW_ENGINE] Found ${activeWorkflows.length} active form_submit workflows for tenant ${resolvedTenantId}`);
 
