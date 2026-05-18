@@ -80,7 +80,8 @@ export default function SocialPage() {
     hashtags: [] as string[],
     firstComment: '',
     mediaUrl: '',
-    mediaType: 'text'
+    mediaType: 'text',
+    status: 'draft'
   });
 
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -124,7 +125,8 @@ export default function SocialPage() {
       hashtags: hashtagsArr,
       firstComment: post.firstComment || '',
       mediaUrl: post.mediaUrl || '',
-      mediaType: post.mediaType || 'text'
+      mediaType: post.mediaType || 'text',
+      status: post.status || 'draft'
     });
 
     setEditingPostId(post.id);
@@ -151,7 +153,8 @@ export default function SocialPage() {
           hashtags: form.hashtags,
           firstComment: form.firstComment,
           mediaUrl: form.mediaUrl,
-          mediaType: form.mediaType
+          mediaType: form.mediaType,
+          status: form.status
         })
       });
       
@@ -161,7 +164,7 @@ export default function SocialPage() {
       setForm({
         title: '', content: '', platforms: [], scheduledDate: '',
         scheduledTime: '', hashtags: [], firstComment: '',
-        mediaUrl: '', mediaType: 'text'
+        mediaUrl: '', mediaType: 'text', status: 'draft'
       });
       loadPosts();
     } catch (err) {
@@ -254,7 +257,31 @@ export default function SocialPage() {
     try {
       const res = await apiCall('/social/posts');
       const data = res?.data || res || [];
-      setPosts(Array.isArray(data) ? data : []);
+      const postsArray = Array.isArray(data) ? data : [];
+      
+      let needsRefresh = false;
+      const now = new Date();
+      for (const p of postsArray) {
+        if (p.status === 'scheduled' && p.scheduledAt && new Date(p.scheduledAt) <= now) {
+          try {
+            await apiCall(`/social/posts/${p.id}`, {
+              method: 'PUT',
+              body: JSON.stringify({ status: 'published' })
+            });
+            needsRefresh = true;
+          } catch (e) {
+            console.error('Auto-publish failed for', p.id);
+          }
+        }
+      }
+      
+      if (needsRefresh) {
+        const freshRes = await apiCall('/social/posts');
+        const freshData = freshRes?.data || freshRes || [];
+        setPosts(Array.isArray(freshData) ? freshData : []);
+      } else {
+        setPosts(postsArray);
+      }
     } catch (err) {
       console.error('Failed to load posts:', err);
       setPosts(getDemoPostsFallback());
@@ -298,7 +325,7 @@ export default function SocialPage() {
         setForm({
           title: '', content: '', platforms: [], scheduledDate: '',
           scheduledTime: '', hashtags: [], firstComment: '',
-          mediaUrl: '', mediaType: 'text'
+          mediaUrl: '', mediaType: 'text', status: 'draft'
         });
         loadPosts();
       }
@@ -733,15 +760,33 @@ export default function SocialPage() {
             </div>
 
             <div className="p-8 overflow-y-auto space-y-6">
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Title</label>
-                <input 
-                  type="text" 
-                  value={form.title}
-                  onChange={(e) => setForm({...form, title: e.target.value})}
-                  placeholder="Enter campaign title..."
-                  className="w-full px-5 py-3 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-medium text-slate-900"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className={editingPostId ? "" : "col-span-2"}>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Title</label>
+                  <input 
+                    type="text" 
+                    value={form.title}
+                    onChange={(e) => setForm({...form, title: e.target.value})}
+                    placeholder="Enter campaign title..."
+                    className="w-full px-5 py-3 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-medium text-slate-900"
+                  />
+                </div>
+                {editingPostId && (
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Status</label>
+                    <select
+                      value={form.status}
+                      onChange={(e) => setForm({...form, status: e.target.value})}
+                      className="w-full px-5 py-3 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-medium text-slate-900 bg-white"
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="pending">Pending</option>
+                      <option value="approved">Approved</option>
+                      <option value="scheduled">Scheduled</option>
+                      <option value="published">Published</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1025,26 +1070,50 @@ export default function SocialPage() {
             </div>
 
             <div className="flex gap-3">
-              {['draft', 'pending', 'rejected'].includes(selectedPost.status) && (
+              {selectedPost.status === 'pending' && (
                 <button 
                   onClick={async () => {
                     try {
-                      if (selectedPost.id.startsWith('demo-') || selectedPost.id.startsWith('fp-')) {
-                        toast.error('Demo posts cannot be modified');
-                        return;
-                      }
-                      await apiCall(`/social/posts/${selectedPost.id}`, {
-                        method: 'PUT',
-                        body: JSON.stringify({ status: 'pending' })
-                      });
+                      if (selectedPost.id.startsWith('demo-') || selectedPost.id.startsWith('fp-')) { toast.error('Demo posts cannot be modified'); return; }
+                      await apiCall(`/social/posts/${selectedPost.id}`, { method: 'PUT', body: JSON.stringify({ status: 'approved' }) });
+                      toast.success('Post approved!');
+                      setSelectedPost(null);
+                      loadPosts();
+                    } catch (err) { toast.error('Failed to approve post'); }
+                  }}
+                  className="flex-1 py-3.5 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg shadow-emerald-100"
+                >
+                  Approve
+                </button>
+              )}
+              {(selectedPost.status === 'approved' || selectedPost.status === 'scheduled') && (
+                <button 
+                  onClick={async () => {
+                    try {
+                      if (selectedPost.id.startsWith('demo-') || selectedPost.id.startsWith('fp-')) { toast.error('Demo posts cannot be modified'); return; }
+                      await apiCall(`/social/posts/${selectedPost.id}`, { method: 'PUT', body: JSON.stringify({ status: 'published' }) });
+                      toast.success('Post published!');
+                      setSelectedPost(null);
+                      loadPosts();
+                    } catch (err) { toast.error('Failed to publish post'); }
+                  }}
+                  className="flex-1 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100"
+                >
+                  Publish Now
+                </button>
+              )}
+              {['draft', 'rejected'].includes(selectedPost.status) && (
+                <button 
+                  onClick={async () => {
+                    try {
+                      if (selectedPost.id.startsWith('demo-') || selectedPost.id.startsWith('fp-')) { toast.error('Demo posts cannot be modified'); return; }
+                      await apiCall(`/social/posts/${selectedPost.id}`, { method: 'PUT', body: JSON.stringify({ status: 'pending' }) });
                       toast.success('Submitted for approval!');
                       setSelectedPost(null);
                       loadPosts();
-                    } catch (err) {
-                      toast.error('Failed to submit for approval');
-                    }
+                    } catch (err) { toast.error('Failed to submit for approval'); }
                   }}
-                  className="flex-1 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100"
+                  className="flex-1 py-3.5 bg-amber-600 text-white rounded-2xl font-bold shadow-lg shadow-amber-100"
                 >
                   Submit Approval
                 </button>
