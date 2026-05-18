@@ -65,7 +65,8 @@ function WorkflowEditorContent() {
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [selectedNode, setSelectedNode] = useState<any>(null);
+  const [nodeSettings, setNodeSettings] = useState<any>({});
 
   useEffect(() => {
     loadWorkflow();
@@ -87,22 +88,44 @@ function WorkflowEditorContent() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (customNodes?: any, customEdges?: any) => {
     setSaving(true);
     try {
       await apiCall(`/workflows/${id}`, {
         method: 'PUT',
         body: JSON.stringify({
-          nodes,
-          edges,
+          nodes: Array.isArray(customNodes) ? customNodes : nodes,
+          edges: Array.isArray(customEdges) ? customEdges : edges,
           name: workflowName,
+          updatedAt: new Date().toISOString(),
         })
       });
-      toast.success('Workflow saved!');
+      toast.success('Workflow saved! ✅');
     } catch (err) {
+      console.error('[Workflow] Save failed:', err);
       toast.error('Failed to save workflow');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleActivate = async () => {
+    try {
+      await apiCall(`/workflows/${id}/activate`, { method: 'POST' });
+      setWorkflow((prev: any) => ({ ...prev, status: 'active' }));
+      toast.success('Workflow activated! 🚀');
+    } catch (err) {
+      toast.error('Failed to activate workflow');
+    }
+  };
+
+  const handlePause = async () => {
+    try {
+      await apiCall(`/workflows/${id}/pause`, { method: 'POST' });
+      setWorkflow((prev: any) => ({ ...prev, status: 'paused' }));
+      toast.success('Workflow paused');
+    } catch (err) {
+      toast.error('Failed to pause workflow');
     }
   };
 
@@ -154,9 +177,11 @@ function WorkflowEditorContent() {
     [setNodes]
   );
 
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    setSelectedNode(node);
-  }, []);
+  const onNodeClick = useCallback(
+    (event: any, node: any) => {
+      setSelectedNode(node);
+      setNodeSettings(node.data?.config || {});
+    }, []);
 
   const addNodeToCanvas = (item: any) => {
     const newNode: Node = {
@@ -174,51 +199,309 @@ function WorkflowEditorContent() {
     setNodes((nds) => nds.concat(newNode));
   };
 
-  const updateNodeData = (nodeId: string, config: any) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              config: {
-                ...node.data.config,
-                ...config,
-              },
-            },
-          };
-        }
-        return node;
-      })
-    );
-    setSelectedNode((prev) => prev?.id === nodeId ? {
-      ...prev,
-      data: {
-        ...prev.data,
-        config: {
-          ...prev.data.config,
-          ...config
-        }
-      }
-    } : prev);
-  };
-
-  const deleteNode = (nodeId: string) => {
-    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
-    setSelectedNode(null);
-  };
-
-  const handleStatusToggle = async () => {
-    const action = workflow.status === 'active' ? 'pause' : 'activate';
-    try {
-      await apiCall(`/workflows/${id}/${action}`, { method: 'POST' });
-      toast.success(`Workflow ${action}d!`);
-      loadWorkflow();
-    } catch (err) {
-      toast.error(`Failed to ${action}`);
+  const renderNodeSettings = () => {
+    if (!selectedNode) {
+      return (
+        <div className="text-center py-12 text-slate-400">
+          <p className="text-3xl mb-3">👆</p>
+          <p className="font-bold text-slate-600">No node selected</p>
+          <p className="text-sm mt-1">Click a node on the canvas to configure settings</p>
+        </div>
+      );
     }
+
+    const type = selectedNode.data?.type;
+    const label = selectedNode.data?.label;
+
+    return (
+      <div className="space-y-4">
+        {/* Node header */}
+        <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${
+            type === 'trigger' ? 'bg-emerald-100 text-emerald-600'
+            : type === 'action' ? 'bg-blue-100 text-blue-600'
+            : type === 'condition' ? 'bg-amber-100 text-amber-600'
+            : 'bg-red-100 text-red-600'
+          }`}>
+            {selectedNode.data?.icon || '⚡'}
+          </div>
+          <div>
+            <p className="font-black text-slate-900 text-sm">{nodeSettings.label || label || ''}</p>
+            <p className={`text-xs font-bold uppercase tracking-wide ${
+              type === 'trigger' ? 'text-emerald-600'
+              : type === 'action' ? 'text-blue-600'
+              : type === 'condition' ? 'text-amber-600'
+              : 'text-red-600'
+            }`}>
+              {type}
+            </p>
+          </div>
+        </div>
+
+        {/* Step Name — always shown */}
+        <div>
+          <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Step Name</label>
+          <input
+            type="text"
+            value={nodeSettings.label || label || ''}
+            onChange={e => setNodeSettings((p: any) => ({ ...p, label: e.target.value }))}
+            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800"
+          />
+        </div>
+
+        {/* TRIGGER NODE SETTINGS */}
+        {type === 'trigger' && (
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Trigger Type</label>
+              <select
+                value={nodeSettings.triggerType || 'form_submit'}
+                onChange={e => setNodeSettings((p: any) => ({ ...p, triggerType: e.target.value }))}
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none font-bold text-slate-800"
+              >
+                <option value="form_submit">📝 Form Submit</option>
+                <option value="email_open">📧 Email Open</option>
+                <option value="link_click">🔗 Link Click</option>
+                <option value="purchase">💰 Purchase Made</option>
+                <option value="ad_engagement">📱 Ad Engagement</option>
+                <option value="new_lead">👤 New Lead Added</option>
+                <option value="scheduled">📅 Scheduled Time</option>
+              </select>
+            </div>
+            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+              <p className="text-xs text-emerald-700 font-bold">✅ This step starts the automation flow</p>
+            </div>
+          </div>
+        )}
+
+        {/* CONDITION NODE SETTINGS */}
+        {type === 'condition' && (
+          <div className="space-y-3">
+            {/* Wait/Delay settings */}
+            {(label?.toLowerCase().includes('wait') || label?.toLowerCase().includes('delay')) && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Wait Duration</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={nodeSettings.delay || 1}
+                      onChange={e => setNodeSettings((p: any) => ({ ...p, delay: Number(e.target.value) }))}
+                      min={1}
+                      className="w-24 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 text-center font-bold text-slate-800"
+                    />
+                    <select
+                      value={nodeSettings.unit || 'days'}
+                      onChange={e => setNodeSettings((p: any) => ({ ...p, unit: e.target.value }))}
+                      className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none font-bold text-slate-800 bg-white"
+                    >
+                      <option value="hours">Hours</option>
+                      <option value="days">Days</option>
+                      <option value="weeks">Weeks</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                  <p className="text-xs text-amber-700 font-bold">⏰ Flow pauses here for {nodeSettings.delay || 1} {nodeSettings.unit || 'days'} before continuing</p>
+                </div>
+              </div>
+            )}
+
+            {/* If/Else Split settings */}
+            {(label?.toLowerCase().includes('if') || label?.toLowerCase().includes('split') || label?.toLowerCase().includes('?')) && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Check Field</label>
+                  <select
+                    value={nodeSettings.field || 'purchase_status'}
+                    onChange={e => setNodeSettings((p: any) => ({ ...p, field: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none font-bold text-slate-800 bg-white"
+                  >
+                    <option value="purchase_status">Purchase Status</option>
+                    <option value="email_opened">Email Opened</option>
+                    <option value="lead_score">Lead Score</option>
+                    <option value="tag">Tag Applied</option>
+                    <option value="engaged">Engagement</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-100 text-center">
+                    <p className="text-xs font-black text-emerald-700">✅ YES Path</p>
+                    <p className="text-[10px] text-emerald-600 font-medium">Condition met</p>
+                  </div>
+                  <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-100 text-center">
+                    <p className="text-xs font-black text-rose-700">❌ NO Path</p>
+                    <p className="text-[10px] text-rose-600 font-medium">Condition not met</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ACTION NODE SETTINGS */}
+        {type === 'action' && (
+          <div className="space-y-3">
+            {/* Send Email settings */}
+            {(label?.toLowerCase().includes('email') || label?.toLowerCase().includes('send') || label?.toLowerCase().includes('welcome') || label?.toLowerCase().includes('hub')) && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Email Subject *</label>
+                  <input
+                    type="text"
+                    value={nodeSettings.subject || ''}
+                    onChange={e => setNodeSettings((p: any) => ({ ...p, subject: e.target.value }))}
+                    placeholder="Welcome to our platform! 🎉"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Email Body</label>
+                  <textarea
+                    value={nodeSettings.body || ''}
+                    onChange={e => setNodeSettings((p: any) => ({ ...p, body: e.target.value }))}
+                    placeholder="Hi [NAME], Welcome to our platform! Here is how to get started..."
+                    rows={4}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800 resize-none"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1 font-medium">Variables: [NAME] [EMAIL] [LINK]</p>
+                </div>
+                <div>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Template</label>
+                  <select 
+                    value={nodeSettings.template || 'welcome'}
+                    onChange={e => setNodeSettings((p: any) => ({ ...p, template: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none font-bold text-slate-800 bg-white"
+                  >
+                    <option value="welcome">Welcome Email</option>
+                    <option value="product_intro">Product Intro</option>
+                    <option value="special_offer">Special Offer</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">From Name</label>
+                  <input
+                    type="text"
+                    value={nodeSettings.fromName || ''}
+                    onChange={e => setNodeSettings((p: any) => ({ ...p, fromName: e.target.value }))}
+                    placeholder="Your Agency Name"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Add Tag settings */}
+            {label?.toLowerCase().includes('tag') && (
+              <div>
+                <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Tag Name</label>
+                <input
+                  type="text"
+                  value={nodeSettings.tag || ''}
+                  onChange={e => setNodeSettings((p: any) => ({ ...p, tag: e.target.value }))}
+                  placeholder="e.g. new_lead, hot, vip"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800"
+                />
+              </div>
+            )}
+
+            {/* Update Score settings */}
+            {label?.toLowerCase().includes('score') && (
+              <div>
+                <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Score Change</label>
+                <div className="flex gap-2">
+                  <select
+                    value={nodeSettings.operator || '+'}
+                    onChange={e => setNodeSettings((p: any) => ({ ...p, operator: e.target.value }))}
+                    className="w-20 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 bg-white"
+                  >
+                    <option value="+">+ Add</option>
+                    <option value="-">- Remove</option>
+                  </select>
+                  <input
+                    type="number"
+                    value={nodeSettings.points || 10}
+                    onChange={e => setNodeSettings((p: any) => ({ ...p, points: Number(e.target.value) }))}
+                    className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800"
+                  />
+                  <span className="self-center text-sm text-slate-400 font-bold">pts</span>
+                </div>
+              </div>
+            )}
+
+            {/* Generic action — show description */}
+            {!label?.toLowerCase().includes('email') &&
+             !label?.toLowerCase().includes('send') &&
+             !label?.toLowerCase().includes('welcome') &&
+             !label?.toLowerCase().includes('hub') &&
+             !label?.toLowerCase().includes('tag') &&
+             !label?.toLowerCase().includes('score') && (
+              <div>
+                <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Description</label>
+                <textarea
+                  value={nodeSettings.description || selectedNode.data?.description || ''}
+                  onChange={e => setNodeSettings((p: any) => ({ ...p, description: e.target.value }))}
+                  placeholder="What does this step do?"
+                  rows={3}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800 resize-none"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* END NODE SETTINGS */}
+        {type === 'end' && (
+          <div className="p-4 bg-rose-50 rounded-xl border border-rose-100">
+            <p className="text-sm font-bold text-rose-700 mb-1">🏁 Flow End Point</p>
+            <p className="text-xs text-rose-600 font-medium">The automation stops here. Contacts reaching this step are marked as completed.</p>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 pt-4 border-t border-slate-100">
+          <button
+            onClick={() => {
+              // Apply settings to node
+              setNodes((nds: any[]) => nds.map(n => {
+                if (n.id === selectedNode.id) {
+                  return {
+                    ...n,
+                    data: {
+                      ...n.data,
+                      label: nodeSettings.label || n.data.label,
+                      config: nodeSettings,
+                      description: nodeSettings.subject
+                        ? `Subject: ${nodeSettings.subject}`
+                        : nodeSettings.delay
+                        ? `Wait ${nodeSettings.delay} ${nodeSettings.unit || 'days'}`
+                        : n.data.description,
+                    }
+                  };
+                }
+                return n;
+              }));
+              toast.success('Node updated! ✅');
+              setSelectedNode(null);
+            }}
+            className="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+          >
+            Apply Changes
+          </button>
+          <button
+            onClick={() => {
+              setNodes((nds: any[]) => nds.filter(n => n.id !== selectedNode.id));
+              setEdges((eds) => eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id));
+              setSelectedNode(null);
+              toast.success('Node deleted 🗑️');
+            }}
+            className="py-2.5 px-4 bg-rose-50 text-rose-600 rounded-xl font-bold text-sm hover:bg-rose-100 border border-rose-200 transition-all"
+          >
+            🗑️
+          </button>
+        </div>
+      </div>
+    );
   };
 
   if (loading) return null;
@@ -260,15 +543,15 @@ function WorkflowEditorContent() {
               Save Draft
             </button>
             <button 
-              onClick={handleStatusToggle}
+              onClick={workflow?.status === 'active' ? handlePause : handleActivate}
               className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg ${
-                workflow.status === 'active' 
+                workflow?.status === 'active' 
                   ? 'bg-amber-50 text-amber-600 shadow-amber-100 hover:bg-amber-100' 
                   : 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700'
               }`}
             >
-              {workflow.status === 'active' ? <Pause size={16} /> : <Play size={16} />}
-              {workflow.status === 'active' ? 'Pause Workflow' : 'Activate Workflow'}
+              {workflow?.status === 'active' ? <Pause size={16} /> : <Play size={16} />}
+              {workflow?.status === 'active' ? 'Pause Workflow' : 'Activate Workflow'}
             </button>
           </div>
         </header>
@@ -325,206 +608,43 @@ function WorkflowEditorContent() {
               />
             </div>
             
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-md border border-white/20 p-2 rounded-2xl shadow-2xl flex items-center gap-6 px-8 py-4">
-              <AnalyticsItem label="Enrolled" value={workflow.enrolledCount} icon={<Users size={14} />} />
-              <div className="w-px h-6 bg-slate-200" />
-              <AnalyticsItem label="Completed" value={workflow.completedCount} icon={<CheckCircle size={14} />} />
-              <div className="w-px h-6 bg-slate-200" />
-              <AnalyticsItem label="Converted" value={workflow.conversionCount} icon={<Target size={14} />} />
-              <div className="w-px h-6 bg-slate-200" />
-              <AnalyticsItem label="Rate" value={`${workflow.conversionRate}%`} icon={<TrendingUp size={14} />} color="indigo" />
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md border border-slate-100 p-2 rounded-2xl shadow-2xl flex items-center gap-6 px-8 py-4 z-50">
+              {workflow?.status === 'draft' ? (
+                <div className="flex items-center gap-4 text-slate-500">
+                  <span className="text-sm font-bold flex items-center gap-2">
+                    ⏸️ Workflow is in DRAFT mode. Activate to start enrolling contacts.
+                  </span>
+                  <button
+                    onClick={handleActivate}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
+                  >
+                    ▶ Activate Now
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <AnalyticsItem label="Enrolled" value={workflow?.enrolledCount || 0} icon={<Users size={14} />} />
+                  <div className="w-px h-6 bg-slate-200" />
+                  <AnalyticsItem label="Completed" value={workflow?.completedCount || 0} icon={<CheckCircle size={14} />} />
+                  <div className="w-px h-6 bg-slate-200" />
+                  <AnalyticsItem label="Converted" value={workflow?.conversionCount || 0} icon={<Target size={14} />} />
+                  <div className="w-px h-6 bg-slate-200" />
+                  <AnalyticsItem label="Rate" value={workflow?.conversionRate ? `${workflow.conversionRate}%` : '0%'} icon={<TrendingUp size={14} />} color="indigo" />
+                </>
+              )}
             </div>
           </main>
 
-          <aside className="w-80 bg-white border-l border-slate-100 p-8 overflow-y-auto shrink-0">
-            {selectedNode ? (
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-bold text-slate-900">Node Settings</h3>
-                  <button onClick={() => setSelectedNode(null)} className="p-1 hover:bg-slate-50 rounded-lg text-slate-400"><X size={18} /></button>
-                </div>
-                
-                <div className="mb-8 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="text-2xl">{selectedNode.data.icon}</span>
-                    <span className="font-bold text-slate-900">{selectedNode.data.label}</span>
-                  </div>
-                  <p className="text-xs text-slate-500 italic">"{selectedNode.data.description}"</p>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Common Name field */}
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Step Name</label>
-                    <input 
-                      type="text"
-                      value={selectedNode.data.label}
-                      onChange={(e) => {
-                        const newLabel = e.target.value;
-                        setNodes(nds => nds.map(n => n.id === selectedNode.id ? { ...n, data: { ...n.data, label: newLabel } } : n));
-                        setSelectedNode(prev => prev ? { ...prev, data: { ...prev.data, label: newLabel } } : null);
-                      }}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-100"
-                    />
-                  </div>
-
-                  {/* Dynamic Fields based on Node Title */}
-                  {selectedNode.data.label === 'Wait/Delay' && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Duration</label>
-                        <input 
-                          type="number"
-                          value={selectedNode.data.config?.delay || 1}
-                          onChange={(e) => updateNodeData(selectedNode.id, { delay: parseInt(e.target.value) })}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Unit</label>
-                        <select 
-                          value={selectedNode.data.config?.unit || 'days'}
-                          onChange={(e) => updateNodeData(selectedNode.id, { unit: e.target.value })}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm outline-none bg-white"
-                        >
-                          <option value="minutes">Minutes</option>
-                          <option value="hours">Hours</option>
-                          <option value="days">Days</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedNode.data.label === 'Send Email' && (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Subject Line</label>
-                        <input 
-                          type="text"
-                          value={selectedNode.data.config?.subject || ''}
-                          onChange={(e) => updateNodeData(selectedNode.id, { subject: e.target.value })}
-                          placeholder="e.g. Welcome to our platform!"
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Template</label>
-                        <select 
-                          value={selectedNode.data.config?.template || 'welcome'}
-                          onChange={(e) => updateNodeData(selectedNode.id, { template: e.target.value })}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm outline-none bg-white"
-                        >
-                          <option value="welcome">Welcome Email</option>
-                          <option value="product_intro">Product Intro</option>
-                          <option value="special_offer">Special Offer</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedNode.data.label === 'If/Else Split' && (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Filter Field</label>
-                        <select 
-                          value={selectedNode.data.config?.field || 'email_opened'}
-                          onChange={(e) => updateNodeData(selectedNode.id, { field: e.target.value })}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm outline-none bg-white"
-                        >
-                          <option value="email_opened">Email Opened</option>
-                          <option value="link_clicked">Link Clicked</option>
-                          <option value="purchase_status">Purchase Status</option>
-                          <option value="lead_score">Lead Score</option>
-                        </select>
-                      </div>
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Operator</label>
-                           <select 
-                            value={selectedNode.data.config?.operator || 'equals'}
-                            onChange={(e) => updateNodeData(selectedNode.id, { operator: e.target.value })}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm outline-none bg-white"
-                           >
-                            <option value="equals">Equals</option>
-                            <option value="greater_than">Greater than</option>
-                           </select>
-                        </div>
-                        <div className="flex-1">
-                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Value</label>
-                           <input 
-                            type="text"
-                            value={selectedNode.data.config?.value || ''}
-                            onChange={(e) => updateNodeData(selectedNode.id, { value: e.target.value })}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm outline-none"
-                           />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedNode.data.label === 'Form Submit' && (
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Select Form</label>
-                      <select 
-                        value={selectedNode.data.config?.formId || 'any'}
-                        onChange={(e) => updateNodeData(selectedNode.id, { formId: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm outline-none bg-white"
-                      >
-                        <option value="any">Any Form</option>
-                        <option value="newsletter">Newsletter Signup</option>
-                        <option value="contact">Contact Us</option>
-                      </select>
-                    </div>
-                  )}
-
-                  {selectedNode.data.label === 'Add Tag' && (
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tag Name</label>
-                      <input 
-                        type="text"
-                        value={selectedNode.data.config?.tag || ''}
-                        onChange={(e) => updateNodeData(selectedNode.id, { tag: e.target.value })}
-                        placeholder="e.g. prospect-2024"
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm outline-none"
-                      />
-                    </div>
-                  )}
-
-                  {selectedNode.data.label === 'Update Score' && (
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Score Change</label>
-                      <input 
-                        type="number"
-                        value={selectedNode.data.config?.scoreChange || 0}
-                        onChange={(e) => updateNodeData(selectedNode.id, { scoreChange: parseInt(e.target.value) })}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm outline-none"
-                      />
-                    </div>
-                  )}
-
-                  <div className="pt-8 border-t border-slate-100 flex gap-3">
-                    <button 
-                      onClick={() => setSelectedNode(null)}
-                      className="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
-                    >
-                      Done
-                    </button>
-                    <button 
-                      onClick={() => deleteNode(selectedNode.id)}
-                      className="flex-1 py-3 rounded-xl bg-rose-50 text-rose-600 text-xs font-bold hover:bg-rose-100 transition-all flex items-center justify-center gap-2"
-                    >
-                      <Trash2 size={14} /> Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-20">
-                <Settings className="w-12 h-12 text-slate-100 mx-auto mb-4" />
-                <h4 className="text-slate-400 font-bold text-sm">No node selected</h4>
-                <p className="text-slate-300 text-xs mt-1">Click a node on the canvas to configure settings.</p>
-              </div>
-            )}
+          <aside className="w-80 bg-white border-l border-slate-100 p-8 overflow-y-auto shrink-0 z-10">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-bold text-slate-900">Node Settings</h3>
+              {selectedNode && (
+                <button onClick={() => setSelectedNode(null)} className="p-1 hover:bg-slate-50 rounded-lg text-slate-400">
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+            {renderNodeSettings()}
           </aside>
         </div>
       </div>
