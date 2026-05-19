@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiCall } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 
 export default function ContactsPage() {
+  const router = useRouter();
   const [contacts, setContacts] = useState<any[]>([]);
   const [workflows, setWorkflows] = useState<any[]>([]);
   const [stats, setStats] = useState({
@@ -409,9 +411,12 @@ export default function ContactsPage() {
                   <tbody className="divide-y divide-slate-50">
                     {contacts.map((c) => (
                       <tr key={c.id} className="hover:bg-slate-50/30 transition-colors group">
-                        <td className="py-4 px-6 font-bold text-slate-900 text-sm">
+                        <td 
+                          onClick={() => router.push(`/dashboard/contacts/${c.id}`)}
+                          className="py-4 px-6 font-bold text-slate-900 text-sm cursor-pointer"
+                        >
                           <div className="flex flex-col">
-                            <span>{c.name}</span>
+                            <span className="hover:text-indigo-600 transition-colors">{c.name}</span>
                             {c.company && <span className="text-xs text-slate-400 font-medium">{c.company}</span>}
                           </div>
                         </td>
@@ -437,7 +442,7 @@ export default function ContactsPage() {
                         <td className="py-4 px-6 text-right">
                           <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
-                              onClick={() => openViewModal(c)}
+                              onClick={() => router.push(`/dashboard/contacts/${c.id}`)}
                               title="View Details"
                               className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-all"
                             >

@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { db } from '../db';
-import { contacts, workflows, workspaces } from '../db/schema';
+import { contacts, workflows, workspaces, contactActivities, contactEmails, contactNotes } from '../db/schema';
 import { eq, and, or, like, desc, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncHandler, AppError } from '../utils/errors';
@@ -97,9 +97,51 @@ export const getContact = asyncHandler(async (req: any, res: Response) => {
     throw new AppError('Contact not found', 404);
   }
 
+  // Fetch activities
+  const activities = await db.select()
+    .from(contactActivities)
+    .where(eq(contactActivities.contactId, id))
+    .orderBy(desc(contactActivities.createdAt));
+
+  // Fetch emails
+  const emails = await db.select()
+    .from(contactEmails)
+    .where(eq(contactEmails.contactId, id))
+    .orderBy(desc(contactEmails.sentAt));
+
+  // Fetch notes
+  const notes = await db.select()
+    .from(contactNotes)
+    .where(eq(contactNotes.contactId, id))
+    .orderBy(desc(contactNotes.createdAt));
+
+  // Fetch workflows
+  let linkedWorkflows: any[] = [];
+  if (contact[0].workflowId) {
+    const flow = await db.select()
+      .from(workflows)
+      .where(and(eq(workflows.id, contact[0].workflowId), eq(workflows.tenantId, tenantId)))
+      .limit(1);
+    if (flow.length > 0) {
+      linkedWorkflows.push({
+        id: flow[0].id,
+        name: flow[0].name,
+        status: contact[0].workflowStatus || 'enrolled',
+        currentStep: contact[0].workflowStatus === 'completed' ? 'Flow Complete' : 'Delay Wait / Welcome Series',
+        completedAt: contact[0].workflowStatus === 'completed' ? contact[0].updatedAt : null,
+      });
+    }
+  }
+
   res.json({
     success: true,
-    data: contact[0]
+    data: {
+      ...contact[0],
+      activities,
+      emails,
+      notes,
+      workflows: linkedWorkflows
+    }
   });
 });
 
@@ -154,6 +196,21 @@ export const createContact = asyncHandler(async (req: any, res: Response) => {
   });
 
   const created = await db.select().from(contacts).where(eq(contacts.id, id)).limit(1);
+
+  // Log Activity
+  try {
+    await db.insert(contactActivities).values({
+      id: uuidv4(),
+      tenantId,
+      workspaceId: resolvedWorkspaceId,
+      contactId: id,
+      type: 'created',
+      title: 'Contact Created',
+      description: `Contact was created manually by ${req.user.name || 'system'}.`
+    });
+  } catch (err: any) {
+    console.error('Failed to log activity:', err.message);
+  }
 
   res.status(201).json({
     success: true,
@@ -275,6 +332,21 @@ export const addTag = asyncHandler(async (req: any, res: Response) => {
     })
     .where(eq(contacts.id, id));
 
+  // Log Activity
+  try {
+    await db.insert(contactActivities).values({
+      id: uuidv4(),
+      tenantId,
+      workspaceId: contact.workspaceId || 'default-workspace',
+      contactId: id,
+      type: 'tags_updated',
+      title: 'Tags Updated',
+      description: `Tag "${tag.trim()}" was added. All tags: ${updatedTags}`
+    });
+  } catch (err: any) {
+    console.error('Failed to log tag activity:', err.message);
+  }
+
   res.json({
     success: true,
     tags: updatedTags,
@@ -303,6 +375,21 @@ export const markConverted = asyncHandler(async (req: any, res: Response) => {
       updatedAt: new Date().toISOString()
     })
     .where(eq(contacts.id, id));
+
+  // Log Activity
+  try {
+    await db.insert(contactActivities).values({
+      id: uuidv4(),
+      tenantId,
+      workspaceId: contactList[0].workspaceId || 'default-workspace',
+      contactId: id,
+      type: 'lead_converted',
+      title: 'Lead Converted',
+      description: `Lead status updated to Converted. Lead score boosted by +40.`
+    });
+  } catch (err: any) {
+    console.error('Failed to log lead conversion activity:', err.message);
+  }
 
   res.json({
     success: true,
@@ -358,6 +445,21 @@ export const enrollInWorkflow = asyncHandler(async (req: any, res: Response) => 
       updatedAt: new Date().toISOString()
     })
     .where(eq(contacts.id, id));
+
+  // Log Activity
+  try {
+    await db.insert(contactActivities).values({
+      id: uuidv4(),
+      tenantId,
+      workspaceId: contact.workspaceId || 'default-workspace',
+      contactId: id,
+      type: 'workflow_started',
+      title: 'Workflow Enrolled',
+      description: `Contact enrolled in automation workflow: "${flow.name}".`
+    });
+  } catch (err: any) {
+    console.error('Failed to log workflow enrollment activity:', err.message);
+  }
 
   console.log(`[CRM_ENROLLMENT] Contact ${contact.email} manually enrolled in workflow: ${flow.name}`);
 
@@ -416,6 +518,36 @@ async function executeManualWorkflowFlow(flow: any, contactId: string, name: str
         html: `<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; color: #333;">${htmlContent}</div>`
       });
 
+      // Save to contact_emails
+      try {
+        await db.insert(contactEmails).values({
+          id: uuidv4(),
+          tenantId: flow.tenantId,
+          workspaceId: flow.workspaceId,
+          contactId,
+          subject,
+          body: bodyTemplate.replace(/\{\{name\}\}/g, name),
+          status: 'sent'
+        });
+      } catch (err: any) {
+        console.error('Failed to save email history:', err.message);
+      }
+
+      // Log email_sent Activity
+      try {
+        await db.insert(contactActivities).values({
+          id: uuidv4(),
+          tenantId: flow.tenantId,
+          workspaceId: flow.workspaceId,
+          contactId,
+          type: 'email_sent',
+          title: 'Automated Email Sent',
+          description: `Email "${subject}" was successfully sent to ${email}.`
+        });
+      } catch (err: any) {
+        console.error('Failed to log email activity:', err.message);
+      }
+
       // Update contact status on completing workflow steps
       await db.update(contacts)
         .set({
@@ -425,6 +557,21 @@ async function executeManualWorkflowFlow(flow: any, contactId: string, name: str
           updatedAt: new Date().toISOString()
         })
         .where(eq(contacts.id, contactId));
+
+      // Log lead_converted Activity
+      try {
+        await db.insert(contactActivities).values({
+          id: uuidv4(),
+          tenantId: flow.tenantId,
+          workspaceId: flow.workspaceId,
+          contactId,
+          type: 'lead_converted',
+          title: 'Lead Converted',
+          description: `Lead auto-converted upon successfully finishing automation workflow steps.`
+        });
+      } catch (err: any) {
+        console.error('Failed to log auto-convert activity:', err.message);
+      }
 
       // Update workflow metrics
       const currentCompleted = (flow.completedCount || 0) + 1;
@@ -447,3 +594,112 @@ async function executeManualWorkflowFlow(flow: any, contactId: string, name: str
     console.error('[CRM_ENROLLMENT_ERROR]', error);
   }
 }
+
+// 9. Add note to contact
+export const createNote = asyncHandler(async (req: any, res: Response) => {
+  const { id } = req.params; // contactId
+  const { content } = req.body;
+  const { tenantId, workspaceId, id: userId, name: userName } = req.user;
+
+  if (!content?.trim()) {
+    throw new AppError('Content is required', 400);
+  }
+
+  const contactList = await db.select()
+    .from(contacts)
+    .where(and(eq(contacts.id, id), eq(contacts.tenantId, tenantId)))
+    .limit(1);
+
+  if (contactList.length === 0) {
+    throw new AppError('Contact not found', 404);
+  }
+
+  const noteId = uuidv4();
+  await db.insert(contactNotes).values({
+    id: noteId,
+    tenantId,
+    workspaceId: contactList[0].workspaceId || workspaceId || 'default-workspace',
+    contactId: id,
+    content: content.trim(),
+    createdBy: userId,
+    createdByName: userName || 'Team Member',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+
+  // Log activity
+  try {
+    await db.insert(contactActivities).values({
+      id: uuidv4(),
+      tenantId,
+      workspaceId: contactList[0].workspaceId || workspaceId || 'default-workspace',
+      contactId: id,
+      type: 'note_added',
+      title: 'Note Added',
+      description: `Note added by ${userName || 'Team Member'}: "${content.trim().substring(0, 60)}..."`
+    });
+  } catch (err: any) {
+    console.error('Failed to log note activity:', err.message);
+  }
+
+  const created = await db.select().from(contactNotes).where(eq(contactNotes.id, noteId)).limit(1);
+
+  res.status(201).json({
+    success: true,
+    data: created[0]
+  });
+});
+
+// 10. Update note
+export const updateNote = asyncHandler(async (req: any, res: Response) => {
+  const { noteId } = req.params;
+  const { content } = req.body;
+  const { tenantId } = req.user;
+
+  if (!content?.trim()) {
+    throw new AppError('Content is required', 400);
+  }
+
+  const existingNote = await db.select()
+    .from(contactNotes)
+    .where(and(eq(contactNotes.id, noteId), eq(contactNotes.tenantId, tenantId)))
+    .limit(1);
+
+  if (existingNote.length === 0) {
+    throw new AppError('Note not found', 404);
+  }
+
+  await db.update(contactNotes)
+    .set({
+      content: content.trim(),
+      updatedAt: new Date().toISOString()
+    })
+    .where(eq(contactNotes.id, noteId));
+
+  res.json({
+    success: true,
+    message: 'Note updated successfully'
+  });
+});
+
+// 11. Delete note
+export const deleteNote = asyncHandler(async (req: any, res: Response) => {
+  const { noteId } = req.params;
+  const { tenantId } = req.user;
+
+  const existingNote = await db.select()
+    .from(contactNotes)
+    .where(and(eq(contactNotes.id, noteId), eq(contactNotes.tenantId, tenantId)))
+    .limit(1);
+
+  if (existingNote.length === 0) {
+    throw new AppError('Note not found', 404);
+  }
+
+  await db.delete(contactNotes).where(eq(contactNotes.id, noteId));
+
+  res.json({
+    success: true,
+    message: 'Note deleted successfully'
+  });
+});

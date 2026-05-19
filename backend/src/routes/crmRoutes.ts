@@ -8,7 +8,10 @@ import {
   deleteContact,
   addTag,
   markConverted,
-  enrollInWorkflow
+  enrollInWorkflow,
+  createNote,
+  updateNote,
+  deleteNote
 } from '../controllers/crmController';
 
 const router = Router();
@@ -24,5 +27,10 @@ router.delete('/:id', authMiddleware, deleteContact);
 router.post('/:id/tag', authMiddleware, addTag);
 router.post('/:id/convert', authMiddleware, markConverted);
 router.post('/:id/enroll', authMiddleware, enrollInWorkflow);
+
+// Notes Actions
+router.post('/:id/notes', authMiddleware, createNote);
+router.put('/:id/notes/:noteId', authMiddleware, updateNote);
+router.delete('/:id/notes/:noteId', authMiddleware, deleteNote);
 
 export default router;

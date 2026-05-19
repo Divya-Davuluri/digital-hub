@@ -79,6 +79,43 @@ export async function runDbFixes() {
       message TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // Contact Activities table
+    `CREATE TABLE IF NOT EXISTS contact_activities (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      contact_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+
+    // Contact Emails table
+    `CREATE TABLE IF NOT EXISTS contact_emails (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      contact_id TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      status TEXT DEFAULT 'sent' NOT NULL,
+      sent_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+
+    // Contact Notes table
+    `CREATE TABLE IF NOT EXISTS contact_notes (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      contact_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_by TEXT,
+      created_by_name TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`
   ];
 
