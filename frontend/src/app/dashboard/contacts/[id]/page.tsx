@@ -62,26 +62,8 @@ export default function ContactDetailsPage({ params }: PageProps) {
       const res = await apiCall(`/contacts/${contactId}/convert`, { method: 'POST' });
       if (res?.success) {
         toast.success('Lead converted successfully!');
-        // Update contact local state
-        setContact((prev: any) => {
-          if (!prev) return prev;
-          
-          // Log local conversion activity
-          const conversionActivity = {
-            id: 'temp-conv',
-            type: 'lead_converted',
-            title: 'Lead Converted',
-            description: 'Lead status updated to Converted. Lead score boosted by +40.',
-            createdAt: new Date().toISOString()
-          };
-
-          return {
-            ...prev,
-            status: 'converted',
-            leadScore: prev.leadScore + 40,
-            activities: [conversionActivity, ...(prev.activities || [])]
-          };
-        });
+        // Reload details to sync notes, emails, and activities from database
+        await loadContactDetails();
       }
     } catch (err: any) {
       toast.error(err?.message || 'Failed to convert lead');

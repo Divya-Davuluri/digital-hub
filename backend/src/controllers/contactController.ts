@@ -78,6 +78,21 @@ export const submitContactForm = asyncHandler(async (req: Request, res: Response
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
+
+    // Log contact creation activity
+    try {
+      await db.insert(contactActivities).values({
+        id: uuidv4(),
+        tenantId: resolvedTenantId,
+        workspaceId: resolvedWorkspaceId,
+        contactId,
+        activityType: 'created',
+        activityMessage: 'Contact created'
+      });
+    } catch (err: any) {
+      console.error('Failed to log contact creation activity:', err.message);
+    }
+
     console.log(`[CONTACT_CREATED] Inserted new contact: ${email} (ID: ${contactId}) in workspace: ${resolvedWorkspaceId}`);
   }
 
@@ -122,7 +137,7 @@ export const submitContactForm = asyncHandler(async (req: Request, res: Response
           workspaceId: resolvedWorkspaceId,
           contactId,
           activityType: 'workflow_started',
-          activityMessage: `Contact enrolled in automation workflow: "${flow.name}".`
+          activityMessage: 'Workflow enrolled'
         });
       } catch (err: any) {
         console.error('Failed to log workflow enrollment activity:', err.message);
@@ -151,7 +166,7 @@ export const submitContactForm = asyncHandler(async (req: Request, res: Response
         workspaceId: resolvedWorkspaceId,
         contactId,
         activityType: 'workflow_started',
-        activityMessage: 'Contact enrolled in welcoming simulation flow.'
+        activityMessage: 'Workflow enrolled'
       });
     } catch (err: any) {
       console.error('Failed to log workflow enrollment activity:', err.message);
@@ -244,7 +259,7 @@ async function executeWorkflowFlow(flow: any, contactId: string, name: string, e
           workspaceId: flow.workspaceId,
           contactId,
           activityType: 'email_sent',
-          activityMessage: `Email "${subject}" was successfully sent to ${email}.`
+          activityMessage: 'Email sent'
         });
       } catch (err: any) {
         console.error('Failed to log email activity:', err.message);
@@ -268,7 +283,7 @@ async function executeWorkflowFlow(flow: any, contactId: string, name: string, e
           workspaceId: flow.workspaceId,
           contactId,
           activityType: 'lead_converted',
-          activityMessage: `Lead auto-converted upon successfully finishing automation workflow steps.`
+          activityMessage: 'Lead converted'
         });
       } catch (err: any) {
         console.error('Failed to log auto-convert activity:', err.message);
@@ -344,7 +359,7 @@ function runDefaultSimulation(contactId: string, name: string, email: string, te
         workspaceId,
         contactId,
         activityType: 'email_sent',
-        activityMessage: `Email "${subject}" was successfully sent to ${email}.`
+        activityMessage: 'Email sent'
       });
     } catch (err: any) {
       console.error('Failed to log email activity:', err.message);
@@ -368,7 +383,7 @@ function runDefaultSimulation(contactId: string, name: string, email: string, te
         workspaceId,
         contactId,
         activityType: 'lead_converted',
-        activityMessage: `Lead auto-converted upon successfully finishing welcoming simulation.`
+        activityMessage: 'Lead converted'
       });
     } catch (err: any) {
       console.error('Failed to log auto-convert activity:', err.message);
