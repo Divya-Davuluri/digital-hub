@@ -665,7 +665,6 @@ export default function ContactsPage() {
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Full Name *</label>
                 <input
                   type="text"
-                  required
                   value={formName}
                   onChange={e => setFormName(e.target.value)}
                   placeholder="e.g. John Doe"
@@ -677,7 +676,6 @@ export default function ContactsPage() {
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Email Address *</label>
                 <input
                   type="email"
-                  required
                   value={formEmail}
                   onChange={e => setFormEmail(e.target.value)}
                   placeholder="e.g. john@company.com"
@@ -780,7 +778,6 @@ export default function ContactsPage() {
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Full Name *</label>
                 <input
                   type="text"
-                  required
                   value={formName}
                   onChange={e => setFormName(e.target.value)}
                   placeholder="e.g. John Doe"
@@ -792,7 +789,6 @@ export default function ContactsPage() {
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Email Address *</label>
                 <input
                   type="email"
-                  required
                   value={formEmail}
                   onChange={e => setFormEmail(e.target.value)}
                   placeholder="e.g. john@company.com"

@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { db } from '../db';
-import { contacts, workflows } from '../db/schema';
+import { contacts, workflows, workspaces } from '../db/schema';
 import { eq, and, or, like, desc, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncHandler, AppError } from '../utils/errors';
@@ -11,12 +11,21 @@ export const getContacts = asyncHandler(async (req: any, res: Response) => {
   const { role, tenantId, workspaceId } = req.user;
   const { search, status, workflowStatus, source } = req.query;
 
-  // Role Access Isolation Check
+  // Role Access Isolation Check & Self-Healing Workspace Fallback
   let baseCondition: any = eq(contacts.tenantId, tenantId);
   if (role !== 'admin') {
+    let resolvedWorkspaceId = workspaceId;
+    if (!resolvedWorkspaceId) {
+      const ws = await db.select({ id: workspaces.id })
+        .from(workspaces)
+        .where(eq(workspaces.tenantId, tenantId))
+        .limit(1);
+      resolvedWorkspaceId = ws[0]?.id || 'default-workspace';
+    }
+    
     baseCondition = and(
       eq(contacts.tenantId, tenantId),
-      eq(contacts.workspaceId, workspaceId)
+      eq(contacts.workspaceId, resolvedWorkspaceId)
     );
   }
 
@@ -103,12 +112,22 @@ export const createContact = asyncHandler(async (req: any, res: Response) => {
     throw new AppError('Name and email are required', 400);
   }
 
-  // Deduplication check
+  // Self-heal workspace id context if missing (e.g. for admin user creation)
+  let resolvedWorkspaceId = workspaceId;
+  if (!resolvedWorkspaceId) {
+    const ws = await db.select({ id: workspaces.id })
+      .from(workspaces)
+      .where(eq(workspaces.tenantId, tenantId))
+      .limit(1);
+    resolvedWorkspaceId = ws[0]?.id || 'default-workspace';
+  }
+
+  // Deduplication check scoped under the resolved workspace
   const existing = await db.select()
     .from(contacts)
     .where(and(
       eq(contacts.email, email.trim().toLowerCase()),
-      eq(contacts.workspaceId, workspaceId)
+      eq(contacts.workspaceId, resolvedWorkspaceId)
     ))
     .limit(1);
 
@@ -120,7 +139,7 @@ export const createContact = asyncHandler(async (req: any, res: Response) => {
   await db.insert(contacts).values({
     id,
     tenantId,
-    workspaceId,
+    workspaceId: resolvedWorkspaceId,
     name: name.trim(),
     email: email.trim().toLowerCase(),
     phone: phone || null,
@@ -159,11 +178,12 @@ export const updateContact = asyncHandler(async (req: any, res: Response) => {
 
   // Deduplication check if email is changed
   if (email && email.trim().toLowerCase() !== existing[0].email) {
+    const resolvedWorkspaceId = workspaceId || existing[0].workspaceId || 'default-workspace';
     const dup = await db.select()
       .from(contacts)
       .where(and(
         eq(contacts.email, email.trim().toLowerCase()),
-        eq(contacts.workspaceId, workspaceId)
+        eq(contacts.workspaceId, resolvedWorkspaceId)
       ))
       .limit(1);
     if (dup.length > 0) {
