@@ -739,8 +739,17 @@ export const contacts = sqliteTable('contacts', {
   workspaceId: text('workspace_id'),
   name: text('name').notNull(),
   email: text('email').notNull(),
-  message: text('message').notNull(),
+  phone: text('phone'),
+  company: text('company'),
+  source: text('source'),
+  status: text('status').default('new'),
+  leadScore: integer('lead_score').default(0),
+  tags: text('tags'),
+  workflowId: text('workflow_id'),
+  workflowStatus: text('workflow_status'),
+  message: text('message'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 

@@ -35,6 +35,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
     if (role === 'admin') {
       return [
         { name: 'Overview', href: '/dashboard/admin', icon: '🏠' },
+        { name: 'Contacts', href: '/dashboard/contacts', icon: '👥' },
         { name: 'Analytics', href: '/dashboard/analytics', icon: '📊' },
         { name: 'Attribution', href: '/dashboard/attribution', icon: '🌿' },
         { name: 'Social', href: '/dashboard/social', icon: '📅' },
@@ -73,6 +74,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
     if (role === 'team') {
       return [
         { name: 'Overview', href: '/dashboard/team', icon: '🏠' },
+        { name: 'Contacts', href: '/dashboard/contacts', icon: '👥' },
         { name: 'Analytics', href: '/dashboard/analytics', icon: '📊' },
         { name: 'Attribution', href: '/dashboard/attribution', icon: '🌿' },
         { name: 'Social', href: '/dashboard/social', icon: '📅' },

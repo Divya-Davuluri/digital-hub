@@ -68,8 +68,17 @@ async function fix() {
       workspace_id TEXT,
       name TEXT NOT NULL,
       email TEXT NOT NULL,
-      message TEXT NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      phone TEXT,
+      company TEXT,
+      source TEXT,
+      status TEXT DEFAULT 'new',
+      lead_score INTEGER DEFAULT 0,
+      tags TEXT,
+      workflow_id TEXT,
+      workflow_status TEXT,
+      message TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`
   ];
 
@@ -95,6 +104,16 @@ async function fix() {
     { table: 'tenants', column: 'remove_powered_by', type: 'INTEGER DEFAULT 0' },
     { table: 'tenants', column: 'status', type: "TEXT DEFAULT 'active'" },
     { table: 'tenants', column: 'created_at', type: 'TEXT DEFAULT CURRENT_TIMESTAMP' },
+    { table: 'contacts', column: 'phone', type: 'TEXT' },
+    { table: 'contacts', column: 'company', type: 'TEXT' },
+    { table: 'contacts', column: 'source', type: 'TEXT' },
+    { table: 'contacts', column: 'status', type: "TEXT DEFAULT 'new'" },
+    { table: 'contacts', column: 'lead_score', type: 'INTEGER DEFAULT 0' },
+    { table: 'contacts', column: 'tags', type: 'TEXT' },
+    { table: 'contacts', column: 'workflow_id', type: 'TEXT' },
+    { table: 'contacts', column: 'workflow_status', type: 'TEXT' },
+    { table: 'contacts', column: 'message', type: 'TEXT' },
+    { table: 'contacts', column: 'updated_at', type: 'TEXT DEFAULT CURRENT_TIMESTAMP' },
   ];
 
   console.log('🔄 Checking and correcting table column structures...');

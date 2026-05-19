@@ -7,7 +7,7 @@ import { sql, eq, and } from 'drizzle-orm';
 import { asyncHandler } from '../utils/errors';
 
 export const submitContactForm = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, message, tenantId, workspaceId } = req.body;
+  const { name, email, message, phone, company, source, tenantId, workspaceId } = req.body;
 
   if (!name?.trim() || !email?.trim() || !message?.trim()) {
     return res.status(400).json({
@@ -33,22 +33,56 @@ export const submitContactForm = asyncHandler(async (req: Request, res: Response
     resolvedWorkspaceId = firstWorkspaceRows[0]?.id || 'default-workspace';
   }
 
-  // 1. Save contact into database
-  const contactId = uuidv4();
-  await db.insert(contacts).values({
-    id: contactId,
-    tenantId: resolvedTenantId,
-    workspaceId: resolvedWorkspaceId,
-    name: name.trim(),
-    email: email.trim().toLowerCase(),
-    message: message.trim(),
-    createdAt: new Date().toISOString()
-  });
+  // 1. Save contact into database (with deduplication: avoid duplicate email in same workspace)
+  const existingContacts = await db.select()
+    .from(contacts)
+    .where(and(
+      eq(contacts.email, email.trim().toLowerCase()),
+      eq(contacts.workspaceId, resolvedWorkspaceId)
+    ))
+    .limit(1);
 
-  console.log(`[CONTACT_SUBMITTED] Contact saved: ${email} (ID: ${contactId})`);
+  let contactId = '';
+  if (existingContacts.length > 0) {
+    contactId = existingContacts[0].id;
+    // Update existing contact details
+    await db.update(contacts)
+      .set({
+        name: name.trim(),
+        message: message.trim(),
+        phone: phone || existingContacts[0].phone || null,
+        company: company || existingContacts[0].company || null,
+        source: source || existingContacts[0].source || 'contact_form',
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(contacts.id, contactId));
+    console.log(`[CONTACT_DEDUPLICATION] Updated existing contact: ${email} (ID: ${contactId}) in workspace: ${resolvedWorkspaceId}`);
+  } else {
+    contactId = uuidv4();
+    // Insert new contact
+    await db.insert(contacts).values({
+      id: contactId,
+      tenantId: resolvedTenantId,
+      workspaceId: resolvedWorkspaceId,
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone || null,
+      company: company || null,
+      source: source || 'contact_form',
+      status: 'new',
+      leadScore: 10, // Starter score
+      tags: '',
+      workflowId: null,
+      workflowStatus: null,
+      message: message.trim(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    console.log(`[CONTACT_CREATED] Inserted new contact: ${email} (ID: ${contactId}) in workspace: ${resolvedWorkspaceId}`);
+  }
 
   // 2. Trigger workflow automation when form submitted
-  // Connect to workflow engine: Find active workflows with triggerType = 'form_submit'
+  // Find active workflows with triggerType = 'form_submit'
   const activeWorkflows = await db.select()
     .from(workflows)
     .where(and(
@@ -71,15 +105,31 @@ export const submitContactForm = asyncHandler(async (req: Request, res: Response
         })
         .where(eq(workflows.id, flow.id));
 
+      // Update contact status to enrolled
+      await db.update(contacts)
+        .set({
+          workflowId: flow.id,
+          workflowStatus: 'enrolled',
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(contacts.id, contactId));
+
       console.log(`[WORKFLOW_ENGINE] Enrolled contact ${email} in workflow: ${flow.name} (Enrolled total: ${currentEnrolled})`);
 
       // Run execution flow in background
-      executeWorkflowFlow(flow, name, email, currentEnrolled);
+      executeWorkflowFlow(flow, contactId, name, email, currentEnrolled);
     }
   } else {
-    // If no active workflows in DB, run a simulation of the default welcome sequence so it works end-to-end
-    console.log('[WORKFLOW_ENGINE] No active workflows in DB. Running default "tpl-welcome" simulation.');
-    runDefaultSimulation(name, email);
+    // Run default simulation sequence so it works end-to-end
+    console.log('[WORKFLOW_ENGINE] No active workflows in DB. Running default simulation.');
+    await db.update(contacts)
+      .set({
+        workflowStatus: 'enrolled',
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(contacts.id, contactId));
+
+    runDefaultSimulation(contactId, name, email);
   }
 
   res.status(201).json({
@@ -92,7 +142,7 @@ export const submitContactForm = asyncHandler(async (req: Request, res: Response
 /**
  * Executes the active ReactFlow nodes and edges sequence in background
  */
-async function executeWorkflowFlow(flow: any, name: string, email: string, currentEnrolled: number) {
+async function executeWorkflowFlow(flow: any, contactId: string, name: string, email: string, currentEnrolled: number) {
   try {
     let nodes: any[] = [];
     try {
@@ -121,7 +171,7 @@ async function executeWorkflowFlow(flow: any, name: string, email: string, curre
       } else if (unit === 'hours') {
         delayMs = value * 60 * 60 * 1000;
       } else if (unit === 'days') {
-        // For the demo, convert days to minutes so it can be verified easily, or keep it short
+        // Convert days to minutes for easily verifiable demo delays
         delayMs = 60000; 
       }
     }
@@ -140,6 +190,16 @@ async function executeWorkflowFlow(flow: any, name: string, email: string, curre
         html: `<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; color: #333;">${htmlContent}</div>`
       });
 
+      // Update contact status to completed and converted
+      await db.update(contacts)
+        .set({
+          status: 'converted',
+          workflowStatus: 'completed',
+          leadScore: 50, // Increase score on conversion
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(contacts.id, contactId));
+
       // 5. Update workflow metrics: completed, converted, conversion rate
       const currentCompleted = (flow.completedCount || 0) + 1;
       const currentConverted = (flow.conversionCount || 0) + 1;
@@ -154,7 +214,7 @@ async function executeWorkflowFlow(flow: any, name: string, email: string, curre
         })
         .where(eq(workflows.id, flow.id));
 
-      console.log(`[WORKFLOW_ENGINE] Workflow metrics updated: Completed: ${currentCompleted}, Converted: ${currentConverted}, Rate: ${rate}%`);
+      console.log(`[WORKFLOW_ENGINE] Workflow metrics & contact status successfully updated!`);
     }, delayMs);
 
   } catch (error) {
@@ -165,13 +225,13 @@ async function executeWorkflowFlow(flow: any, name: string, email: string, curre
 /**
  * Simulated default flow execution when no workflows are saved in DB
  */
-function runDefaultSimulation(name: string, email: string) {
+function runDefaultSimulation(contactId: string, name: string, email: string) {
   setTimeout(async () => {
     await sendEmail({
       to: email,
       subject: 'Welcome to HubSaaS',
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded-xl">
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px">
           <h2 style="color: #4f46e5; margin-bottom: 20px;">Welcome to HubSaaS! 🎉</h2>
           <p>Hello <strong>${name}</strong>,</p>
           <p>Thank you for contacting us. We have received your message and our team will get back to you shortly.</p>
@@ -180,6 +240,17 @@ function runDefaultSimulation(name: string, email: string) {
         </div>
       `
     });
+
+    // Update contact status on successful simulation run
+    await db.update(contacts)
+      .set({
+        status: 'converted',
+        workflowStatus: 'completed',
+        leadScore: 50,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(contacts.id, contactId));
+
     console.log(`[WORKFLOW_SIMULATION] Completed welcoming ${email}`);
   }, 60000); // 1 minute
 }
