@@ -205,7 +205,7 @@ async function executeWorkflowFlow(flow: any, contactId: string, name: string, e
       (n.data?.label?.toLowerCase().includes('email') || n.data?.label?.toLowerCase().includes('send') || n.data?.label?.toLowerCase().includes('welcome'))
     );
 
-    let delayMs = 60000; // Default 1 minute delay
+    let delayMs = 1000; // Default 1 second delay for demo purposes
     if (waitNode?.data?.config?.delay) {
       const value = Number(waitNode.data.config.delay);
       const unit = waitNode.data.config.unit || 'days';
@@ -215,7 +215,7 @@ async function executeWorkflowFlow(flow: any, contactId: string, name: string, e
         delayMs = value * 60 * 60 * 1000;
       } else if (unit === 'days') {
         // Convert days to minutes for easily verifiable demo delays
-        delayMs = 60000; 
+        delayMs = 1000; 
       }
     }
 

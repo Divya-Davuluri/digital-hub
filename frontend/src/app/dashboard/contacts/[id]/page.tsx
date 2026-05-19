@@ -93,11 +93,10 @@ export default function ContactDetailsPage({ params }: PageProps) {
       toast.success(`Enrolled in "${workflow?.name}"! 🚀`);
       
       try {
-        await apiCall('/workflows/enroll', {
+        await apiCall(`/contacts/${contactId}/enroll`, {
           method: 'POST',
           body: JSON.stringify({
-            workflowId: selectedWorkflow,
-            contactId: contactId,
+            workflowId: selectedWorkflow
           })
         });
       } catch (err) {

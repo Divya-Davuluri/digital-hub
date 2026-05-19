@@ -490,7 +490,7 @@ async function executeManualWorkflowFlow(flow: any, contactId: string, name: str
       (n.data?.label?.toLowerCase().includes('email') || n.data?.label?.toLowerCase().includes('send') || n.data?.label?.toLowerCase().includes('welcome'))
     );
 
-    let delayMs = 60000; // 1 minute
+    let delayMs = 1000; // Default 1 second delay for demo purposes
     if (waitNode?.data?.config?.delay) {
       const value = Number(waitNode.data.config.delay);
       const unit = waitNode.data.config.unit || 'days';
@@ -499,7 +499,7 @@ async function executeManualWorkflowFlow(flow: any, contactId: string, name: str
       } else if (unit === 'hours') {
         delayMs = value * 60 * 60 * 1000;
       } else if (unit === 'days') {
-        delayMs = 60000; 
+        delayMs = 1000; // Demo override
       }
     }
 
