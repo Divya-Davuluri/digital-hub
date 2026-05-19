@@ -2,7 +2,7 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
-async function fix() {
+export async function runDbFixes() {
   console.log('📡 [DB] CONNECTING TO TURSO CLOUD & RUNNING COMPATIBILITY FIXES...');
 
   // 1. Create Core Tables If Not Exists
@@ -103,7 +103,7 @@ async function fix() {
     { table: 'tenants', column: 'footer_text', type: 'TEXT' },
     { table: 'tenants', column: 'remove_powered_by', type: 'INTEGER DEFAULT 0' },
     { table: 'tenants', column: 'status', type: "TEXT DEFAULT 'active'" },
-    { table: 'tenants', column: 'created_at', type: 'TEXT DEFAULT CURRENT_TIMESTAMP' },
+    { table: 'tenants', column: 'created_at', type: 'TEXT' },
     { table: 'contacts', column: 'phone', type: 'TEXT' },
     { table: 'contacts', column: 'company', type: 'TEXT' },
     { table: 'contacts', column: 'source', type: 'TEXT' },
@@ -113,7 +113,7 @@ async function fix() {
     { table: 'contacts', column: 'workflow_id', type: 'TEXT' },
     { table: 'contacts', column: 'workflow_status', type: 'TEXT' },
     { table: 'contacts', column: 'message', type: 'TEXT' },
-    { table: 'contacts', column: 'updated_at', type: 'TEXT DEFAULT CURRENT_TIMESTAMP' },
+    { table: 'contacts', column: 'updated_at', type: 'TEXT' },
   ];
 
   console.log('🔄 Checking and correcting table column structures...');
@@ -127,6 +127,15 @@ async function fix() {
         console.warn(`⚠️ Columns verify check warning for ${table}.${column}:`, e.message);
       }
     }
+  }
+
+  // Backfill missing timestamps that were added without defaults
+  try {
+    await db.run(sql`UPDATE contacts SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL`);
+    await db.run(sql`UPDATE tenants SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL`);
+    console.log('✅ Backfilled timestamps successfully');
+  } catch (e: any) {
+    console.warn('⚠️ Timestamps backfill warning:', e.message);
   }
 
   // 3. Seed Default Tenant
@@ -254,7 +263,16 @@ async function fix() {
   }
 
   console.log('🚀 [DB] ALL COMPATIBILITY REPAIR TASKS COMPLETED SUCCESSFULLY!');
-  process.exit(0);
 }
 
-fix();
+if (require.main === module) {
+  runDbFixes()
+    .then(() => {
+      console.log('✅ Local direct fix completed');
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error('❌ Direct direct fix failed:', err);
+      process.exit(1);
+    });
+}

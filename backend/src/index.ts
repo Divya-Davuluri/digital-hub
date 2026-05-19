@@ -44,6 +44,7 @@ import instagramRoutes from './routes/instagram';
 import contactRoutes from './routes/contactRoutes';
 import crmRoutes from './routes/crmRoutes';
 import { trackClick } from './controllers/linkController';
+import { runDbFixes } from './scripts/fixDb';
 
 
 import { authMiddleware, authorize } from './middleware/authMiddleware';
@@ -167,12 +168,13 @@ app.use(errorHandler);
 const server = app.listen(config.port, '0.0.0.0', async () => {
   console.log(`🚀 BACKEND READY: Port ${config.port} | Env: ${config.nodeEnv}`);
   
-  // Verify DB Connectivity on start
+  // Verify & Self-Heal DB Connectivity on start
   try {
-    const result = await db.run(sql`SELECT 1`);
-    console.log('✅ DATABASE CONNECTED: Latency check successful.');
+    console.log('📡 [DB] Initiating database self-healing checks...');
+    await runDbFixes();
+    console.log('✅ DATABASE CONNECTED & FULLY ALIGNED: Ready for CRM operations.');
   } catch (err: any) {
-    console.error('❌ DATABASE CONNECTION FAILED:', err.message);
+    console.error('❌ DATABASE CONNECTION/REPAIR FAILED:', err.message);
   }
 });
 
