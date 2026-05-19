@@ -42,14 +42,20 @@ export const apiCall = async (
   });
 
   const text = await response.text();
+  let data: any;
   try {
-    return JSON.parse(text);
+    data = JSON.parse(text);
   } catch {
     throw new Error(
       `API error ${response.status}: ` +
       'Invalid response from server'
     );
   }
+
+  if (data && data.success === false) {
+    throw new Error(data.message || 'API request failed');
+  }
+  return data;
 };
 
 export const apiFetch = apiCall;

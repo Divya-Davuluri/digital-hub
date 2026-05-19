@@ -655,32 +655,34 @@ export default function ContactsPage() {
       {/* CREATE CONTACT MODAL */}
       {isCreateOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-lg p-10 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-[32px] w-full max-w-2xl p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onClick={() => setIsCreateOpen(false)} className="absolute top-6 right-6 p-2 hover:bg-slate-50 rounded-full"><X size={24} /></button>
-            <h2 className="text-3xl font-black text-slate-900 mb-2">New Contact</h2>
-            <p className="text-slate-500 mb-8 font-medium">Add a new lead record to the CRM database.</p>
+            <h2 className="text-2xl font-black text-slate-900 mb-1">New Contact</h2>
+            <p className="text-slate-500 mb-6 text-sm font-medium">Add a new lead record to the CRM database.</p>
 
             <form onSubmit={handleCreateContact} className="space-y-4">
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Full Name *</label>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={e => setFormName(e.target.value)}
-                  placeholder="e.g. John Doe"
-                  className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-900"
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Full Name *</label>
+                  <input
+                    type="text"
+                    value={formName}
+                    onChange={e => setFormName(e.target.value)}
+                    placeholder="e.g. John Doe"
+                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-900"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Email Address *</label>
-                <input
-                  type="email"
-                  value={formEmail}
-                  onChange={e => setFormEmail(e.target.value)}
-                  placeholder="e.g. john@company.com"
-                  className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-900"
-                />
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Email Address *</label>
+                  <input
+                    type="email"
+                    value={formEmail}
+                    onChange={e => setFormEmail(e.target.value)}
+                    placeholder="e.g. john@company.com"
+                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-900"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -768,32 +770,34 @@ export default function ContactsPage() {
       {/* EDIT CONTACT MODAL */}
       {isEditOpen && selectedContact && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-lg p-10 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-[32px] w-full max-w-2xl p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onClick={() => setIsEditOpen(false)} className="absolute top-6 right-6 p-2 hover:bg-slate-50 rounded-full"><X size={24} /></button>
-            <h2 className="text-3xl font-black text-slate-900 mb-2">Edit Contact</h2>
-            <p className="text-slate-500 mb-8 font-medium">Modify contact and lead tracking parameters.</p>
+            <h2 className="text-2xl font-black text-slate-900 mb-1">Edit Contact</h2>
+            <p className="text-slate-500 mb-6 text-sm font-medium">Modify contact and lead tracking parameters.</p>
 
             <form onSubmit={handleUpdateContact} className="space-y-4">
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Full Name *</label>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={e => setFormName(e.target.value)}
-                  placeholder="e.g. John Doe"
-                  className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-900"
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Full Name *</label>
+                  <input
+                    type="text"
+                    value={formName}
+                    onChange={e => setFormName(e.target.value)}
+                    placeholder="e.g. John Doe"
+                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-900"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Email Address *</label>
-                <input
-                  type="email"
-                  value={formEmail}
-                  onChange={e => setFormEmail(e.target.value)}
-                  placeholder="e.g. john@company.com"
-                  className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-900"
-                />
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Email Address *</label>
+                  <input
+                    type="email"
+                    value={formEmail}
+                    onChange={e => setFormEmail(e.target.value)}
+                    placeholder="e.g. john@company.com"
+                    className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-900"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
