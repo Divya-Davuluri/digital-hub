@@ -757,9 +757,8 @@ export const contactActivities = sqliteTable('contact_activities', {
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   contactId: text('contact_id').notNull().references(() => contacts.id, { onDelete: 'cascade' }),
-  type: text('type').notNull(), // 'created', 'workflow_started', 'email_sent', 'lead_converted', 'tags_updated', 'note_added'
-  title: text('title').notNull(),
-  description: text('description'),
+  activityType: text('activity_type').notNull(),
+  activityMessage: text('activity_message').notNull(),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -768,9 +767,11 @@ export const contactEmails = sqliteTable('contact_emails', {
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   contactId: text('contact_id').notNull().references(() => contacts.id, { onDelete: 'cascade' }),
+  workflowId: text('workflow_id').references(() => workflows.id, { onDelete: 'set null' }),
   subject: text('subject').notNull(),
   body: text('body').notNull(),
-  status: text('status').default('sent').notNull(), // 'sent', 'opened', 'clicked', 'failed'
+  status: text('status').default('sent').notNull(),
+  provider: text('provider').default('resend').notNull(),
   sentAt: text('sent_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

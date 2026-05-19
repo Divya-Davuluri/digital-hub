@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { contacts, workflows, tenants, workspaces } from '../db/schema';
+import { contacts, workflows, tenants, workspaces, contactActivities, contactEmails } from '../db/schema';
 import { sendEmail } from '../utils/email';
 import { v4 as uuidv4 } from 'uuid';
 import { sql, eq, and } from 'drizzle-orm';
@@ -114,6 +114,20 @@ export const submitContactForm = asyncHandler(async (req: Request, res: Response
         })
         .where(eq(contacts.id, contactId));
 
+      // Log activity
+      try {
+        await db.insert(contactActivities).values({
+          id: uuidv4(),
+          tenantId: resolvedTenantId,
+          workspaceId: resolvedWorkspaceId,
+          contactId,
+          activityType: 'workflow_started',
+          activityMessage: `Contact enrolled in automation workflow: "${flow.name}".`
+        });
+      } catch (err: any) {
+        console.error('Failed to log workflow enrollment activity:', err.message);
+      }
+
       console.log(`[WORKFLOW_ENGINE] Enrolled contact ${email} in workflow: ${flow.name} (Enrolled total: ${currentEnrolled})`);
 
       // Run execution flow in background
@@ -129,7 +143,21 @@ export const submitContactForm = asyncHandler(async (req: Request, res: Response
       })
       .where(eq(contacts.id, contactId));
 
-    runDefaultSimulation(contactId, name, email);
+    // Log default workflow enrollment activity
+    try {
+      await db.insert(contactActivities).values({
+        id: uuidv4(),
+        tenantId: resolvedTenantId,
+        workspaceId: resolvedWorkspaceId,
+        contactId,
+        activityType: 'workflow_started',
+        activityMessage: 'Contact enrolled in welcoming simulation flow.'
+      });
+    } catch (err: any) {
+      console.error('Failed to log workflow enrollment activity:', err.message);
+    }
+
+    runDefaultSimulation(contactId, name, email, resolvedTenantId, resolvedWorkspaceId);
   }
 
   res.status(201).json({
@@ -190,6 +218,38 @@ async function executeWorkflowFlow(flow: any, contactId: string, name: string, e
         html: `<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; color: #333;">${htmlContent}</div>`
       });
 
+      // Save to contact_emails
+      try {
+        await db.insert(contactEmails).values({
+          id: uuidv4(),
+          tenantId: flow.tenantId,
+          workspaceId: flow.workspaceId,
+          contactId,
+          workflowId: flow.id,
+          subject,
+          body: bodyTemplate.replace(/\{\{name\}\}/g, name),
+          status: 'sent',
+          provider: 'resend',
+          sentAt: new Date().toISOString()
+        });
+      } catch (err: any) {
+        console.error('Failed to save email history:', err.message);
+      }
+
+      // Log email_sent Activity
+      try {
+        await db.insert(contactActivities).values({
+          id: uuidv4(),
+          tenantId: flow.tenantId,
+          workspaceId: flow.workspaceId,
+          contactId,
+          activityType: 'email_sent',
+          activityMessage: `Email "${subject}" was successfully sent to ${email}.`
+        });
+      } catch (err: any) {
+        console.error('Failed to log email activity:', err.message);
+      }
+
       // Update contact status to completed and converted
       await db.update(contacts)
         .set({
@@ -199,6 +259,20 @@ async function executeWorkflowFlow(flow: any, contactId: string, name: string, e
           updatedAt: new Date().toISOString()
         })
         .where(eq(contacts.id, contactId));
+
+      // Log lead_converted Activity
+      try {
+        await db.insert(contactActivities).values({
+          id: uuidv4(),
+          tenantId: flow.tenantId,
+          workspaceId: flow.workspaceId,
+          contactId,
+          activityType: 'lead_converted',
+          activityMessage: `Lead auto-converted upon successfully finishing automation workflow steps.`
+        });
+      } catch (err: any) {
+        console.error('Failed to log auto-convert activity:', err.message);
+      }
 
       // 5. Update workflow metrics: completed, converted, conversion rate
       const currentCompleted = (flow.completedCount || 0) + 1;
@@ -225,11 +299,14 @@ async function executeWorkflowFlow(flow: any, contactId: string, name: string, e
 /**
  * Simulated default flow execution when no workflows are saved in DB
  */
-function runDefaultSimulation(contactId: string, name: string, email: string) {
+function runDefaultSimulation(contactId: string, name: string, email: string, tenantId: string, workspaceId: string) {
   setTimeout(async () => {
+    const subject = 'Welcome to HubSaaS';
+    const body = `Hello ${name},\n\nThank you for contacting us. We have received your message and our team will get back to you shortly.`;
+
     await sendEmail({
       to: email,
-      subject: 'Welcome to HubSaaS',
+      subject,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px">
           <h2 style="color: #4f46e5; margin-bottom: 20px;">Welcome to HubSaaS! 🎉</h2>
@@ -241,6 +318,38 @@ function runDefaultSimulation(contactId: string, name: string, email: string) {
       `
     });
 
+    // Save to contact_emails
+    try {
+      await db.insert(contactEmails).values({
+        id: uuidv4(),
+        tenantId,
+        workspaceId,
+        contactId,
+        workflowId: null,
+        subject,
+        body,
+        status: 'sent',
+        provider: 'resend',
+        sentAt: new Date().toISOString()
+      });
+    } catch (err: any) {
+      console.error('Failed to save email history:', err.message);
+    }
+
+    // Log email_sent Activity
+    try {
+      await db.insert(contactActivities).values({
+        id: uuidv4(),
+        tenantId,
+        workspaceId,
+        contactId,
+        activityType: 'email_sent',
+        activityMessage: `Email "${subject}" was successfully sent to ${email}.`
+      });
+    } catch (err: any) {
+      console.error('Failed to log email activity:', err.message);
+    }
+
     // Update contact status on successful simulation run
     await db.update(contacts)
       .set({
@@ -250,6 +359,20 @@ function runDefaultSimulation(contactId: string, name: string, email: string) {
         updatedAt: new Date().toISOString()
       })
       .where(eq(contacts.id, contactId));
+
+    // Log lead_converted Activity
+    try {
+      await db.insert(contactActivities).values({
+        id: uuidv4(),
+        tenantId,
+        workspaceId,
+        contactId,
+        activityType: 'lead_converted',
+        activityMessage: `Lead auto-converted upon successfully finishing welcoming simulation.`
+      });
+    } catch (err: any) {
+      console.error('Failed to log auto-convert activity:', err.message);
+    }
 
     console.log(`[WORKFLOW_SIMULATION] Completed welcoming ${email}`);
   }, 60000); // 1 minute

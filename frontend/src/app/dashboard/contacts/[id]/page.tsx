@@ -475,27 +475,33 @@ export default function ContactDetailsPage({ params }: PageProps) {
                       {contact.activities && contact.activities.length > 0 ? (
                         <div className="relative pl-6 border-l-2 border-slate-100 space-y-6 ml-3 py-2">
                           {contact.activities.map((act: any, idx: number) => {
+                            const type = act.activityType || act.type;
+                            const message = act.activityMessage || act.description;
+                            const title = act.activityType
+                              ? act.activityType.replace('_', ' ').split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                              : act.title || 'Activity Event';
+
                             let iconColor = 'bg-blue-100 border-blue-200 text-blue-600';
-                            if (act.type === 'lead_converted') iconColor = 'bg-emerald-100 border-emerald-200 text-emerald-600';
-                            if (act.type === 'workflow_started') iconColor = 'bg-indigo-100 border-indigo-200 text-indigo-600';
-                            if (act.type === 'email_sent') iconColor = 'bg-amber-100 border-amber-200 text-amber-600';
-                            if (act.type === 'tags_updated') iconColor = 'bg-teal-100 border-teal-200 text-teal-600';
-                            if (act.type === 'note_added') iconColor = 'bg-violet-100 border-violet-200 text-violet-600';
+                            if (type === 'lead_converted') iconColor = 'bg-emerald-100 border-emerald-200 text-emerald-600';
+                            if (type === 'workflow_started') iconColor = 'bg-indigo-100 border-indigo-200 text-indigo-600';
+                            if (type === 'email_sent') iconColor = 'bg-amber-100 border-amber-200 text-amber-600';
+                            if (type === 'tags_updated') iconColor = 'bg-teal-100 border-teal-200 text-teal-600';
+                            if (type === 'note_added') iconColor = 'bg-violet-100 border-violet-200 text-violet-600';
 
                             return (
                               <div key={act.id || idx} className="relative group">
                                 {/* Timeline Dot */}
                                 <div className={`absolute -left-[35px] top-1.5 w-6 h-6 rounded-full border flex items-center justify-center text-xs shadow-sm ${iconColor}`}>
-                                  {act.type === 'lead_converted' ? <Award className="w-3 h-3" /> :
-                                   act.type === 'workflow_started' ? <Play className="w-3 h-3" /> :
-                                   act.type === 'email_sent' ? <Send className="w-3 h-3" /> :
-                                   act.type === 'note_added' ? <MessageSquare className="w-3 h-3" /> :
+                                  {type === 'lead_converted' ? <Award className="w-3 h-3" /> :
+                                   type === 'workflow_started' ? <Play className="w-3 h-3" /> :
+                                   type === 'email_sent' ? <Send className="w-3 h-3" /> :
+                                   type === 'note_added' ? <MessageSquare className="w-3 h-3" /> :
                                    <Clock className="w-3 h-3" />}
                                 </div>
 
                                 <div className="space-y-1">
                                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm">
-                                    <h4 className="font-bold text-slate-800">{act.title}</h4>
+                                    <h4 className="font-bold text-slate-800">{title}</h4>
                                     <span className="text-xs text-slate-400 font-medium">
                                       {new Date(act.createdAt).toLocaleString(undefined, {
                                         month: 'short',
@@ -505,8 +511,8 @@ export default function ContactDetailsPage({ params }: PageProps) {
                                       })}
                                     </span>
                                   </div>
-                                  {act.description && (
-                                    <p className="text-slate-600 text-sm leading-relaxed">{act.description}</p>
+                                  {message && (
+                                    <p className="text-slate-600 text-sm leading-relaxed">{message}</p>
                                   )}
                                 </div>
                               </div>

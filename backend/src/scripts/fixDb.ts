@@ -87,9 +87,8 @@ export async function runDbFixes() {
       tenant_id TEXT NOT NULL,
       workspace_id TEXT NOT NULL,
       contact_id TEXT NOT NULL,
-      type TEXT NOT NULL,
-      title TEXT NOT NULL,
-      description TEXT,
+      activity_type TEXT NOT NULL,
+      activity_message TEXT NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`,
 
@@ -99,9 +98,11 @@ export async function runDbFixes() {
       tenant_id TEXT NOT NULL,
       workspace_id TEXT NOT NULL,
       contact_id TEXT NOT NULL,
+      workflow_id TEXT,
       subject TEXT NOT NULL,
       body TEXT NOT NULL,
       status TEXT DEFAULT 'sent' NOT NULL,
+      provider TEXT DEFAULT 'resend' NOT NULL,
       sent_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`,
 
@@ -118,6 +119,16 @@ export async function runDbFixes() {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`
   ];
+
+  // Safely align by dropping legacy tables if they exist with outdated/partial structures
+  try {
+    console.log('🔄 Dropping obsolete contact CRM tables to synchronize columns...');
+    await db.run(sql.raw(`DROP TABLE IF EXISTS contact_activities`));
+    await db.run(sql.raw(`DROP TABLE IF EXISTS contact_emails`));
+    console.log('🗑️ Dropped legacy contacts activity and email tables successfully for schema alignment.');
+  } catch (err: any) {
+    console.error('⚠️ Failed dropping legacy tables:', err.message);
+  }
 
   for (const query of createTables) {
     try {

@@ -204,9 +204,8 @@ export const createContact = asyncHandler(async (req: any, res: Response) => {
       tenantId,
       workspaceId: resolvedWorkspaceId,
       contactId: id,
-      type: 'created',
-      title: 'Contact Created',
-      description: `Contact was created manually by ${req.user.name || 'system'}.`
+      activityType: 'created',
+      activityMessage: `Contact was created manually by ${req.user.name || 'system'}.`
     });
   } catch (err: any) {
     console.error('Failed to log activity:', err.message);
@@ -339,9 +338,8 @@ export const addTag = asyncHandler(async (req: any, res: Response) => {
       tenantId,
       workspaceId: contact.workspaceId || 'default-workspace',
       contactId: id,
-      type: 'tags_updated',
-      title: 'Tags Updated',
-      description: `Tag "${tag.trim()}" was added. All tags: ${updatedTags}`
+      activityType: 'tags_updated',
+      activityMessage: `Tag "${tag.trim()}" was added. All tags: ${updatedTags}`
     });
   } catch (err: any) {
     console.error('Failed to log tag activity:', err.message);
@@ -383,9 +381,8 @@ export const markConverted = asyncHandler(async (req: any, res: Response) => {
       tenantId,
       workspaceId: contactList[0].workspaceId || 'default-workspace',
       contactId: id,
-      type: 'lead_converted',
-      title: 'Lead Converted',
-      description: `Lead status updated to Converted. Lead score boosted by +40.`
+      activityType: 'lead_converted',
+      activityMessage: `Lead status updated to Converted. Lead score boosted by +40.`
     });
   } catch (err: any) {
     console.error('Failed to log lead conversion activity:', err.message);
@@ -453,9 +450,8 @@ export const enrollInWorkflow = asyncHandler(async (req: any, res: Response) => 
       tenantId,
       workspaceId: contact.workspaceId || 'default-workspace',
       contactId: id,
-      type: 'workflow_started',
-      title: 'Workflow Enrolled',
-      description: `Contact enrolled in automation workflow: "${flow.name}".`
+      activityType: 'workflow_started',
+      activityMessage: `Contact enrolled in automation workflow: "${flow.name}".`
     });
   } catch (err: any) {
     console.error('Failed to log workflow enrollment activity:', err.message);
@@ -525,9 +521,12 @@ async function executeManualWorkflowFlow(flow: any, contactId: string, name: str
           tenantId: flow.tenantId,
           workspaceId: flow.workspaceId,
           contactId,
+          workflowId: flow.id,
           subject,
           body: bodyTemplate.replace(/\{\{name\}\}/g, name),
-          status: 'sent'
+          status: 'sent',
+          provider: 'resend',
+          sentAt: new Date().toISOString()
         });
       } catch (err: any) {
         console.error('Failed to save email history:', err.message);
@@ -540,9 +539,8 @@ async function executeManualWorkflowFlow(flow: any, contactId: string, name: str
           tenantId: flow.tenantId,
           workspaceId: flow.workspaceId,
           contactId,
-          type: 'email_sent',
-          title: 'Automated Email Sent',
-          description: `Email "${subject}" was successfully sent to ${email}.`
+          activityType: 'email_sent',
+          activityMessage: `Email "${subject}" was successfully sent to ${email}.`
         });
       } catch (err: any) {
         console.error('Failed to log email activity:', err.message);
@@ -565,9 +563,8 @@ async function executeManualWorkflowFlow(flow: any, contactId: string, name: str
           tenantId: flow.tenantId,
           workspaceId: flow.workspaceId,
           contactId,
-          type: 'lead_converted',
-          title: 'Lead Converted',
-          description: `Lead auto-converted upon successfully finishing automation workflow steps.`
+          activityType: 'lead_converted',
+          activityMessage: `Lead auto-converted upon successfully finishing automation workflow steps.`
         });
       } catch (err: any) {
         console.error('Failed to log auto-convert activity:', err.message);
@@ -634,9 +631,8 @@ export const createNote = asyncHandler(async (req: any, res: Response) => {
       tenantId,
       workspaceId: contactList[0].workspaceId || workspaceId || 'default-workspace',
       contactId: id,
-      type: 'note_added',
-      title: 'Note Added',
-      description: `Note added by ${userName || 'Team Member'}: "${content.trim().substring(0, 60)}..."`
+      activityType: 'note_added',
+      activityMessage: `Note added by ${userName || 'Team Member'}: "${content.trim().substring(0, 60)}..."`
     });
   } catch (err: any) {
     console.error('Failed to log note activity:', err.message);
