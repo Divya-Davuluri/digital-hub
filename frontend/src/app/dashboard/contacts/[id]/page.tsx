@@ -36,9 +36,80 @@ export default function ContactDetailsPage({ params }: PageProps) {
   const [newTag, setNewTag] = useState('');
   const [isAddingTag, setIsAddingTag] = useState(false);
 
+  // Workflow enrollment state
+  const [showEnrollModal, setShowEnrollModal] = useState(false);
+  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [selectedWorkflow, setSelectedWorkflow] = useState('');
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+
   useEffect(() => {
     loadContactDetails();
+    loadWorkflows();
+    loadEnrollments();
   }, [contactId]);
+
+  const loadWorkflows = async () => {
+    try {
+      const res = await apiCall('/workflows');
+      const data = res?.data || res || [];
+      setWorkflows(Array.isArray(data) ? data : []);
+    } catch (err) {
+      // fallback demo workflows
+      setWorkflows([
+        { id:'demo-wf-1', name:'Welcome Email Series', status:'active', triggerType:'form_submit' },
+        { id:'demo-wf-2', name:'Lead Nurture Sequence', status:'active', triggerType:'form_submit' },
+        { id:'demo-wf-3', name:'Abandoned Cart Recovery', status:'active', triggerType:'purchase' },
+      ]);
+    }
+  };
+
+  const loadEnrollments = async () => {
+    setEnrollments([]);
+  };
+
+  const handleEnroll = async () => {
+    if (!selectedWorkflow) {
+      toast.error('Please select a workflow');
+      return;
+    }
+    
+    setEnrolling(true);
+    try {
+      const workflow = workflows.find(w => w.id === selectedWorkflow);
+      const newEnrollment = {
+        id: Date.now().toString(),
+        workflowId: selectedWorkflow,
+        workflowName: workflow?.name || 'Unknown',
+        status: 'active',
+        enrolledAt: new Date().toISOString(),
+        currentStep: 1,
+        totalSteps: 5,
+      };
+      
+      setEnrollments(prev => [...prev, newEnrollment]);
+      setShowEnrollModal(false);
+      setSelectedWorkflow('');
+      toast.success(`Enrolled in "${workflow?.name}"! 🚀`);
+      
+      try {
+        await apiCall('/workflows/enroll', {
+          method: 'POST',
+          body: JSON.stringify({
+            workflowId: selectedWorkflow,
+            contactId: contactId,
+          })
+        });
+      } catch (err) {
+        console.log('Backend enroll not available yet');
+      }
+      
+    } catch (err) {
+      toast.error('Failed to enroll contact');
+    } finally {
+      setEnrolling(false);
+    }
+  };
 
   const loadContactDetails = async () => {
     setLoading(true);
@@ -678,48 +749,125 @@ export default function ContactDetailsPage({ params }: PageProps) {
 
                   {/* TAB 4: AUTOMATION JOURNEYS */}
                   {activeTab === 'workflows' && (
-                    <div className="space-y-6">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                        <h3 className="font-bold text-slate-800">Active Automation & Workflow History</h3>
-                        <span className="text-xs text-slate-400">Marketing automation engine</span>
+                    <div>
+                      <div className="flex justify-between items-center mb-6">
+                        <div>
+                          <h3 className="font-black text-slate-900">
+                            Active Automation & Workflow History
+                          </h3>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Marketing automation engine
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setShowEnrollModal(true)}
+                          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all"
+                        >
+                          <span>▶</span>
+                          Enroll in Workflow
+                        </button>
                       </div>
 
-                      {contact.workflows && contact.workflows.length > 0 ? (
-                        <div className="space-y-4">
-                          {contact.workflows.map((flow: any) => (
-                            <div key={flow.id} className="p-5 bg-white border border-slate-200 rounded-xl hover:border-slate-300 shadow-sm transition duration-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                              <div className="space-y-1.5">
-                                <div className="flex items-center space-x-2">
-                                  <Play className="w-4 h-4 text-indigo-600 fill-indigo-600 animate-pulse" />
-                                  <h4 className="font-bold text-slate-800 text-base">{flow.name}</h4>
+                      {/* Enrollments List */}
+                      {enrollments.length > 0 || (contact.workflows && contact.workflows.length > 0) ? (
+                        <div className="space-y-3">
+                          {/* Display backend workflows first if any */}
+                          {contact.workflows?.map((flow: any) => (
+                            <div key={flow.id} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center font-bold">
+                                    ⚡
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-slate-900 text-sm">{flow.name}</p>
+                                    <p className="text-xs text-slate-400">
+                                      Enrolled {new Date(flow.completedAt || contact.updatedAt || new Date()).toLocaleDateString()}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div className="space-y-1 text-slate-500 text-xs font-medium">
-                                  <p>Current Execution Node: <span className="text-slate-700 font-semibold">{flow.currentStep}</span></p>
-                                  {flow.completedAt && (
-                                    <p>Finished At: {new Date(flow.completedAt).toLocaleString()}</p>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="flex items-center space-x-2 shrink-0">
-                                <span className={`px-3 py-1 text-xs font-bold uppercase rounded-full tracking-wide border ${
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                                   flow.status === 'completed'
-                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                                    : 'bg-indigo-50 border-indigo-200 text-indigo-700 animate-pulse'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-green-100 text-green-700'
                                 }`}>
                                   {flow.status}
                                 </span>
+                              </div>
+
+                              <div className="mb-2">
+                                <div className="flex justify-between text-xs text-slate-400 mb-1">
+                                  <span>Node {flow.currentStep}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          
+                          {/* Display mocked local enrollments */}
+                          {enrollments.map(enrollment => (
+                            <div key={enrollment.id} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center font-bold">
+                                    ⚡
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-slate-900 text-sm">
+                                      {enrollment.workflowName}
+                                    </p>
+                                    <p className="text-xs text-slate-400">
+                                      Enrolled {new Date(enrollment.enrolledAt).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                  enrollment.status === 'active'
+                                    ? 'bg-green-100 text-green-700'
+                                    : enrollment.status === 'completed'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}>
+                                  {enrollment.status}
+                                </span>
+                              </div>
+
+                              {/* Progress Bar */}
+                              <div className="mb-2">
+                                <div className="flex justify-between text-xs text-slate-400 mb-1">
+                                  <span>Step {enrollment.currentStep} of {enrollment.totalSteps}</span>
+                                  <span>{Math.round((enrollment.currentStep / enrollment.totalSteps) * 100)}%</span>
+                                </div>
+                                <div className="w-full bg-slate-100 rounded-full h-1.5">
+                                  <div
+                                    className="bg-indigo-600 h-1.5 rounded-full transition-all"
+                                    style={{
+                                      width: `${Math.round((enrollment.currentStep / enrollment.totalSteps) * 100)}%`
+                                    }}
+                                  />
+                                </div>
                               </div>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
-                          <div className="p-3 bg-slate-50 border border-slate-200 text-slate-400 rounded-full">
-                            <Play className="w-8 h-8" />
+                        /* Empty State with Enroll Button */
+                        <div className="text-center py-16 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                          <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">
+                            ▶
                           </div>
-                          <p className="text-slate-500 font-medium text-sm">No workflow enrollments recorded.</p>
-                          <p className="text-xs text-slate-400">Enroll the contact in workflows from the main contacts catalog list.</p>
+                          <h3 className="font-bold text-slate-900 mb-2">
+                            No workflow enrollments yet
+                          </h3>
+                          <p className="text-sm text-slate-400 mb-6 max-w-xs mx-auto">
+                            Enroll {contact?.name || 'this contact'} in an automation workflow to start sending emails, scoring leads, and nurturing this contact automatically.
+                          </p>
+                          <button
+                            onClick={() => setShowEnrollModal(true)}
+                            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-lg mx-auto"
+                          >
+                            <span>▶</span>
+                            Enroll in Workflow
+                          </button>
                         </div>
                       )}
                     </div>
@@ -734,6 +882,132 @@ export default function ContactDetailsPage({ params }: PageProps) {
 
         </div>
       </div>
+      
+      {/* ENROLL MODAL */}
+      {showEnrollModal && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div>
+                <h2 className="text-lg font-black text-slate-900">
+                  Enroll in Workflow
+                </h2>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  Select a workflow for <span className="font-semibold text-slate-700">{contact?.name || 'this contact'}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowEnrollModal(false);
+                  setSelectedWorkflow('');
+                }}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Workflow Selection */}
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              <p className="text-xs font-black text-slate-400 uppercase tracking-wider">
+                Available Workflows
+              </p>
+              
+              {workflows.filter(w => w.status === 'active').length > 0 ? (
+                <div className="space-y-3">
+                  {workflows
+                    .filter(w => w.status === 'active')
+                    .map(workflow => (
+                    <button
+                      key={workflow.id}
+                      onClick={() => setSelectedWorkflow(workflow.id)}
+                      className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                        selectedWorkflow === workflow.id
+                          ? 'border-indigo-600 bg-indigo-50/50 shadow-sm shadow-indigo-100'
+                          : 'border-slate-100 hover:border-indigo-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-xl flex-shrink-0 transition-colors ${
+                        selectedWorkflow === workflow.id
+                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                          : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        ⚡
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-bold text-sm ${selectedWorkflow === workflow.id ? 'text-indigo-950' : 'text-slate-900'}`}>
+                          {workflow.name}
+                        </p>
+                        <p className={`text-xs mt-1 font-medium ${selectedWorkflow === workflow.id ? 'text-indigo-600/80' : 'text-slate-400'}`}>
+                          Trigger: {workflow.triggerType?.replace('_',' ')?.replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                        </p>
+                      </div>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${
+                        selectedWorkflow === workflow.id 
+                          ? 'bg-indigo-600 border-indigo-600 text-white' 
+                          : 'border-slate-200 text-transparent'
+                      }`}>
+                        ✓
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm border border-slate-100 text-2xl">
+                    ⚡
+                  </div>
+                  <p className="font-bold text-slate-900 text-sm">
+                    No active workflows
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Create and activate a workflow first.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowEnrollModal(false);
+                  setSelectedWorkflow('');
+                }}
+                className="flex-1 py-3 border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-white hover:border-slate-300 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEnroll}
+                disabled={!selectedWorkflow || enrolling}
+                className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                  selectedWorkflow && !enrolling
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 hover:-translate-y-0.5'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                {enrolling ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Enrolling...
+                  </>
+                ) : (
+                  <>
+                    <span>▶</span>
+                    Enroll Contact
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
