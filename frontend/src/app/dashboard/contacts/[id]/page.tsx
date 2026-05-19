@@ -220,7 +220,7 @@ export default function ContactDetailsPage({ params }: PageProps) {
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar />
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 ml-[260px] overflow-hidden">
         <Header />
         
         {/* Main Content Area */}
