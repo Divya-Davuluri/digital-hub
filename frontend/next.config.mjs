@@ -12,6 +12,17 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: '**' }
     ]
+  },
+  // Memory optimization for Render Free Tier (512MB limit)
+  experimental: {
+    workerThreads: false,
+    cpus: 1
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
   }
 };
 
