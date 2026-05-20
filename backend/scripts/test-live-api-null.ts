@@ -1,5 +1,5 @@
 async function testLive() {
-  const loginRes = await fetch('https://digital-hub-3h88.onrender.com/api/auth/login', {
+  const loginRes = await fetch('https://digital-hub-og1a.onrender.com/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     // Use the OTHER test client which has workspaceId: null
@@ -11,7 +11,7 @@ async function testLive() {
 
   if (!loginData.token) return;
 
-  const reportRes = await fetch('https://digital-hub-3h88.onrender.com/api/reports/request', {
+  const reportRes = await fetch('https://digital-hub-og1a.onrender.com/api/reports/request', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

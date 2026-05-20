@@ -33,7 +33,7 @@ if (process.env.NODE_ENV === 'production' || !process.env.CI) {
 export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-3h88.onrender.com',
+  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-og1a.onrender.com',
   frontendUrl: process.env.FRONTEND_URL || 'https://digital-hub-1.onrender.com',
   jwtSecret: process.env.JWT_SECRET as string,
   refreshSecret: process.env.REFRESH_SECRET as string,

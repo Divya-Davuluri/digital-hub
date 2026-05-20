@@ -1,6 +1,6 @@
 async function testLive() {
   // 1. Log in to live API
-  const loginRes = await fetch('https://digital-hub-3h88.onrender.com/api/auth/login', {
+  const loginRes = await fetch('https://digital-hub-og1a.onrender.com/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: 'testclient1@gmail.com', password: 'password123' })
@@ -15,7 +15,7 @@ async function testLive() {
   }
 
   // 2. Request report
-  const reportRes = await fetch('https://digital-hub-3h88.onrender.com/api/reports/request', {
+  const reportRes = await fetch('https://digital-hub-og1a.onrender.com/api/reports/request', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

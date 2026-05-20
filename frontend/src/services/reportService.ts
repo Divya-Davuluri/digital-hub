@@ -25,7 +25,7 @@ export const requestCustomReport = async (data: any): Promise<any> => {
 
 export const exportReportPDF = async (workspaceId?: string): Promise<void> => {
   const token = localStorage.getItem('token');
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-3h88.onrender.com';
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-og1a.onrender.com';
   
   const url = workspaceId 
     ? `${baseUrl}/api/reports/client-pdf?workspaceId=${workspaceId}` 
@@ -56,7 +56,7 @@ export const getReports = async (workspaceId?: string): Promise<any[]> => {
 
 export const downloadReport = async (reportUrl: string): Promise<void> => {
   const token = localStorage.getItem('token');
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-3h88.onrender.com';
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-og1a.onrender.com';
   
   // Handle relative URLs
   const url = reportUrl.startsWith('http') ? reportUrl : `${baseUrl}${reportUrl.startsWith('/') ? '' : '/'}${reportUrl}`;

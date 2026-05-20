@@ -4,7 +4,7 @@ const getApiBase = () => {
     return url.endsWith('/api') ? url : `${url}/api`;
   }
   if (typeof window === 'undefined') {
-    return 'https://digital-hub-3h88.onrender.com/api';
+    return 'https://digital-hub-og1a.onrender.com/api';
   }
   return '/api';
 };
