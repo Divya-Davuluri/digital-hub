@@ -2,9 +2,9 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import {
   workflows, workflowTemplates,
-  workspaces, clients
+  workspaces, clients, teamAssignments
 } from '../db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, or, inArray, desc, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { AppError, asyncHandler } from '../utils/errors';
 
@@ -91,18 +91,47 @@ export const createWorkflow = asyncHandler(
 
 export const getWorkflows = asyncHandler(
   async (req: any, res: Response) => {
-  const { tenantId } = req.user;
+  const { tenantId, role, id: userId, assignedWorkflowIds, assignedClientIds } = req.user;
 
   try {
+    let condition;
+    if (role === 'admin') {
+      condition = eq(workflows.tenantId, tenantId);
+    } else {
+      const assignedWorkIds = assignedWorkflowIds || [];
+      const assignedCltIds = assignedClientIds || [];
+      
+      const teamConditions = [
+        sql`exists (
+          select 1 from clients 
+          where clients.id = ${workflows.clientId} 
+          and (clients.assigned_team_member_id = ${userId} or clients.workspace_id = ${workflows.workspaceId})
+        )`
+      ];
+      
+      if (assignedWorkIds.length > 0) {
+        teamConditions.push(inArray(workflows.id, assignedWorkIds));
+      }
+      
+      if (assignedCltIds.length > 0) {
+        teamConditions.push(inArray(workflows.clientId, assignedCltIds));
+      }
+
+      condition = and(
+        eq(workflows.tenantId, tenantId),
+        or(...teamConditions)
+      );
+    }
+
     const all = await db
       .select()
       .from(workflows)
-      .where(eq(workflows.tenantId, tenantId))
+      .where(condition)
       .orderBy(desc(workflows.createdAt));
 
     const formatted = all.map(formatWorkflow);
 
-    if (formatted.length === 0) {
+    if (formatted.length === 0 && role === 'admin') {
       return res.json({
         success: true,
         data: getDemoWorkflows(),
@@ -115,22 +144,49 @@ export const getWorkflows = asyncHandler(
     console.error('[Workflows] getWorkflows error:', err);
     res.json({
       success: true,
-      data: getDemoWorkflows(),
-      source: 'demo'
+      data: role === 'admin' ? getDemoWorkflows() : [],
+      source: role === 'admin' ? 'demo' : 'live'
     });
   }
 });
 
 export const getWorkflow = asyncHandler(
   async (req: any, res: Response) => {
-  const { tenantId } = req.user;
+  const { tenantId, role, id: userId, assignedWorkflowIds, assignedClientIds } = req.user;
   const { id } = req.params;
 
-  const workflow = await db.query.workflows.findFirst({
-    where: and(
+  let condition;
+  if (role === 'admin') {
+    condition = and(eq(workflows.id, id), eq(workflows.tenantId, tenantId));
+  } else {
+    const assignedWorkIds = assignedWorkflowIds || [];
+    const assignedCltIds = assignedClientIds || [];
+    
+    const teamConditions = [
+      sql`exists (
+        select 1 from clients 
+        where clients.id = ${workflows.clientId} 
+        and (clients.assigned_team_member_id = ${userId} or clients.workspace_id = ${workflows.workspaceId})
+      )`
+    ];
+    
+    if (assignedWorkIds.length > 0) {
+      teamConditions.push(inArray(workflows.id, assignedWorkIds));
+    }
+    
+    if (assignedCltIds.length > 0) {
+      teamConditions.push(inArray(workflows.clientId, assignedCltIds));
+    }
+
+    condition = and(
       eq(workflows.id, id),
-      eq(workflows.tenantId, tenantId)
-    )
+      eq(workflows.tenantId, tenantId),
+      or(...teamConditions)
+    );
+  }
+
+  const workflow = await db.query.workflows.findFirst({
+    where: condition
   });
 
   if (!workflow) {
@@ -142,18 +198,45 @@ export const getWorkflow = asyncHandler(
 
 export const updateWorkflow = asyncHandler(
   async (req: any, res: Response) => {
-  const { tenantId } = req.user;
+  const { tenantId, role, id: userId, assignedWorkflowIds, assignedClientIds } = req.user;
   const { id } = req.params;
   const {
     name, description, nodes,
     edges, status, triggerType
   } = req.body;
 
-  const existing = await db.query.workflows.findFirst({
-    where: and(
+  let condition;
+  if (role === 'admin') {
+    condition = and(eq(workflows.id, id), eq(workflows.tenantId, tenantId));
+  } else {
+    const assignedWorkIds = assignedWorkflowIds || [];
+    const assignedCltIds = assignedClientIds || [];
+    
+    const teamConditions = [
+      sql`exists (
+        select 1 from clients 
+        where clients.id = ${workflows.clientId} 
+        and (clients.assigned_team_member_id = ${userId} or clients.workspace_id = ${workflows.workspaceId})
+      )`
+    ];
+    
+    if (assignedWorkIds.length > 0) {
+      teamConditions.push(inArray(workflows.id, assignedWorkIds));
+    }
+    
+    if (assignedCltIds.length > 0) {
+      teamConditions.push(inArray(workflows.clientId, assignedCltIds));
+    }
+
+    condition = and(
       eq(workflows.id, id),
-      eq(workflows.tenantId, tenantId)
-    )
+      eq(workflows.tenantId, tenantId),
+      or(...teamConditions)
+    );
+  }
+
+  const existing = await db.query.workflows.findFirst({
+    where: condition
   });
 
   if (!existing) {

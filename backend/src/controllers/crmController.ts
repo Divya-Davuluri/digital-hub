@@ -1,19 +1,50 @@
 import { Response } from 'express';
 import { db } from '../db';
-import { contacts, workflows, workspaces, contactActivities, contactEmails, contactNotes } from '../db/schema';
-import { eq, and, or, like, desc, sql } from 'drizzle-orm';
+import { contacts, workflows, workspaces, contactActivities, contactEmails, contactNotes, clients, teamAssignments } from '../db/schema';
+import { eq, and, or, like, desc, sql, inArray } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncHandler, AppError } from '../utils/errors';
 import { sendEmail } from '../utils/email';
 
 // 1. Get Contacts with stats and filters
 export const getContacts = asyncHandler(async (req: any, res: Response) => {
-  const { role, tenantId, workspaceId } = req.user;
+  const { role, tenantId, workspaceId, id: userId, assignedClientIds } = req.user;
   const { search, status, workflowStatus, source } = req.query;
 
   // Role Access Isolation Check & Self-Healing Workspace Fallback
   let baseCondition: any = eq(contacts.tenantId, tenantId);
-  if (role !== 'admin') {
+  
+  if (role === 'team') {
+    const teamWsIds: string[] = [];
+    
+    // Fetch workspace IDs for clients where assignedTeamMemberId = userId
+    const assignedClients = await db.select({ workspaceId: clients.workspaceId })
+      .from(clients)
+      .where(eq(clients.assignedTeamMemberId, userId));
+    assignedClients.forEach(c => teamWsIds.push(c.workspaceId));
+
+    // Fetch workspace IDs for client assignments in req.user.assignedClientIds
+    const assignedCltIds = assignedClientIds || [];
+    if (assignedCltIds.length > 0) {
+      const clientWorkspaces = await db.select({ workspaceId: clients.workspaceId })
+        .from(clients)
+        .where(inArray(clients.id, assignedCltIds));
+      clientWorkspaces.forEach(c => teamWsIds.push(c.workspaceId));
+    }
+
+    // Fetch direct workspace assignments from team_assignments
+    const directAssignments = await db.select({ workspaceId: teamAssignments.workspaceId })
+      .from(teamAssignments)
+      .where(eq(teamAssignments.userId, userId));
+    directAssignments.forEach(a => teamWsIds.push(a.workspaceId));
+
+    const uniqueWsIds = Array.from(new Set(teamWsIds)).filter(Boolean);
+
+    baseCondition = and(
+      eq(contacts.tenantId, tenantId),
+      uniqueWsIds.length > 0 ? inArray(contacts.workspaceId, uniqueWsIds) : sql`1 = 0`
+    );
+  } else if (role !== 'admin') {
     let resolvedWorkspaceId = workspaceId;
     if (!resolvedWorkspaceId) {
       const ws = await db.select({ id: workspaces.id })
@@ -86,15 +117,47 @@ export const getContacts = asyncHandler(async (req: any, res: Response) => {
 // 2. Get Contact details
 export const getContact = asyncHandler(async (req: any, res: Response) => {
   const { id } = req.params;
-  const { tenantId } = req.user;
+  const { tenantId, role, id: userId, assignedClientIds } = req.user;
 
-  const contact = await db.select()
+  const contactList = await db.select()
     .from(contacts)
     .where(and(eq(contacts.id, id), eq(contacts.tenantId, tenantId)))
     .limit(1);
 
-  if (contact.length === 0) {
+  if (contactList.length === 0) {
     throw new AppError('Contact not found', 404);
+  }
+
+  const contact = contactList[0];
+
+  // Team permission validation
+  if (role === 'team') {
+    const teamWsIds: string[] = [];
+    const assignedClients = await db.select({ workspaceId: clients.workspaceId })
+      .from(clients)
+      .where(eq(clients.assignedTeamMemberId, userId));
+    assignedClients.forEach(c => teamWsIds.push(c.workspaceId));
+
+    const assignedCltIds = assignedClientIds || [];
+    if (assignedCltIds.length > 0) {
+      const clientWorkspaces = await db.select({ workspaceId: clients.workspaceId })
+        .from(clients)
+        .where(inArray(clients.id, assignedCltIds));
+      clientWorkspaces.forEach(c => teamWsIds.push(c.workspaceId));
+    }
+
+    const directAssignments = await db.select({ workspaceId: teamAssignments.workspaceId })
+      .from(teamAssignments)
+      .where(eq(teamAssignments.userId, userId));
+    directAssignments.forEach(a => teamWsIds.push(a.workspaceId));
+
+    const uniqueWsIds = Array.from(new Set(teamWsIds)).filter(Boolean);
+
+    if (!uniqueWsIds.includes(contact.workspaceId || '')) {
+      throw new AppError('Access denied to this contact', 403);
+    }
+  } else if (role !== 'admin' && contact.workspaceId !== req.user.workspaceId) {
+    throw new AppError('Access denied', 403);
   }
 
   // Fetch activities
@@ -117,18 +180,18 @@ export const getContact = asyncHandler(async (req: any, res: Response) => {
 
   // Fetch workflows
   let linkedWorkflows: any[] = [];
-  if (contact[0].workflowId) {
+  if (contact.workflowId) {
     const flow = await db.select()
       .from(workflows)
-      .where(and(eq(workflows.id, contact[0].workflowId), eq(workflows.tenantId, tenantId)))
+      .where(and(eq(workflows.id, contact.workflowId), eq(workflows.tenantId, tenantId)))
       .limit(1);
     if (flow.length > 0) {
       linkedWorkflows.push({
         id: flow[0].id,
         name: flow[0].name,
-        status: contact[0].workflowStatus || 'enrolled',
-        currentStep: contact[0].workflowStatus === 'completed' ? 'Flow Complete' : 'Delay Wait / Welcome Series',
-        completedAt: contact[0].workflowStatus === 'completed' ? contact[0].updatedAt : null,
+        status: contact.workflowStatus || 'enrolled',
+        currentStep: contact.workflowStatus === 'completed' ? 'Flow Complete' : 'Delay Wait / Welcome Series',
+        completedAt: contact.workflowStatus === 'completed' ? contact.updatedAt : null,
       });
     }
   }
@@ -136,7 +199,7 @@ export const getContact = asyncHandler(async (req: any, res: Response) => {
   res.json({
     success: true,
     data: {
-      ...contact[0],
+      ...contact,
       activities,
       emails,
       notes,

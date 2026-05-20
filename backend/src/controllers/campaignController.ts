@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import { campaigns, adGroups, creatives, campaignActivityLogs, campaignTemplates, clients, workspaces } from '../db/schema';
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq, and, or, sql, inArray } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncHandler, AppError } from '../utils/errors';
 
@@ -9,17 +9,36 @@ import { asyncHandler, AppError } from '../utils/errors';
  * GET /api/campaigns
  */
 export const getCampaigns = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId, role, workspaceId: userWorkspaceId, id: userId } = req.user;
+  const { tenantId, role, workspaceId: userWorkspaceId, id: userId, assignedCampaignIds, assignedClientIds } = req.user;
   const { workspaceId: queryWorkspaceId, status, channel } = req.query;
 
-  // STRICT ISOLATION: Admins see all unless filtered. Others see their own.
   let targetWorkspaceId = role === 'admin' ? (queryWorkspaceId as string) : (userWorkspaceId || queryWorkspaceId as string);
 
   let whereConditions = [eq(campaigns.tenantId, tenantId)];
   if (targetWorkspaceId) whereConditions.push(eq(campaigns.workspaceId, targetWorkspaceId));
   
-  if (role === 'team' && !targetWorkspaceId) {
-    whereConditions.push(sql`exists (select 1 from clients where clients.workspace_id = campaigns.workspace_id and clients.assigned_team_member_id = ${userId})`);
+  if (role === 'client') {
+    if (!userWorkspaceId) {
+      throw new AppError('Client user is not associated with any workspace', 403);
+    }
+    whereConditions.push(eq(campaigns.workspaceId, userWorkspaceId));
+  } else if (role === 'team') {
+    const assignedCampIds = assignedCampaignIds || [];
+    const assignedCltIds = assignedClientIds || [];
+    
+    const teamConditions = [
+      sql`exists (select 1 from clients where clients.id = ${campaigns.clientId} and clients.assigned_team_member_id = ${userId})`
+    ];
+    
+    if (assignedCampIds.length > 0) {
+      teamConditions.push(inArray(campaigns.id, assignedCampIds));
+    }
+    
+    if (assignedCltIds.length > 0) {
+      teamConditions.push(inArray(campaigns.clientId, assignedCltIds));
+    }
+    
+    whereConditions.push(or(...teamConditions) as any);
   }
 
   if (status) whereConditions.push(eq(campaigns.status, status as any));
@@ -27,13 +46,9 @@ export const getCampaigns = asyncHandler(async (req: any, res: Response) => {
 
   const result = await db.query.campaigns.findMany({
     where: and(...whereConditions),
-    with: {
-      // Assuming relations are setup in drizzle, if not we use sql
-    },
     orderBy: [sql`${campaigns.createdAt} DESC`]
   });
 
-  // Fallback for relations if not configured in drizzle
   const enhanced = await Promise.all(result.map(async (c) => {
     const groups = await db.select().from(adGroups).where(eq(adGroups.campaignId, c.id));
     return { ...c, adGroups: groups };
@@ -264,18 +279,39 @@ export const getCampaignById = asyncHandler(async (req: any, res: Response) => {
   if (!campaign) throw new AppError('Campaign not found', 404);
 
   // STRICT ISOLATION check
-  if (role !== 'admin' && campaign.workspaceId !== userWorkspaceId) {
-    // If team, check assignment
-    if (role === 'team') {
-      const assigned = await db.query.clients.findFirst({
+  if (role === 'client') {
+    if (campaign.workspaceId !== userWorkspaceId) {
+      throw new AppError('Access denied', 403);
+    }
+  } else if (role === 'team') {
+    const assignedCampIds = req.user.assignedCampaignIds || [];
+    const assignedCltIds = req.user.assignedClientIds || [];
+    
+    let isAssigned = false;
+    
+    // 1. Explicit campaign assignment
+    if (assignedCampIds.includes(campaign.id)) {
+      isAssigned = true;
+    }
+    
+    // 2. Assigned client via clients table
+    if (!isAssigned && campaign.clientId) {
+      const clientRecord = await db.query.clients.findFirst({
         where: and(
-          eq(clients.workspaceId, campaign.workspaceId as string),
+          eq(clients.id, campaign.clientId),
           eq(clients.assignedTeamMemberId, req.user.id)
         )
       });
-      if (!assigned) throw new AppError('Access denied to this campaign', 403);
-    } else {
-      throw new AppError('Access denied', 403);
+      if (clientRecord) isAssigned = true;
+    }
+    
+    // 3. Assigned client via teamAssignments
+    if (!isAssigned && campaign.clientId && assignedCltIds.includes(campaign.clientId)) {
+      isAssigned = true;
+    }
+    
+    if (!isAssigned) {
+      throw new AppError('Access denied to this campaign', 403);
     }
   }
 
@@ -313,13 +349,37 @@ export const getCampaignById = asyncHandler(async (req: any, res: Response) => {
  * GET /api/campaigns/metrics
  */
 export const getCampaignMetrics = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId, role, workspaceId: userWorkspaceId } = req.user;
+  const { tenantId, role, workspaceId: userWorkspaceId, id: userId, assignedCampaignIds, assignedClientIds } = req.user;
   const { workspaceId: queryWorkspaceId } = req.query;
 
   let targetWorkspaceId = role === 'admin' ? (queryWorkspaceId as string) : (userWorkspaceId || queryWorkspaceId as string);
 
   let whereConditions = [eq(campaigns.tenantId, tenantId)];
   if (targetWorkspaceId) whereConditions.push(eq(campaigns.workspaceId, targetWorkspaceId));
+
+  if (role === 'client') {
+    if (!userWorkspaceId) {
+      throw new AppError('Client user is not associated with any workspace', 403);
+    }
+    whereConditions.push(eq(campaigns.workspaceId, userWorkspaceId));
+  } else if (role === 'team') {
+    const assignedCampIds = assignedCampaignIds || [];
+    const assignedCltIds = assignedClientIds || [];
+    
+    const teamConditions = [
+      sql`exists (select 1 from clients where clients.id = ${campaigns.clientId} and clients.assigned_team_member_id = ${userId})`
+    ];
+    
+    if (assignedCampIds.length > 0) {
+      teamConditions.push(inArray(campaigns.id, assignedCampIds));
+    }
+    
+    if (assignedCltIds.length > 0) {
+      teamConditions.push(inArray(campaigns.clientId, assignedCltIds));
+    }
+    
+    whereConditions.push(or(...teamConditions) as any);
+  }
 
   const result = await db.select({
     totalSpend: sql<number>`sum(${campaigns.spent})`,

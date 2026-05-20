@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, authorize } from '../middleware/authMiddleware';
 import {
   createPost, getPosts, updatePost, deletePost,
   approvePost, rejectPost, getBestTimes,
@@ -8,14 +8,17 @@ import {
 
 const router = Router();
 
-router.post('/posts', authMiddleware, createPost);
-router.get('/posts', authMiddleware, getPosts);
-router.put('/posts/:id', authMiddleware, updatePost);
-router.delete('/posts/:id', authMiddleware, deletePost);
-router.post('/posts/:id/approve', authMiddleware, approvePost);
-router.post('/posts/:id/reject', authMiddleware, rejectPost);
-router.get('/best-times', authMiddleware, getBestTimes);
-router.get('/library', authMiddleware, getContentLibrary);
-router.post('/library', authMiddleware, addToLibrary);
+router.use(authMiddleware);
+router.use(authorize('admin', 'team'));
+
+router.post('/posts', createPost);
+router.get('/posts', getPosts);
+router.put('/posts/:id', updatePost);
+router.delete('/posts/:id', deletePost);
+router.post('/posts/:id/approve', approvePost);
+router.post('/posts/:id/reject', rejectPost);
+router.get('/best-times', getBestTimes);
+router.get('/library', getContentLibrary);
+router.post('/library', addToLibrary);
 
 export default router;

@@ -2,11 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
 import { AppError } from '../utils/errors';
+import { db } from '../db';
+import { teamAssignments } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 /**
  * Middleware to verify JWT and attach user context
  */
-export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   const tokenFromCookie = req.cookies?.token;
 
@@ -25,13 +28,37 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
   try {
     const decoded: any = jwt.verify(token, config.jwtSecret);
     
+    let assignedClientIds: string[] = [];
+    let assignedCampaignIds: string[] = [];
+    let assignedContactIds: string[] = [];
+    let assignedWorkflowIds: string[] = [];
+
+    // For team members, fetch their specific assignments from DB
+    if (decoded.role === 'team') {
+      try {
+        const assignments = await db.select().from(teamAssignments).where(eq(teamAssignments.userId, decoded.userId));
+        assignments.forEach(a => {
+          if (a.clientId) assignedClientIds.push(a.clientId);
+          if (a.campaignId) assignedCampaignIds.push(a.campaignId);
+          if (a.contactId) assignedContactIds.push(a.contactId);
+          if (a.workflowId) assignedWorkflowIds.push(a.workflowId);
+        });
+      } catch (err) {
+        console.error("Failed to fetch team assignments", err);
+      }
+    }
+
     // ATTACH WORKSPACE CONTEXT (Using Extended Express Request)
-    req.user = {
+    (req as any).user = {
       id: decoded.userId,
       role: decoded.role,
       tenantId: decoded.tenantId,
-      workspaceId: decoded.workspaceId || null
-    };
+      workspaceId: decoded.workspaceId || null,
+      assignedClientIds,
+      assignedCampaignIds,
+      assignedContactIds,
+      assignedWorkflowIds
+    } as any;
 
     next();
   } catch (err: any) {
@@ -48,6 +75,8 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
 export const authorize = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user || !roles.includes(req.user.role)) {
+      // Log permission denied
+      console.error(`[AUDIT] Permission Denied. User ${req.user?.id} (Role: ${req.user?.role}) attempted to access restricted route: ${req.originalUrl}`);
       return next(new AppError('Not authorized to access this route', 403));
     }
     next();

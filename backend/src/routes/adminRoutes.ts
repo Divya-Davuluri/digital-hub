@@ -1,14 +1,16 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, authorize } from '../middleware/authMiddleware';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
 const router = Router();
 
+router.use(authMiddleware);
+router.use(authorize('admin'));
+
 // GET /api/admin/campaigns
 router.get('/campaigns', 
-  authMiddleware,
   async (req: any, res: any) => {
   try {
     const tenantId = 
@@ -54,7 +56,6 @@ router.get('/campaigns',
 
 // POST /api/admin/campaigns
 router.post('/campaigns',
-  authMiddleware,
   async (req: any, res: any) => {
   try {
     const tenantId = 
@@ -134,7 +135,6 @@ router.post('/campaigns',
 
 // PATCH /api/admin/campaigns/:id
 router.patch('/campaigns/:id',
-  authMiddleware,
   async (req: any, res: any) => {
   try {
     const { id } = req.params;

@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { db } from '../db';
 import { clients, campaigns, users, workspaces, analytics, reports, reportRequests, transactions, budgetPools, budgetAllocations, socialPosts } from '../db/schema';
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, or, inArray, sql, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { asyncHandler, AppError } from '../utils/errors';
@@ -9,7 +9,7 @@ import { asyncHandler, AppError } from '../utils/errors';
 // --- Client Management with Workspace Isolation ---
 
 export const getClients = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId, role, workspaceId } = req.user;
+  const { tenantId, role, workspaceId, id: userId, assignedClientIds } = req.user;
   
   if (role === 'admin') {
     // Admins see all clients in their agency
@@ -23,12 +23,17 @@ export const getClients = asyncHandler(async (req: any, res: Response) => {
     `);
     return res.json(result);
   } else if (role === 'team') {
-    // Team members only see assigned clients
+    // Team members only see assigned clients (either assignedTeamMemberId or teamAssignments)
+    const assignedIds = assignedClientIds || [];
+    const idsSql = assignedIds.length > 0 
+      ? sql`OR c.id IN (${sql.join(assignedIds.map((id: string) => sql`${id}`), sql`, `)})`
+      : sql``;
+
     const result = await db.all(sql`
       SELECT c.*, w.slug as workspace_slug
       FROM clients c
       LEFT JOIN workspaces w ON c.workspace_id = w.id
-      WHERE c.tenant_id = ${tenantId} AND c.assigned_team_member_id = ${req.user.id}
+      WHERE c.tenant_id = ${tenantId} AND (c.assigned_team_member_id = ${userId} ${idsSql})
       ORDER BY c.created_at DESC
     `);
     return res.json(result);
@@ -278,9 +283,15 @@ export const deleteCampaign = asyncHandler(async (req: any, res: Response) => {
 // --- Analytics ---
 
 export const getAgencyStats = asyncHandler(async (req: any, res: Response) => {
-  const { tenantId, role, id: userId } = req.user;
+  const { tenantId, role, id: userId, assignedClientIds } = req.user;
 
   // 1. Basic Stats (Clients, Campaigns, Budget)
+  const assignedIds = assignedClientIds || [];
+  const teamConditions = [eq(clients.assignedTeamMemberId, userId)];
+  if (assignedIds.length > 0) {
+    teamConditions.push(inArray(clients.id, assignedIds));
+  }
+
   const [basicStats]: any = await db.select({
     totalClients: sql`count(distinct ${clients.id})`,
     totalCampaigns: sql`count(distinct ${campaigns.id})`,
@@ -290,7 +301,7 @@ export const getAgencyStats = asyncHandler(async (req: any, res: Response) => {
   .from(clients)
   .leftJoin(campaigns, eq(campaigns.workspaceId, clients.workspaceId))
   .where(role === 'team'
-    ? and(eq(clients.tenantId, tenantId), eq(clients.assignedTeamMemberId, userId))
+    ? and(eq(clients.tenantId, tenantId), or(...teamConditions))
     : eq(clients.tenantId, tenantId)
   );
 

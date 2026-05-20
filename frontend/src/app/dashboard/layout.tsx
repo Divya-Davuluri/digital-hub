@@ -1,4 +1,5 @@
 import { BrandingProvider } from "@/context/BrandingContext";
+import AuthGuard from "@/components/AuthGuard";
 
 export default function DashboardLayout({
   children,
@@ -7,9 +8,11 @@ export default function DashboardLayout({
 }) {
   return (
     <BrandingProvider>
-      <div className="min-h-screen bg-slate-50">
-        {children}
-      </div>
+      <AuthGuard>
+        <div className="min-h-screen bg-slate-50">
+          {children}
+        </div>
+      </AuthGuard>
     </BrandingProvider>
   );
 }

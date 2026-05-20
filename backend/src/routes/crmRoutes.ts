@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, authorize } from '../middleware/authMiddleware';
 import {
   getContacts,
   getContact,
@@ -16,21 +16,24 @@ import {
 
 const router = Router();
 
-// CRM Contacts CRUD & Management Endpoints (All require user authentication)
-router.get('/', authMiddleware, getContacts);
-router.get('/:id', authMiddleware, getContact);
-router.post('/', authMiddleware, createContact);
-router.put('/:id', authMiddleware, updateContact);
-router.delete('/:id', authMiddleware, deleteContact);
+// CRM Contacts CRUD & Management Endpoints (All require user authentication and role validation)
+router.use(authMiddleware);
+router.use(authorize('admin', 'team'));
+
+router.get('/', getContacts);
+router.get('/:id', getContact);
+router.post('/', createContact);
+router.put('/:id', updateContact);
+router.delete('/:id', deleteContact);
 
 // Custom CRM Actions
-router.post('/:id/tag', authMiddleware, addTag);
-router.post('/:id/convert', authMiddleware, markConverted);
-router.post('/:id/enroll', authMiddleware, enrollInWorkflow);
+router.post('/:id/tag', addTag);
+router.post('/:id/convert', markConverted);
+router.post('/:id/enroll', enrollInWorkflow);
 
 // Notes Actions
-router.post('/:id/notes', authMiddleware, createNote);
-router.put('/:id/notes/:noteId', authMiddleware, updateNote);
-router.delete('/:id/notes/:noteId', authMiddleware, deleteNote);
+router.post('/:id/notes', createNote);
+router.put('/:id/notes/:noteId', updateNote);
+router.delete('/:id/notes/:noteId', deleteNote);
 
 export default router;

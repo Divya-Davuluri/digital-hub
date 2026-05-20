@@ -117,6 +117,42 @@ export async function runDbFixes() {
       created_by_name TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // Team Assignments table
+    `CREATE TABLE IF NOT EXISTS team_assignments (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      client_id TEXT,
+      campaign_id TEXT,
+      contact_id TEXT,
+      workflow_id TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+
+    // Client Users table
+    `CREATE TABLE IF NOT EXISTS client_users (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      client_id TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+
+    // Audit Logs table
+    `CREATE TABLE IF NOT EXISTS audit_logs (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workspace_id TEXT,
+      user_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT,
+      details TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`
   ];
 

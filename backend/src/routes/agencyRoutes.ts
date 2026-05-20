@@ -13,9 +13,8 @@ router.get('/team-members', authMiddleware, authorize('admin'), getTeamMembers);
 router.get('/stats', authMiddleware, authorize('admin', 'team'), getAgencyStats);
 router.get('/transactions', authMiddleware, authorize('admin', 'team'), getRecentTransactions);
 router.get('/clients', authMiddleware, authorize('admin', 'team'), getClients);
-router.post('/clients', authMiddleware, authorize('admin', 'team'), createClient);
-router.patch('/clients/:id', authMiddleware, authorize('admin', 'team'), updateClient);
-router.delete('/clients/:id', authMiddleware, authorize('admin', 'team'), deleteClient);
-router.delete('/clients/:id', authMiddleware, authorize('admin', 'team'), deleteClient);
+router.post('/clients', authMiddleware, authorize('admin'), createClient);
+router.patch('/clients/:id', authMiddleware, authorize('admin'), updateClient);
+router.delete('/clients/:id', authMiddleware, authorize('admin'), deleteClient);
 
 export default router;

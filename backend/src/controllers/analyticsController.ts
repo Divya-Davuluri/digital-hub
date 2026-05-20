@@ -1,10 +1,61 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { analytics, campaigns, clients, workspaces, budgetAllocations, tenants } from '../db/schema';
+import { analytics, campaigns, clients, workspaces, budgetAllocations, tenants, teamAssignments } from '../db/schema';
 import { eq, and, desc, gte, lte, sql, inArray } from 'drizzle-orm';
 import { asyncHandler, AppError } from '../utils/errors';
 import { ensureStarterData } from '../utils/seedingUtils';
 import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Helper to fetch allowed workspace IDs based on User role and assignments.
+ */
+const getAllowedWorkspaceIds = async (req: any): Promise<string[]> => {
+  const { role, tenantId, workspaceId, id: userId, assignedClientIds } = req.user;
+  
+  if (role === 'admin') {
+    const wsList = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.tenantId, tenantId));
+    return wsList.map(w => w.id).filter(Boolean);
+  }
+  
+  if (role === 'client') {
+    return workspaceId ? [workspaceId] : [];
+  }
+  
+  if (role === 'team') {
+    const wsIds: string[] = [];
+    
+    // 1. Clients where assignedTeamMemberId = userId
+    const assignedClients = await db.select({ workspaceId: clients.workspaceId })
+      .from(clients)
+      .where(and(eq(clients.tenantId, tenantId), eq(clients.assignedTeamMemberId, userId)));
+    assignedClients.forEach(c => {
+      if (c.workspaceId) wsIds.push(c.workspaceId);
+    });
+
+    // 2. Client workspaces from teamAssignments in req.user.assignedClientIds
+    const assignedCltIds = assignedClientIds || [];
+    if (assignedCltIds.length > 0) {
+      const clientWorkspaces = await db.select({ workspaceId: clients.workspaceId })
+        .from(clients)
+        .where(inArray(clients.id, assignedCltIds));
+      clientWorkspaces.forEach(c => {
+        if (c.workspaceId) wsIds.push(c.workspaceId);
+      });
+    }
+    
+    // 3. Workspaces directly assigned in teamAssignments
+    const directAssignments = await db.select({ workspaceId: teamAssignments.workspaceId })
+      .from(teamAssignments)
+      .where(eq(teamAssignments.userId, userId));
+    directAssignments.forEach(a => {
+      if (a.workspaceId) wsIds.push(a.workspaceId);
+    });
+
+    return Array.from(new Set(wsIds)).filter(Boolean);
+  }
+  
+  return [];
+};
 
 export const getAnalyticsOverview = asyncHandler(
   async (req: any, res: Response) => {
@@ -12,47 +63,46 @@ export const getAnalyticsOverview = asyncHandler(
   const period = parseInt(
     req.query.period as string) || 30;
 
+  const allowedWorkspaceIds = await getAllowedWorkspaceIds(req);
+  if (allowedWorkspaceIds.length === 0) {
+    return res.json({
+      success: true,
+      data: {
+        totalSpend: 0,
+        totalRevenue: 0,
+        totalClicks: 0,
+        totalImpressions: 0,
+        totalConversions: 0,
+        avgROAS: 0,
+        avgCTR: 0,
+        avgCVR: 0,
+        spendChange: 0,
+        revenueChange: 0,
+        clicksChange: 0,
+        roasChange: 0,
+      }
+    });
+  }
+
   let analyticsRows: any[] = [];
   let campaignRows: any[] = [];
 
-  // Layer 1: Try analytics by tenantId
+  // Get analytics for allowed workspaces
   try {
     analyticsRows = await db
       .select()
       .from(analytics)
-      .where(eq(analytics.tenantId, tenantId));
+      .where(and(eq(analytics.tenantId, tenantId), inArray(analytics.workspaceId, allowedWorkspaceIds)));
   } catch (err) {
-    console.error('[Analytics] Layer1 failed:', err);
+    console.error('[Analytics] select failed:', err);
   }
 
-  // Layer 2: Try via workspace IDs
-  if (analyticsRows.length === 0) {
-    try {
-      const wsList = await db
-        .select({ id: workspaces.id })
-        .from(workspaces)
-        .where(eq(workspaces.tenantId, tenantId));
-      
-      if (wsList.length > 0) {
-        analyticsRows = await db
-          .select()
-          .from(analytics)
-          .where(inArray(
-            analytics.workspaceId,
-            wsList.map(w => w.id)
-          ));
-      }
-    } catch (err) {
-      console.error('[Analytics] Layer2 failed:', err);
-    }
-  }
-
-  // Layer 3: Use campaigns as fallback
+  // Get campaigns for allowed workspaces
   try {
     campaignRows = await db
       .select()
       .from(campaigns)
-      .where(eq(campaigns.tenantId, tenantId));
+      .where(and(eq(campaigns.tenantId, tenantId), inArray(campaigns.workspaceId, allowedWorkspaceIds)));
   } catch (err) {
     console.error('[Analytics] Campaigns failed:', err);
   }
@@ -79,8 +129,8 @@ export const getAnalyticsOverview = asyncHandler(
       (s, c) => s + (Number(c.conversions) || 0), 0);
   }
 
-  // If STILL zero use hardcoded demo
-  if (totalSpend === 0) {
+  // If STILL zero use hardcoded demo (only for admins)
+  if (totalSpend === 0 && req.user.role === 'admin') {
     return res.json({
       success: true,
       data: {
@@ -138,44 +188,32 @@ export const getAnalyticsTimeseries = asyncHandler(async (req: any, res: Respons
   const { tenantId } = req.user;
   const period = parseInt(req.query.period as string || '30', 10);
 
-  // Get all workspace IDs for this tenant
-  const tenantWorkspaces = await db
-    .select({ id: workspaces.id })
-    .from(workspaces)
-    .where(eq(workspaces.tenantId, tenantId));
-
-  const workspaceIds = tenantWorkspaces.map(w => w.id);
+  const allowedWorkspaceIds = await getAllowedWorkspaceIds(req);
+  if (allowedWorkspaceIds.length === 0) {
+    return res.json({ success: true, data: [] });
+  }
 
   const dateLimit = new Date();
   dateLimit.setDate(dateLimit.getDate() - period);
   const dateStr = dateLimit.toISOString().split('T')[0];
 
-  // Step 2: Get rows with fallbacks
-  let rows: any[] = [];
-  if (workspaceIds.length > 0) {
-    rows = await db.select().from(analytics)
-      .where(and(inArray(analytics.workspaceId, workspaceIds), gte(analytics.date, dateStr)));
-  }
-  
-  if (rows.length === 0) {
-    rows = await db.select().from(analytics)
-      .where(and(eq(analytics.tenantId, tenantId), gte(analytics.date, dateStr)));
-  }
-
-  if (rows.length === 0) {
-    rows = await db.select().from(analytics)
-      .where(gte(analytics.date, dateStr));
-  }
+  const rows = await db.select().from(analytics)
+    .where(and(
+      eq(analytics.tenantId, tenantId),
+      inArray(analytics.workspaceId, allowedWorkspaceIds),
+      gte(analytics.date, dateStr)
+    ));
 
   if (rows.length === 0) {
     const fallback = [];
     const now = new Date();
-    for (let i = 29; i >= 0; i--) {
+    for (let i = period - 1; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       const spend = 150 + (i * 17) % 150;
       fallback.push({
         date: d.toISOString().split('T')[0],
+        spent: spend,
         spend,
         revenue: parseFloat((spend * 3.1).toFixed(2)),
         clicks: 40 + (i * 7) % 60,
@@ -187,7 +225,7 @@ export const getAnalyticsTimeseries = asyncHandler(async (req: any, res: Respons
     return res.json({ success: true, data: fallback });
   }
 
-  // Aggregate by date manually to ensure fallbacks work with group by
+  // Aggregate by date manually
   const dailyMap: Record<string, any> = {};
   rows.forEach(r => {
     const d = r.date;
@@ -211,26 +249,16 @@ export const getAnalyticsTimeseries = asyncHandler(async (req: any, res: Respons
 export const getChannelBreakdown = asyncHandler(async (req: any, res: Response) => {
   const { tenantId } = req.user;
 
-  const tenantWorkspaces = await db
-    .select({ id: workspaces.id })
-    .from(workspaces)
-    .where(eq(workspaces.tenantId, tenantId));
-
-  const workspaceIds = tenantWorkspaces.map(w => w.id);
-
-  // Step 2: Get campaigns with fallbacks
-  let campaignRows: any[] = [];
-  if (workspaceIds.length > 0) {
-    campaignRows = await db.select().from(campaigns).where(inArray(campaigns.workspaceId, workspaceIds));
-  }
-  
-  if (campaignRows.length === 0) {
-    campaignRows = await db.select().from(campaigns).where(eq(campaigns.tenantId, tenantId));
+  const allowedWorkspaceIds = await getAllowedWorkspaceIds(req);
+  if (allowedWorkspaceIds.length === 0) {
+    return res.json({ success: true, data: [] });
   }
 
-  if (campaignRows.length === 0) {
-    campaignRows = await db.select().from(campaigns);
-  }
+  const campaignRows = await db.select().from(campaigns)
+    .where(and(
+      eq(campaigns.tenantId, tenantId),
+      inArray(campaigns.workspaceId, allowedWorkspaceIds)
+    ));
 
   // Aggregate by channel
   const channelMap: Record<string, any> = {};
@@ -261,26 +289,17 @@ export const getChannelBreakdown = asyncHandler(async (req: any, res: Response) 
 export const getCampaignPerformance = asyncHandler(async (req: any, res: Response) => {
   const { tenantId } = req.user;
 
-  const tenantWorkspaces = await db
-    .select({ id: workspaces.id })
-    .from(workspaces)
-    .where(eq(workspaces.tenantId, tenantId));
-
-  const workspaceIds = tenantWorkspaces.map(w => w.id);
-
-  // Get campaigns with fallbacks
-  let allCampaigns: any[] = [];
-  if (workspaceIds.length > 0) {
-    allCampaigns = await db.select().from(campaigns).where(inArray(campaigns.workspaceId, workspaceIds)).orderBy(desc(campaigns.createdAt));
+  const allowedWorkspaceIds = await getAllowedWorkspaceIds(req);
+  if (allowedWorkspaceIds.length === 0) {
+    return res.json({ success: true, data: [] });
   }
 
-  if (allCampaigns.length === 0) {
-    allCampaigns = await db.select().from(campaigns).where(eq(campaigns.tenantId, tenantId)).orderBy(desc(campaigns.createdAt));
-  }
-
-  if (allCampaigns.length === 0) {
-    allCampaigns = await db.select().from(campaigns).orderBy(desc(campaigns.createdAt));
-  }
+  const allCampaigns = await db.select().from(campaigns)
+    .where(and(
+      eq(campaigns.tenantId, tenantId),
+      inArray(campaigns.workspaceId, allowedWorkspaceIds)
+    ))
+    .orderBy(desc(campaigns.createdAt));
 
   // Deduplicate by name — keep first occurrence only
   const seen = new Set<string>();
@@ -329,6 +348,5 @@ export const getCampaignPerformance = asyncHandler(async (req: any, res: Respons
 });
 
 export const exportAnalyticsPDF = asyncHandler(async (req: any, res: Response) => {
-  // Frontend handles PDF generation now, this remains as a lightweight fallback
   res.status(200).json({ success: true, message: "Use frontend PDF export utility." });
 });

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/authMiddleware';
+import { authMiddleware, authorize } from '../middleware/authMiddleware';
 import {
   createWorkflow, getWorkflows, getWorkflow,
   updateWorkflow, deleteWorkflow,
@@ -9,17 +9,18 @@ import {
 
 const router = Router();
 
+router.use(authMiddleware);
+router.use(authorize('admin', 'team'));
+
 // IMPORTANT: templates route must come BEFORE /:id
-router.get('/templates', authMiddleware, getTemplates);
-router.post('/from-template', authMiddleware, 
-  createFromTemplate);
-router.post('/', authMiddleware, createWorkflow);
-router.get('/', authMiddleware, getWorkflows);
-router.get('/:id', authMiddleware, getWorkflow);
-router.put('/:id', authMiddleware, updateWorkflow);
-router.delete('/:id', authMiddleware, deleteWorkflow);
-router.post('/:id/activate', authMiddleware, 
-  activateWorkflow);
-router.post('/:id/pause', authMiddleware, pauseWorkflow);
+router.get('/templates', getTemplates);
+router.post('/from-template', createFromTemplate);
+router.post('/', createWorkflow);
+router.get('/', getWorkflows);
+router.get('/:id', getWorkflow);
+router.put('/:id', updateWorkflow);
+router.delete('/:id', deleteWorkflow);
+router.post('/:id/activate', activateWorkflow);
+router.post('/:id/pause', pauseWorkflow);
 
 export default router;

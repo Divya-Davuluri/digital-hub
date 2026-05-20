@@ -24,9 +24,11 @@ export const getReports = asyncHandler(async (req: any, res: Response) => {
     } else if (role === 'team') {
       const assignedClients = await db.select({ id: clients.id }).from(clients).where(eq(clients.assignedTeamMemberId, userId));
       const clientIds = assignedClients.map(c => c.id);
+      const teamAssignedCltIds = req.user.assignedClientIds || [];
+      const allClientIds = Array.from(new Set([...clientIds, ...teamAssignedCltIds]));
       
-      if (clientIds.length > 0) {
-        filters.push(or(eq(reports.requestedBy, userId), inArray(reports.clientId, clientIds as string[])) as any);
+      if (allClientIds.length > 0) {
+        filters.push(or(eq(reports.requestedBy, userId), inArray(reports.clientId, allClientIds as string[])) as any);
       } else {
         filters.push(eq(reports.requestedBy, userId));
       }
@@ -176,6 +178,32 @@ export const createReport = asyncHandler(async (req: any, res: Response) => {
 });
 
 /**
+ * Helper to validate if user has access to a report
+ */
+const validateReportAccess = async (report: any, req: any) => {
+  const { role, id: userId, workspaceId: userWorkspaceId, assignedClientIds } = req.user;
+  if (role === 'admin') return true;
+  
+  if (role === 'client') {
+    return report.workspaceId === userWorkspaceId;
+  }
+  
+  if (role === 'team') {
+    if (report.requestedBy === userId) return true;
+    if (!report.clientId) return false;
+    
+    const assignedClients = await db.select({ id: clients.id }).from(clients).where(eq(clients.assignedTeamMemberId, userId));
+    const clientIds = assignedClients.map(c => c.id);
+    const teamAssignedCltIds = assignedClientIds || [];
+    const allClientIds = Array.from(new Set([...clientIds, ...teamAssignedCltIds]));
+    
+    return allClientIds.includes(report.clientId);
+  }
+  
+  return false;
+};
+
+/**
  * GET /api/reports/:id
  */
 export const getReportById = asyncHandler(async (req: any, res: Response) => {
@@ -187,6 +215,10 @@ export const getReportById = asyncHandler(async (req: any, res: Response) => {
   });
 
   if (!report) throw new AppError('Report not found', 404);
+  
+  const hasAccess = await validateReportAccess(report, req);
+  if (!hasAccess) throw new AppError('Access denied to this report', 403);
+
   res.json({ success: true, report });
 });
 
@@ -202,6 +234,9 @@ export const downloadReport = asyncHandler(async (req: any, res: Response) => {
   });
 
   if (!report) throw new AppError('Report not found', 404);
+
+  const hasAccess = await validateReportAccess(report, req);
+  if (!hasAccess) throw new AppError('Access denied to download this report', 403);
 
   const doc = new PDFDocument({ margin: 50 });
   res.setHeader('Content-Type', 'application/pdf');
@@ -247,6 +282,15 @@ export const downloadReport = asyncHandler(async (req: any, res: Response) => {
 export const deleteReport = asyncHandler(async (req: any, res: Response) => {
   const { id } = req.params;
   const { tenantId } = req.user;
+
+  const report = await db.query.reports.findFirst({
+    where: and(eq(reports.id, id), eq(reports.tenantId, tenantId))
+  });
+
+  if (!report) throw new AppError('Report not found', 404);
+
+  const hasAccess = await validateReportAccess(report, req);
+  if (!hasAccess) throw new AppError('Access denied to delete this report', 403);
 
   await db.delete(reports).where(and(eq(reports.id, id), eq(reports.tenantId, tenantId)));
   res.json({ success: true, message: 'Report deleted' });
