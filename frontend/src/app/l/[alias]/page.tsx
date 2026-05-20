@@ -3,7 +3,14 @@ import { redirect } from 'next/navigation';
 export default async function ShortLinkRedirectPage({ params }: { params: { alias: string } }) {
   const { alias } = params;
   // Make sure we hit the API appropriately from the server side.
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com/api';
+  let apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (apiUrl) {
+    apiUrl = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
+  } else if (typeof window === 'undefined') {
+    apiUrl = 'https://digital-hub-3h88.onrender.com/api';
+  } else {
+    apiUrl = '/api';
+  }
 
   try {
     const res = await fetch(`${apiUrl}/links/track/${alias}`, { cache: 'no-store' });

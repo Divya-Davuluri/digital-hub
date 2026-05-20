@@ -15,7 +15,14 @@ export default function BioPage() {
 
   const loadPage = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com/api';
+      let apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (apiUrl) {
+        apiUrl = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
+      } else if (typeof window === 'undefined') {
+        apiUrl = 'https://digital-hub-3h88.onrender.com/api';
+      } else {
+        apiUrl = '/api';
+      }
       const res = await fetch(`${apiUrl}/links/bio/${slug}`);
       const result = await res.json();
       
