@@ -404,11 +404,37 @@ export const tenantBranding = sqliteTable(
   customCss: text('custom_css').default(''),
   footerText: text('footer_text').default(''),
   removePoweredBy: integer('remove_powered_by').default(0),
+  sidebarBg: text('sidebar_bg').default('#1e293b'),
+  cardBg: text('card_bg').default('#ffffff'),
+  sidebarTheme: text('sidebar_theme').default('dark'),
+  loginPageBranding: text('login_page_branding').default('center'),
   createdAt: text('created_at')
     .default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updated_at')
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const themeSettings = sqliteTable('theme_settings', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  sidebarBg: text('sidebar_bg').default('#1e293b'),
+  cardBg: text('card_bg').default('#ffffff'),
+  sidebarTheme: text('sidebar_theme').default('dark'),
+  loginPageBranding: text('login_page_branding').default('center'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const uploadedAssets = sqliteTable('uploaded_assets', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  url: text('url').notNull(),
+  type: text('type').notNull(), // 'logo' | 'favicon' | 'other'
+  size: integer('size'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const creativeAssets = sqliteTable('creative_assets', {
   id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull(),

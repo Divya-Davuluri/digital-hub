@@ -119,9 +119,23 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
 
   const menuItems = getMenuItems();
   const { branding } = useBranding();
+  const isLightTheme = branding?.sidebarTheme === 'light';
 
   return (
-    <aside className="w-[260px] h-screen bg-slate-900 border-r border-white/5 flex flex-col fixed left-0 top-0 z-50">
+    <aside 
+      className={`w-[260px] h-screen border-r flex flex-col fixed left-0 top-0 z-50 transition-all duration-300 ${
+        isLightTheme 
+          ? 'bg-white border-slate-200 text-slate-900' 
+          : 'text-white border-white/5'
+      }`}
+      style={{
+        backgroundColor: branding?.sidebarTheme === 'primary' 
+          ? (branding.primaryColor || '#4f46e5')
+          : isLightTheme
+          ? '#ffffff'
+          : (branding?.sidebarBg || '#0f172a')
+      }}
+    >
       <div className="p-6 flex items-center gap-3">
         {branding?.logoUrl ? (
           <Image 
@@ -134,16 +148,18 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
           />
         ) : (
           <>
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20" style={{ backgroundColor: branding?.primaryColor }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style={{ backgroundColor: branding?.primaryColor || '#6366f1' }}>
               <div className="w-5 h-5 bg-white rounded-sm rotate-45" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white">Hub<span style={{ color: branding?.primaryColor || '#6366f1' }}>SaaS</span></span>
+            <span className={`text-xl font-bold tracking-tight ${isLightTheme ? 'text-slate-900' : 'text-white'}`}>Hub<span style={{ color: branding?.primaryColor || '#6366f1' }}>SaaS</span></span>
           </>
         )}
       </div>
 
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-        <div className="px-3 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">{role} Portal</div>
+        <div className={`px-3 mb-4 text-[10px] font-bold uppercase tracking-widest ${
+          isLightTheme ? 'text-slate-400' : 'text-slate-500'
+        }`}>{role} Portal</div>
         {menuItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -152,10 +168,15 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
               href={item.href}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${
                 isActive 
-                  ? 'text-white shadow-lg shadow-indigo-600/20' 
+                  ? 'text-white' 
+                  : isLightTheme
+                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
-              style={isActive ? { backgroundColor: branding?.primaryColor || '#4f46e5' } : {}}
+              style={isActive ? { 
+                backgroundColor: branding?.primaryColor || '#4f46e5',
+                boxShadow: `0 10px 15px -3px ${(branding?.primaryColor || '#4f46e5')}33`
+              } : {}}
             >
               <span className="text-lg">{item.icon}</span>
               <span className="flex-1">{item.name}</span>
@@ -167,12 +188,12 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
         })}
       </nav>
 
-      <div className="p-6 border-t border-white/5">
-        <div className="bg-white/5 rounded-2xl p-5 border border-white/5">
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Status</div>
+      <div className={`p-6 border-t ${isLightTheme ? 'border-slate-100' : 'border-white/5'}`}>
+        <div className={`rounded-2xl p-5 border ${isLightTheme ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'}`}>
+          <div className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isLightTheme ? 'text-slate-400' : 'text-slate-500'}`}>Status</div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <div className="text-xs font-bold text-white">System Online</div>
+            <div className={`text-xs font-bold ${isLightTheme ? 'text-slate-900' : 'text-white'}`}>System Online</div>
           </div>
         </div>
       </div>

@@ -11,6 +11,10 @@ interface Branding {
   faviconUrl: string;
   customCss: string;
   removePoweredBy: number;
+  sidebarBg?: string;
+  cardBg?: string;
+  sidebarTheme?: string;
+  loginPageBranding?: string;
 }
 
 interface BrandingContextType {
@@ -30,6 +34,10 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const root = document.documentElement;
       root.style.setProperty('--primary-color', data.primaryColor || '#6366f1');
       root.style.setProperty('--secondary-color', data.secondaryColor || '#4f46e5');
+      root.style.setProperty('--sidebar-bg', data.sidebarBg || '#1e293b');
+      root.style.setProperty('--card-bg', data.cardBg || '#ffffff');
+      root.style.setProperty('--sidebar-theme', data.sidebarTheme || 'dark');
+      root.style.setProperty('--login-branding', data.loginPageBranding || 'center');
       
       // Apply Favicon
       if (data.faviconUrl) {

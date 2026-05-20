@@ -153,6 +153,29 @@ export async function runDbFixes() {
       resource_id TEXT,
       details TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+
+    // theme_settings table
+    `CREATE TABLE IF NOT EXISTS theme_settings (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      sidebar_bg TEXT DEFAULT '#1e293b',
+      card_bg TEXT DEFAULT '#ffffff',
+      sidebar_theme TEXT DEFAULT 'dark',
+      login_page_branding TEXT DEFAULT 'center',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // uploaded_assets table
+    `CREATE TABLE IF NOT EXISTS uploaded_assets (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      url TEXT NOT NULL,
+      type TEXT NOT NULL,
+      size INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`
   ];
 
@@ -198,6 +221,10 @@ export async function runDbFixes() {
     { table: 'contacts', column: 'workflow_status', type: 'TEXT' },
     { table: 'contacts', column: 'message', type: 'TEXT' },
     { table: 'contacts', column: 'updated_at', type: 'TEXT' },
+    { table: 'tenant_branding', column: 'sidebar_bg', type: "TEXT DEFAULT '#1e293b'" },
+    { table: 'tenant_branding', column: 'card_bg', type: "TEXT DEFAULT '#ffffff'" },
+    { table: 'tenant_branding', column: 'sidebar_theme', type: "TEXT DEFAULT 'dark'" },
+    { table: 'tenant_branding', column: 'login_page_branding', type: "TEXT DEFAULT 'center'" },
   ];
 
   console.log('🔄 Checking and correcting table column structures...');

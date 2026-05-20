@@ -23,7 +23,11 @@ export default function BrandingSettingsPage() {
     customCss: '',
     footerText: '',
     supportEmail: '',
-    removePoweredBy: 0
+    removePoweredBy: 0,
+    sidebarBg: '#1e293b',
+    cardBg: '#ffffff',
+    sidebarTheme: 'dark',
+    loginPageBranding: 'center'
   });
 
   const [domains, setDomains] = useState<any[]>([]);
@@ -52,6 +56,10 @@ export default function BrandingSettingsPage() {
           footerText:      bData.footerText || '',
           supportEmail:    bData.supportEmail || '',
           removePoweredBy: bData.removePoweredBy || 0,
+          sidebarBg:       bData.sidebarBg || '#1e293b',
+          cardBg:          bData.cardBg || '#ffffff',
+          sidebarTheme:    bData.sidebarTheme || 'dark',
+          loginPageBranding: bData.loginPageBranding || 'center',
         });
         setDomains(dData);
       } catch (err) {
@@ -72,6 +80,7 @@ export default function BrandingSettingsPage() {
       });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
+      toast.success("Branding saved successfully!");
     } catch (err) {
       alert("Failed to save branding");
     } finally {
@@ -250,6 +259,79 @@ export default function BrandingSettingsPage() {
                             type="text" 
                             value={branding.secondaryColor}
                             onChange={e => setBranding({...branding, secondaryColor: e.target.value})}
+                            className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono uppercase"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Theme & Layout Settings */}
+                <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-8 py-6 border-b border-slate-100 flex items-center gap-3">
+                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Palette size={20} /></div>
+                    <h3 className="font-black text-slate-900">Layout & Theme Settings</h3>
+                  </div>
+                  <div className="p-8 space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Sidebar Theme</label>
+                        <select 
+                          value={branding.sidebarTheme}
+                          onChange={e => setBranding({...branding, sidebarTheme: e.target.value})}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                          <option value="dark">Dark Theme</option>
+                          <option value="light">Light Theme</option>
+                          <option value="primary">Brand Primary</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Login Page Layout</label>
+                        <select 
+                          value={branding.loginPageBranding}
+                          onChange={e => setBranding({...branding, loginPageBranding: e.target.value})}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                          <option value="center">Centered Form</option>
+                          <option value="split">Split Screen</option>
+                          <option value="simple">Minimal Simple</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Sidebar Background Color</label>
+                        <div className="flex gap-3">
+                          <input 
+                            type="color" 
+                            value={branding.sidebarBg}
+                            onChange={e => setBranding({...branding, sidebarBg: e.target.value})}
+                            className="w-12 h-12 rounded-xl cursor-pointer border-none p-0 overflow-hidden"
+                          />
+                          <input 
+                            type="text" 
+                            value={branding.sidebarBg}
+                            onChange={e => setBranding({...branding, sidebarBg: e.target.value})}
+                            className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono uppercase"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Card Background Color</label>
+                        <div className="flex gap-3">
+                          <input 
+                            type="color" 
+                            value={branding.cardBg}
+                            onChange={e => setBranding({...branding, cardBg: e.target.value})}
+                            className="w-12 h-12 rounded-xl cursor-pointer border-none p-0 overflow-hidden"
+                          />
+                          <input 
+                            type="text" 
+                            value={branding.cardBg}
+                            onChange={e => setBranding({...branding, cardBg: e.target.value})}
                             className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono uppercase"
                           />
                         </div>
