@@ -125,7 +125,7 @@ export default function BrandingSettingsPage() {
     const uploadToast = toast.loading(`Uploading ${type}...`);
     try {
       const token = localStorage.getItem('token');
-      const envUrl = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1.onrender.com';
+      const envUrl = process.env.NEXT_PUBLIC_API_URL || 'https://digital-hub-1-y60b.onrender.com';
       const baseUrl = envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
 
       const response = await fetch(

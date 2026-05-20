@@ -274,7 +274,7 @@ export const createShortLink = asyncHandler(
 
   const id = uuidv4();
   const now = new Date().toISOString();
-  const appUrl = process.env.APP_URL || 'https://digital-hub-1.onrender.com';
+  const appUrl = process.env.APP_URL || 'https://digital-hub-1-y60b.onrender.com';
 
   await db.insert(shortLinks).values({
     id,
@@ -543,7 +543,7 @@ function getDemoShortLinks() {
       totalClicks: 2341,
       uniqueClicks: 1876,
       isActive: 1,
-      qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1.onrender.com/l/summer26',
+      qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1-y60b.onrender.com/l/summer26',
       createdAt: new Date(Date.now()-15*86400000).toISOString(),
     },
     {
@@ -556,7 +556,7 @@ function getDemoShortLinks() {
       totalClicks: 1567,
       uniqueClicks: 1234,
       isActive: 1,
-      qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1.onrender.com/l/launch26',
+      qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1-y60b.onrender.com/l/launch26',
       createdAt: new Date(Date.now()-10*86400000).toISOString(),
     },
     {
@@ -569,7 +569,7 @@ function getDemoShortLinks() {
       totalClicks: 987,
       uniqueClicks: 756,
       isActive: 1,
-      qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1.onrender.com/l/igbio',
+      qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1-y60b.onrender.com/l/igbio',
       createdAt: new Date(Date.now()-5*86400000).toISOString(),
     },
     {
@@ -582,7 +582,7 @@ function getDemoShortLinks() {
       totalClicks: 3456,
       uniqueClicks: 2890,
       isActive: 1,
-      qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1.onrender.com/l/ttvid',
+      qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1-y60b.onrender.com/l/ttvid',
       createdAt: new Date(Date.now()-3*86400000).toISOString(),
     },
   ];

@@ -640,7 +640,7 @@ const getDemoShortLinksFallback = () => ([
     shortCode:'summer26',customAlias:'summer26',
     campaignName:'Summer 2026',
     totalClicks:2341,uniqueClicks:1876,isActive:true,
-    qrCodeUrl:'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1.onrender.com/l/summer26',
+    qrCodeUrl:'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1-y60b.onrender.com/l/summer26',
     createdAt:new Date(Date.now()-15*86400000).toISOString(),
   },
   {
@@ -649,7 +649,7 @@ const getDemoShortLinksFallback = () => ([
     shortCode:'launch26',customAlias:'launch26',
     campaignName:'Product Launch',
     totalClicks:1567,uniqueClicks:1234,isActive:true,
-    qrCodeUrl:'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1.onrender.com/l/launch26',
+    qrCodeUrl:'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1-y60b.onrender.com/l/launch26',
     createdAt:new Date(Date.now()-10*86400000).toISOString(),
   },
   {
@@ -658,7 +658,7 @@ const getDemoShortLinksFallback = () => ([
     shortCode:'igbio',customAlias:'igbio',
     campaignName:'Social Media',
     totalClicks:987,uniqueClicks:756,isActive:true,
-    qrCodeUrl:'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1.onrender.com/l/igbio',
+    qrCodeUrl:'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1-y60b.onrender.com/l/igbio',
     createdAt:new Date(Date.now()-5*86400000).toISOString(),
   },
   {
@@ -667,7 +667,7 @@ const getDemoShortLinksFallback = () => ([
     shortCode:'ttvid',customAlias:'ttvid',
     campaignName:'TikTok Growth',
     totalClicks:3456,uniqueClicks:2890,isActive:true,
-    qrCodeUrl:'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1.onrender.com/l/ttvid',
+    qrCodeUrl:'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://digital-hub-1-y60b.onrender.com/l/ttvid',
     createdAt:new Date(Date.now()-3*86400000).toISOString(),
   },
 ]);

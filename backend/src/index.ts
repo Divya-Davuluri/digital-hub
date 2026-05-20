@@ -70,7 +70,7 @@ const limiter = rateLimit({
 // --- Middleware Stack ---
 app.use(cors({
   origin: [
-    'https://digital-hub-1.onrender.com',
+    'https://digital-hub-1-y60b.onrender.com',
     'http://localhost:3000'
   ],
   credentials: true,
