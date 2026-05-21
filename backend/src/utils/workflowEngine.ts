@@ -205,7 +205,7 @@ export class WorkflowEngine {
           messageId: (result as any).messageId || null,
           provider: 'resend',
           sentAt: new Date().toISOString()
-        }).catch(() => {});
+        }).catch((err) => { console.error('Failed to record email log:', err); });
 
         // Log Activity
         await db.insert(contactActivities).values({
@@ -215,7 +215,7 @@ export class WorkflowEngine {
           contactId: contact.id,
           activityType: 'email_sent',
           activityMessage: `Email sent: ${subject}`
-        }).catch(() => {});
+        }).catch((err) => { console.error('Failed to log email activity:', err); });
       }
       
       // Schedule next immediately
