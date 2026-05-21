@@ -279,12 +279,12 @@ export default function LinksPage() {
                       >
                         <Eye size={14} /> Preview
                       </a>
-                      <button 
-                        onClick={() => toast.success('Edit Page feature coming soon!')}
+                      <a 
+                        href={`/dashboard/links/bio/${page.id}/edit`}
                         className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
                       >
                         <Edit size={14} /> Edit Page
-                      </button>
+                      </a>
                     </div>
                   </div>
                 </div>

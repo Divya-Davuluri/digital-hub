@@ -19,7 +19,7 @@ export default function BioPage() {
       if (apiUrl) {
         apiUrl = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
       } else if (typeof window === 'undefined') {
-        apiUrl = 'https://digital-hub-og1a.onrender.com/api';
+        apiUrl = 'https://digital-hub-3h88.onrender.com/api';
       } else {
         apiUrl = '/api';
       }
@@ -70,6 +70,23 @@ export default function BioPage() {
     }
   };
 
+  const handleLinkClick = (link: any, e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Optionally track click without blocking navigation
+    let apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (apiUrl) {
+      apiUrl = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
+    } else {
+      apiUrl = '/api'; // client side fallback
+    }
+    
+    fetch(`${apiUrl}/links/bio/${slug}/click/${link.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+      keepalive: true
+    }).catch(err => console.error('Failed to track click:', err));
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900">
       <div className="animate-spin w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full" />
@@ -115,6 +132,7 @@ export default function BioPage() {
             <a 
               key={link.id}
               href={link.url}
+              onClick={(e) => handleLinkClick(link, e)}
               target="_blank"
               rel="noopener noreferrer"
               className={`w-full py-4 px-6 flex items-center justify-center text-center font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg ${buttonClass}`}

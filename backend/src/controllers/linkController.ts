@@ -143,6 +143,27 @@ export const getBioPages = asyncHandler(
   });
 });
 
+export const getBioPageById = asyncHandler(async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const { id } = req.params;
+
+  const page = await db.query.bioPages.findFirst({
+    where: and(
+      eq(bioPages.id, id),
+      eq(bioPages.tenantId, tenantId)
+    )
+  });
+
+  if (!page) {
+    throw new AppError('Bio page not found', 404);
+  }
+
+  res.json({
+    success: true,
+    data: formatBioPage(page)
+  });
+});
+
 export const updateBioPage = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
@@ -237,6 +258,59 @@ export const getBioPageBySlug = asyncHandler(
     success: true,
     data: formatBioPage(page)
   });
+});
+
+export const trackBioLinkClick = asyncHandler(
+  async (req: Request, res: Response) => {
+  const { slug, linkId } = req.params;
+
+  const page = await db.query.bioPages.findFirst({
+    where: eq(bioPages.slug, slug)
+  });
+
+  if (!page) {
+    return res.status(404).json({ success: false, message: 'not_found' });
+  }
+
+  let links = [];
+  try {
+    links = JSON.parse(page.links as string) || [];
+  } catch (e) {
+    links = [];
+  }
+
+  // Update specific link click count
+  const updatedLinks = links.map((l: any) => {
+    if (l.id === linkId) {
+      return { ...l, clicks: (l.clicks || 0) + 1 };
+    }
+    return l;
+  });
+
+  // Record click
+  await db.insert(linkClicks).values({
+    id: uuidv4(),
+    linkId: page.id, // Or linkId, but bioPages.id is safer for foreign keys
+    linkType: 'bio_page',
+    country: null,
+    city: null,
+    device: req.headers['user-agent']?.toLowerCase().includes('mobile') ? 'mobile' : 'desktop',
+    browser: null,
+    os: null,
+    referrer: req.headers['referer'] || null,
+    ipAddress: null,
+    clickedAt: new Date().toISOString(),
+  });
+
+  await db.update(bioPages)
+    .set({
+      links: JSON.stringify(updatedLinks),
+      totalClicks: (page.totalClicks || 0) + 1,
+      updatedAt: new Date().toISOString()
+    })
+    .where(eq(bioPages.id, page.id));
+
+  res.json({ success: true });
 });
 
 // SHORT LINK FUNCTIONS
