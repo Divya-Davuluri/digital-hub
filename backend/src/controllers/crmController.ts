@@ -5,11 +5,13 @@ import { eq, and, or, like, desc, sql, inArray } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncHandler, AppError } from '../utils/errors';
 import { sendEmail } from '../utils/email';
+import { WorkflowEngine } from '../utils/workflowEngine';
 
 // 1. Get Contacts with stats and filters
 export const getContacts = asyncHandler(async (req: any, res: Response) => {
   const { role, tenantId, workspaceId, id: userId, assignedClientIds } = req.user;
-  const { search, status, workflowStatus, source } = req.query;
+  const { search, status, workflowStatus, source, assignedTeamMemberId, page = 1, limit = 50 } = req.query;
+  const offset = (Number(page) - 1) * Number(limit);
 
   // Role Access Isolation Check & Self-Healing Workspace Fallback
   let baseCondition: any = eq(contacts.tenantId, tenantId);
@@ -85,11 +87,17 @@ export const getContacts = asyncHandler(async (req: any, res: Response) => {
     conditions.push(eq(contacts.source, source));
   }
 
+  if (assignedTeamMemberId) {
+    conditions.push(eq(contacts.assignedTeamMemberId, assignedTeamMemberId));
+  }
+
   // Execute queries
   const allContacts = await db.select()
     .from(contacts)
     .where(and(...conditions))
-    .orderBy(desc(contacts.createdAt));
+    .orderBy(desc(contacts.createdAt))
+    .limit(Number(limit))
+    .offset(offset);
 
   // Compute metrics for the active filters/tenant scope
   const statsConditions = [baseCondition];
@@ -105,6 +113,12 @@ export const getContacts = asyncHandler(async (req: any, res: Response) => {
   res.json({
     success: true,
     data: allContacts,
+    pagination: {
+      total: totalContacts,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(totalContacts / Number(limit))
+    },
     stats: {
       totalContacts,
       newLeads,
@@ -211,7 +225,7 @@ export const getContact = asyncHandler(async (req: any, res: Response) => {
 // 3. Create Contact manually
 export const createContact = asyncHandler(async (req: any, res: Response) => {
   const { tenantId, workspaceId } = req.user;
-  const { name, email, phone, company, source, status, leadScore, tags, message } = req.body;
+  const { name, email, phone, company, source, status, leadScore, tags, message, assignedTeamMemberId } = req.body;
 
   if (!name?.trim() || !email?.trim()) {
     throw new AppError('Name and email are required', 400);
@@ -254,6 +268,7 @@ export const createContact = asyncHandler(async (req: any, res: Response) => {
     leadScore: Number(leadScore) || 0,
     tags: tags || '',
     message: message || null,
+    assignedTeamMemberId: assignedTeamMemberId || null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   });
@@ -284,7 +299,7 @@ export const createContact = asyncHandler(async (req: any, res: Response) => {
 export const updateContact = asyncHandler(async (req: any, res: Response) => {
   const { id } = req.params;
   const { tenantId, workspaceId } = req.user;
-  const { name, email, phone, company, source, status, leadScore, tags, message, workflowStatus } = req.body;
+  const { name, email, phone, company, source, status, leadScore, tags, message, workflowStatus, assignedTeamMemberId } = req.body;
 
   const existing = await db.select()
     .from(contacts)
@@ -324,6 +339,7 @@ export const updateContact = asyncHandler(async (req: any, res: Response) => {
   if (tags !== undefined) updateData.tags = tags || '';
   if (message !== undefined) updateData.message = message || null;
   if (workflowStatus !== undefined) updateData.workflowStatus = workflowStatus || null;
+  if (assignedTeamMemberId !== undefined) updateData.assignedTeamMemberId = assignedTeamMemberId || null;
 
   await db.update(contacts)
     .set(updateData)
@@ -523,137 +539,13 @@ export const enrollInWorkflow = asyncHandler(async (req: any, res: Response) => 
   console.log(`[CRM_ENROLLMENT] Contact ${contact.email} manually enrolled in workflow: ${flow.name}`);
 
   // 3. Trigger execution in background
-  executeManualWorkflowFlow(flow, id, contact.name, contact.email, currentEnrolled);
+  await WorkflowEngine.enrollContact(flow.id, contact.id);
 
   res.json({
     success: true,
     message: `Contact successfully enrolled in ${flow.name}`
   });
 });
-
-/**
- * Background execution for manual enrollment
- */
-async function executeManualWorkflowFlow(flow: any, contactId: string, name: string, email: string, currentEnrolled: number) {
-  try {
-    let nodes: any[] = [];
-    try {
-      nodes = typeof flow.nodes === 'string' ? JSON.parse(flow.nodes) : flow.nodes || [];
-    } catch (e) {
-      nodes = [];
-    }
-
-    const waitNode = nodes.find((n: any) => 
-      n.data?.type === 'condition' && 
-      (n.data?.label?.toLowerCase().includes('wait') || n.data?.label?.toLowerCase().includes('delay'))
-    );
-
-    const emailNode = nodes.find((n: any) => 
-      n.data?.type === 'action' && 
-      (n.data?.label?.toLowerCase().includes('email') || n.data?.label?.toLowerCase().includes('send') || n.data?.label?.toLowerCase().includes('welcome'))
-    );
-
-    let delayMs = 1000; // Default 1 second delay for demo purposes
-    if (waitNode?.data?.config?.delay) {
-      const value = Number(waitNode.data.config.delay);
-      const unit = waitNode.data.config.unit || 'days';
-      if (unit === 'minutes') {
-        delayMs = value * 60 * 1000;
-      } else if (unit === 'hours') {
-        delayMs = value * 60 * 60 * 1000;
-      } else if (unit === 'days') {
-        delayMs = 1000; // Demo override
-      }
-    }
-
-    setTimeout(async () => {
-      const subject = emailNode?.data?.config?.subject || 'Welcome to HubSaaS';
-      const bodyTemplate = emailNode?.data?.config?.body || `Hello {{name}},\n\nThank you for contacting us. We will get back to you shortly!\n\nBest regards,\nHubSaaS Team`;
-      const htmlContent = bodyTemplate.replace(/\{\{name\}\}/g, name).replace(/\n/g, '<br />');
-
-      await sendEmail({
-        to: email,
-        subject,
-        html: `<div style="font-family: sans-serif; padding: 20px; line-height: 1.6; color: #333;">${htmlContent}</div>`
-      });
-
-      // Save to contact_emails
-      try {
-        await db.insert(contactEmails).values({
-          id: uuidv4(),
-          tenantId: flow.tenantId,
-          workspaceId: flow.workspaceId,
-          contactId,
-          workflowId: flow.id,
-          subject,
-          body: bodyTemplate.replace(/\{\{name\}\}/g, name),
-          status: 'sent',
-          provider: 'resend',
-          sentAt: new Date().toISOString()
-        });
-      } catch (err: any) {
-        console.error('Failed to save email history:', err.message);
-      }
-
-      // Log email_sent Activity
-      try {
-        await db.insert(contactActivities).values({
-          id: uuidv4(),
-          tenantId: flow.tenantId,
-          workspaceId: flow.workspaceId,
-          contactId,
-          activityType: 'email_sent',
-          activityMessage: `Email "${subject}" was successfully sent to ${email}.`
-        });
-      } catch (err: any) {
-        console.error('Failed to log email activity:', err.message);
-      }
-
-      // Update contact status on completing workflow steps
-      await db.update(contacts)
-        .set({
-          status: 'converted',
-          workflowStatus: 'completed',
-          leadScore: 50,
-          updatedAt: new Date().toISOString()
-        })
-        .where(eq(contacts.id, contactId));
-
-      // Log lead_converted Activity
-      try {
-        await db.insert(contactActivities).values({
-          id: uuidv4(),
-          tenantId: flow.tenantId,
-          workspaceId: flow.workspaceId,
-          contactId,
-          activityType: 'lead_converted',
-          activityMessage: `Lead auto-converted upon successfully finishing automation workflow steps.`
-        });
-      } catch (err: any) {
-        console.error('Failed to log auto-convert activity:', err.message);
-      }
-
-      // Update workflow metrics
-      const currentCompleted = (flow.completedCount || 0) + 1;
-      const currentConverted = (flow.conversionCount || 0) + 1;
-      const rate = currentEnrolled > 0 ? Number(((currentConverted / currentEnrolled) * 100).toFixed(1)) : 100;
-
-      await db.update(workflows)
-        .set({
-          completedCount: currentCompleted,
-          conversionCount: currentConverted,
-          conversionRate: rate,
-          updatedAt: new Date().toISOString()
-        })
-        .where(eq(workflows.id, flow.id));
-
-      console.log(`[CRM_ENROLLMENT_COMPLETE] Automated welcome flow ran successfully for ${email}`);
-    }, delayMs);
-
-  } catch (error) {
-    console.error('[CRM_ENROLLMENT_ERROR]', error);
-  }
-}
 
 // 9. Add note to contact
 export const createNote = asyncHandler(async (req: any, res: Response) => {

@@ -176,6 +176,35 @@ export async function runDbFixes() {
       type TEXT NOT NULL,
       size INTEGER,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // workflow_execution_queue table
+    `CREATE TABLE IF NOT EXISTS workflow_execution_queue (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workspace_id TEXT,
+      workflow_id TEXT NOT NULL,
+      contact_id TEXT NOT NULL,
+      node_id TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      execute_at TEXT NOT NULL,
+      retry_count INTEGER DEFAULT 0,
+      error TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // workflow_execution_logs table
+    `CREATE TABLE IF NOT EXISTS workflow_execution_logs (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workspace_id TEXT,
+      workflow_id TEXT NOT NULL,
+      contact_id TEXT NOT NULL,
+      node_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      details TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`
   ];
 
@@ -220,7 +249,11 @@ export async function runDbFixes() {
     { table: 'contacts', column: 'workflow_id', type: 'TEXT' },
     { table: 'contacts', column: 'workflow_status', type: 'TEXT' },
     { table: 'contacts', column: 'message', type: 'TEXT' },
+    { table: 'contacts', column: 'assigned_team_member_id', type: 'TEXT' },
     { table: 'contacts', column: 'updated_at', type: 'TEXT' },
+    { table: 'contact_emails', column: 'message_id', type: 'TEXT' },
+    { table: 'contact_emails', column: 'open_count', type: 'INTEGER DEFAULT 0' },
+    { table: 'contact_emails', column: 'click_count', type: 'INTEGER DEFAULT 0' },
     { table: 'tenant_branding', column: 'sidebar_bg', type: "TEXT DEFAULT '#1e293b'" },
     { table: 'tenant_branding', column: 'card_bg', type: "TEXT DEFAULT '#ffffff'" },
     { table: 'tenant_branding', column: 'sidebar_theme', type: "TEXT DEFAULT 'dark'" },

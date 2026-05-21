@@ -28,6 +28,9 @@ export default function ContactsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [workflowStatusFilter, setWorkflowStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Selected Contact for Modal Actions
   const [selectedContact, setSelectedContact] = useState<any>(null);
@@ -58,7 +61,7 @@ export default function ContactsPage() {
   useEffect(() => {
     loadContacts();
     loadWorkflows();
-  }, [search, statusFilter, workflowStatusFilter, sourceFilter]);
+  }, [search, statusFilter, workflowStatusFilter, sourceFilter, page, limit]);
 
   const loadContacts = async () => {
     setLoading(true);
@@ -69,10 +72,15 @@ export default function ContactsPage() {
       if (statusFilter) params.append('status', statusFilter);
       if (workflowStatusFilter) params.append('workflowStatus', workflowStatusFilter);
       if (sourceFilter) params.append('source', sourceFilter);
+      if (page) params.append('page', page.toString());
+      if (limit) params.append('limit', limit.toString());
 
       const res = await apiCall(`/contacts?${params.toString()}`);
       if (res?.success) {
         setContacts(res.data || []);
+        if (res.pagination) {
+          setTotalPages(res.pagination.totalPages || 1);
+        }
         setStats(res.stats || {
           totalContacts: 0,
           newLeads: 0,
@@ -477,6 +485,27 @@ export default function ContactsPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/30">
+                <span className="text-sm text-slate-500 font-medium">
+                  Showing page {page} of {totalPages || 1}
+                </span>
+                <div className="flex gap-2">
+                  <button 
+                    disabled={page <= 1} 
+                    onClick={() => setPage(p => p - 1)}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-colors bg-white shadow-sm"
+                  >
+                    Previous
+                  </button>
+                  <button 
+                    disabled={page >= totalPages} 
+                    onClick={() => setPage(p => p + 1)}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-colors bg-white shadow-sm"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
           )}

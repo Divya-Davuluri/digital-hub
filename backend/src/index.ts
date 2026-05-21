@@ -45,6 +45,7 @@ import contactRoutes from './routes/contactRoutes';
 import crmRoutes from './routes/crmRoutes';
 import { trackClick } from './controllers/linkController';
 import { runDbFixes } from './scripts/fixDb';
+import { WorkflowEngine } from './utils/workflowEngine';
 
 
 import { authMiddleware, authorize } from './middleware/authMiddleware';
@@ -173,6 +174,9 @@ const server = app.listen(config.port, '0.0.0.0', async () => {
     console.log('📡 [DB] Initiating database self-healing checks...');
     await runDbFixes();
     console.log('✅ DATABASE CONNECTED & FULLY ALIGNED: Ready for CRM operations.');
+    
+    // Start background processors
+    WorkflowEngine.startWorker();
   } catch (err: any) {
     console.error('❌ DATABASE CONNECTION/REPAIR FAILED:', err.message);
   }

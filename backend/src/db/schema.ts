@@ -774,6 +774,7 @@ export const contacts = sqliteTable('contacts', {
   workflowId: text('workflow_id'),
   workflowStatus: text('workflow_status'),
   message: text('message'),
+  assignedTeamMemberId: text('assigned_team_member_id').references(() => users.id, { onDelete: 'set null' }),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });
@@ -796,8 +797,11 @@ export const contactEmails = sqliteTable('contact_emails', {
   workflowId: text('workflow_id').references(() => workflows.id, { onDelete: 'set null' }),
   subject: text('subject').notNull(),
   body: text('body').notNull(),
-  status: text('status').default('sent').notNull(),
+  status: text('status').default('sent').notNull(), // 'sent', 'delivered', 'failed', 'opened', 'clicked'
   provider: text('provider').default('resend').notNull(),
+  messageId: text('message_id'), // provider's message ID for webhooks
+  openCount: integer('open_count').default(0),
+  clickCount: integer('click_count').default(0),
   sentAt: text('sent_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -844,6 +848,35 @@ export const auditLogs = sqliteTable('audit_logs', {
   action: text('action').notNull(),
   resourceType: text('resource_type').notNull(),
   resourceId: text('resource_id'),
+  details: text('details'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+// --- DAY 17: WORKFLOW ENGINE & PERSISTENCE ---
+
+export const workflowExecutionQueue = sqliteTable('workflow_execution_queue', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
+  workflowId: text('workflow_id').notNull().references(() => workflows.id, { onDelete: 'cascade' }),
+  contactId: text('contact_id').notNull().references(() => contacts.id, { onDelete: 'cascade' }),
+  nodeId: text('node_id').notNull(),
+  status: text('status', { enum: ['pending', 'processing', 'completed', 'failed', 'delayed'] }).default('pending'),
+  executeAt: text('execute_at').notNull(), // ISO timestamp
+  retryCount: integer('retry_count').default(0),
+  error: text('error'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const workflowExecutionLogs = sqliteTable('workflow_execution_logs', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
+  workflowId: text('workflow_id').notNull().references(() => workflows.id, { onDelete: 'cascade' }),
+  contactId: text('contact_id').notNull().references(() => contacts.id, { onDelete: 'cascade' }),
+  nodeId: text('node_id').notNull(),
+  status: text('status').notNull(), // success, failed
   details: text('details'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
