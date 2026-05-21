@@ -254,17 +254,31 @@ export const createShortLink = asyncHandler(
     throw new AppError('Title and Original URL are required', 400);
   }
 
-  let shortCode = customAlias || generateShortCode();
-  shortCode = shortCode
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '');
-
-  // Check uniqueness
-  const existing = await db.query.shortLinks.findFirst({
-    where: eq(shortLinks.shortCode, shortCode)
-  });
-  if (existing) {
-    shortCode = shortCode + '-' + generateShortCode().slice(0,3);
+  let shortCode = '';
+  if (customAlias) {
+    shortCode = customAlias.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (!shortCode) {
+      throw new AppError('Invalid custom alias format', 400);
+    }
+    const existing = await db.query.shortLinks.findFirst({
+      where: eq(shortLinks.shortCode, shortCode)
+    });
+    if (existing) {
+      throw new AppError('This custom alias is already taken', 400);
+    }
+  } else {
+    shortCode = generateShortCode();
+    let existing = await db.query.shortLinks.findFirst({
+      where: eq(shortLinks.shortCode, shortCode)
+    });
+    let attempts = 0;
+    while(existing && attempts < 5) {
+      shortCode = generateShortCode();
+      existing = await db.query.shortLinks.findFirst({
+        where: eq(shortLinks.shortCode, shortCode)
+      });
+      attempts++;
+    }
   }
 
   // Get workspace

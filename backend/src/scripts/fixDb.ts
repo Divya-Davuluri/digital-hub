@@ -142,6 +142,46 @@ export async function runDbFixes() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`,
 
+    // Short Links table
+    `CREATE TABLE IF NOT EXISTS short_links (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      client_id TEXT,
+      title TEXT NOT NULL,
+      original_url TEXT NOT NULL,
+      short_code TEXT NOT NULL UNIQUE,
+      custom_alias TEXT,
+      campaign_id TEXT,
+      campaign_name TEXT,
+      total_clicks INTEGER DEFAULT 0,
+      unique_clicks INTEGER DEFAULT 0,
+      qr_code_url TEXT,
+      is_active INTEGER DEFAULT 1,
+      expires_at TEXT,
+      meta_pixel_id TEXT,
+      tiktok_pixel_id TEXT,
+      google_tag_id TEXT,
+      click_data TEXT DEFAULT '[]',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // Link Clicks table
+    `CREATE TABLE IF NOT EXISTS link_clicks (
+      id TEXT PRIMARY KEY,
+      link_id TEXT NOT NULL,
+      link_type TEXT NOT NULL,
+      country TEXT,
+      city TEXT,
+      device TEXT,
+      browser TEXT,
+      os TEXT,
+      referrer TEXT,
+      ip_address TEXT,
+      clicked_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+
     // Audit Logs table
     `CREATE TABLE IF NOT EXISTS audit_logs (
       id TEXT PRIMARY KEY,

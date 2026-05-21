@@ -3,11 +3,11 @@ import { redirect } from 'next/navigation';
 export default async function ShortLinkRedirectPage({ params }: { params: { alias: string } }) {
   const { alias } = params;
   // Make sure we hit the API appropriately from the server side.
-  let apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  let apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL;
   if (apiUrl) {
     apiUrl = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
   } else if (typeof window === 'undefined') {
-    apiUrl = 'https://digital-hub-og1a.onrender.com/api';
+    apiUrl = 'https://digital-hub-3h88.onrender.com/api';
   } else {
     apiUrl = '/api';
   }
@@ -32,6 +32,7 @@ export default async function ShortLinkRedirectPage({ params }: { params: { alia
       );
     }
   } catch (error) {
+    console.error(`[SHORT_LINK_ERROR] Failed to fetch link ${alias} from ${apiUrl}:`, error);
     // If API fails, fall through to Not Found
   }
 
