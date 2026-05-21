@@ -288,7 +288,7 @@ export const createShortLink = asyncHandler(
 
   const id = uuidv4();
   const now = new Date().toISOString();
-  const appUrl = process.env.APP_URL || 'https://digital-hub-1.onrender.com';
+  const appUrl = process.env.APP_URL || 'https://digital-hub-3h88.onrender.com';
 
   await db.insert(shortLinks).values({
     id,

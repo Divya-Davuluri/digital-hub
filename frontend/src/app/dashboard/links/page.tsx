@@ -23,7 +23,7 @@ const getLinksArray = (links: any): any[] => {
 };
 
 const getShortUrl = (shortCode: string) => {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://digital-hub-1.onrender.com';
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://digital-hub-3h88.onrender.com';
   return `${backendUrl}/l/${shortCode}`;
 };
 
