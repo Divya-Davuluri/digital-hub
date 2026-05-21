@@ -22,6 +22,11 @@ const getLinksArray = (links: any): any[] => {
   return [];
 };
 
+const getShortUrl = (shortCode: string) => {
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://digital-hub-1.onrender.com';
+  return `${backendUrl}/l/${shortCode}`;
+};
+
 export default function LinksPage() {
   const [activeTab, setActiveTab] = useState<'bio-pages' | 'short-links'>('bio-pages');
   const [bioPages, setBioPages] = useState<any[]>([]);
@@ -308,9 +313,16 @@ export default function LinksPage() {
                       </td>
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-indigo-600">{typeof window !== 'undefined' ? window.location.host : 'hub.link'}/l/{link.shortCode}</span>
+                          <a 
+                            href={getShortUrl(link.shortCode)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-indigo-600 hover:underline text-sm font-mono"
+                          >
+                            {getShortUrl(link.shortCode).replace('https://', '')}
+                          </a>
                           <button 
-                            onClick={() => copyToClipboard(`${window.location.origin}/l/${link.shortCode}`)}
+                            onClick={() => copyToClipboard(getShortUrl(link.shortCode))}
                             className="p-1.5 hover:bg-white border border-transparent hover:border-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-all"
                           >
                             <Copy size={14} />
@@ -536,23 +548,23 @@ export default function LinksPage() {
             
             <div className="bg-slate-50 p-6 rounded-[32px] border border-slate-100 inline-block mb-8">
               <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/l/${showQRModal.shortCode}`)}`}
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(getShortUrl(showQRModal.shortCode))}`}
                 alt="QR Code"
                 className="w-48 h-48 mx-auto"
               />
             </div>
 
-            <p className="text-sm font-black text-indigo-600 mb-8">{typeof window !== 'undefined' ? window.location.host : 'hub.link'}/l/{showQRModal.shortCode}</p>
+            <p className="text-sm font-black text-indigo-600 mb-8">{getShortUrl(showQRModal.shortCode).replace('https://', '')}</p>
 
             <div className="flex gap-4">
               <button 
-                onClick={() => handleDownloadQR(`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(`${window.location.origin}/l/${showQRModal.shortCode}`)}`, showQRModal.title)}
+                onClick={() => handleDownloadQR(`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(getShortUrl(showQRModal.shortCode))}`, showQRModal.title)}
                 className="flex-1 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
               >
                 <QrCode size={18} /> Download
               </button>
               <button 
-                onClick={() => copyToClipboard(`${window.location.origin}/l/${showQRModal.shortCode}`)}
+                onClick={() => copyToClipboard(getShortUrl(showQRModal.shortCode))}
                 className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
               >
                 <Copy size={18} /> Copy Link

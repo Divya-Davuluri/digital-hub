@@ -288,7 +288,7 @@ export const createShortLink = asyncHandler(
 
   const id = uuidv4();
   const now = new Date().toISOString();
-  const appUrl = process.env.APP_URL || 'https://digital-hub-1-y60b.onrender.com';
+  const appUrl = process.env.APP_URL || 'https://digital-hub-1.onrender.com';
 
   await db.insert(shortLinks).values({
     id,
@@ -375,33 +375,37 @@ export const trackClick = asyncHandler(
   });
 
   if (!link || link.isActive !== 1) {
-    return res.redirect('/404');
+    return res.redirect(`${process.env.FRONTEND_URL || 'https://digital-hub-1-y60b.onrender.com'}/link-not-found`);
   }
 
-  // Record click
-  await db.insert(linkClicks).values({
-    id: uuidv4(),
-    linkId: link.id,
-    linkType: 'short_link',
-    country: 'Unknown',
-    city: null,
-    device: req.headers['user-agent']?.includes('Mobile') ? 'mobile' : 'desktop',
-    browser: 'Unknown',
-    os: 'Unknown',
-    referrer: req.headers['referer'] || null,
-    ipAddress: null,
-    clickedAt: new Date().toISOString(),
-  });
+  try {
+    // Record click
+    await db.insert(linkClicks).values({
+      id: uuidv4(),
+      linkId: link.id,
+      linkType: 'short_link',
+      country: null,
+      city: null,
+      device: req.headers['user-agent']?.toLowerCase().includes('mobile') ? 'mobile' : 'desktop',
+      browser: null,
+      os: null,
+      referrer: req.headers['referer'] || null,
+      ipAddress: null,
+      clickedAt: new Date().toISOString(),
+    });
 
-  // Increment clicks
-  await db.update(shortLinks)
-    .set({
-      totalClicks: (link.totalClicks || 0) + 1,
-      updatedAt: new Date().toISOString()
-    })
-    .where(eq(shortLinks.id, link.id));
+    // Increment clicks
+    await db.update(shortLinks)
+      .set({
+        totalClicks: (link.totalClicks || 0) + 1,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(shortLinks.id, link.id));
+  } catch (clickErr) {
+    console.error('[Links] Click tracking failed:', clickErr);
+  }
 
-  res.redirect(link.originalUrl);
+  return res.redirect(301, link.originalUrl);
 });
 
 export const trackClickApi = asyncHandler(
