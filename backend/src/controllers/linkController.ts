@@ -287,6 +287,24 @@ export const trackBioLinkClick = asyncHandler(
     return l;
   });
 
+  const ua = req.headers['user-agent']?.toLowerCase() || '';
+  let browser = 'Unknown';
+  if (ua.includes('firefox')) browser = 'Firefox';
+  else if (ua.includes('chrome')) browser = 'Chrome';
+  else if (ua.includes('safari') && !ua.includes('chrome')) browser = 'Safari';
+  else if (ua.includes('edge')) browser = 'Edge';
+  
+  let os = 'Unknown';
+  if (ua.includes('win')) os = 'Windows';
+  else if (ua.includes('mac')) os = 'macOS';
+  else if (ua.includes('linux')) os = 'Linux';
+  else if (ua.includes('android')) os = 'Android';
+  else if (ua.includes('ios') || ua.includes('iphone') || ua.includes('ipad')) os = 'iOS';
+
+  const utmSource = (req.query.utm_source as string) || null;
+  const utmMedium = (req.query.utm_medium as string) || null;
+  const utmCampaign = (req.query.utm_campaign as string) || null;
+
   // Record click
   await db.insert(linkClicks).values({
     id: uuidv4(),
@@ -294,11 +312,14 @@ export const trackBioLinkClick = asyncHandler(
     linkType: 'bio_page',
     country: null,
     city: null,
-    device: req.headers['user-agent']?.toLowerCase().includes('mobile') ? 'mobile' : 'desktop',
-    browser: null,
-    os: null,
+    device: ua.includes('mobile') ? 'mobile' : 'desktop',
+    browser: browser,
+    os: os,
     referrer: req.headers['referer'] || null,
     ipAddress: null,
+    utmSource,
+    utmMedium,
+    utmCampaign,
     clickedAt: new Date().toISOString(),
   });
 
@@ -452,7 +473,49 @@ export const trackClick = asyncHandler(
     return res.redirect(`${process.env.FRONTEND_URL || 'https://digital-hub-1-y60b.onrender.com'}/link-not-found`);
   }
 
+  // Scheduling and Expiration
+  const now = new Date();
+  if (link.scheduledAt && new Date(link.scheduledAt) > now) {
+    return res.status(403).send('This link is scheduled for a future date and is not yet active.');
+  }
+  if (link.expiresAt && new Date(link.expiresAt) < now) {
+    return res.status(410).send('This link has expired.');
+  }
+
+  // Password Protection (Basic Auth)
+  if (link.password) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+      res.setHeader('WWW-Authenticate', 'Basic realm="Password Protected Link"');
+      return res.status(401).send('Authentication required for this link. Please enter the password.');
+    }
+    const b64auth = authHeader.split(' ')[1] || '';
+    const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
+    if (password !== link.password && login !== link.password) {
+      res.setHeader('WWW-Authenticate', 'Basic realm="Password Protected Link"');
+      return res.status(401).send('Invalid password.');
+    }
+  }
+
   try {
+    const ua = req.headers['user-agent']?.toLowerCase() || '';
+    let browser = 'Unknown';
+    if (ua.includes('firefox')) browser = 'Firefox';
+    else if (ua.includes('chrome')) browser = 'Chrome';
+    else if (ua.includes('safari') && !ua.includes('chrome')) browser = 'Safari';
+    else if (ua.includes('edge')) browser = 'Edge';
+    
+    let os = 'Unknown';
+    if (ua.includes('win')) os = 'Windows';
+    else if (ua.includes('mac')) os = 'macOS';
+    else if (ua.includes('linux')) os = 'Linux';
+    else if (ua.includes('android')) os = 'Android';
+    else if (ua.includes('ios') || ua.includes('iphone') || ua.includes('ipad')) os = 'iOS';
+
+    const utmSource = (req.query.utm_source as string) || null;
+    const utmMedium = (req.query.utm_medium as string) || null;
+    const utmCampaign = (req.query.utm_campaign as string) || null;
+
     // Record click
     await db.insert(linkClicks).values({
       id: uuidv4(),
@@ -460,11 +523,14 @@ export const trackClick = asyncHandler(
       linkType: 'short_link',
       country: null,
       city: null,
-      device: req.headers['user-agent']?.toLowerCase().includes('mobile') ? 'mobile' : 'desktop',
-      browser: null,
-      os: null,
+      device: ua.includes('mobile') ? 'mobile' : 'desktop',
+      browser: browser,
+      os: os,
       referrer: req.headers['referer'] || null,
       ipAddress: null,
+      utmSource,
+      utmMedium,
+      utmCampaign,
       clickedAt: new Date().toISOString(),
     });
 
@@ -499,18 +565,52 @@ export const trackClickApi = asyncHandler(
     return res.status(400).json({ success: false, message: 'inactive' });
   }
 
+  const now = new Date();
+  if (link.scheduledAt && new Date(link.scheduledAt) > now) {
+    return res.status(403).json({ success: false, message: 'scheduled' });
+  }
+  if (link.expiresAt && new Date(link.expiresAt) < now) {
+    return res.status(410).json({ success: false, message: 'expired' });
+  }
+  if (link.password) {
+    // If it has a password, the frontend trackClickApi might not handle it well right now, 
+    // but we can return a flag
+    return res.status(401).json({ success: false, message: 'password_required' });
+  }
+
+  const ua = req.headers['user-agent']?.toLowerCase() || '';
+  let browser = 'Unknown';
+  if (ua.includes('firefox')) browser = 'Firefox';
+  else if (ua.includes('chrome')) browser = 'Chrome';
+  else if (ua.includes('safari') && !ua.includes('chrome')) browser = 'Safari';
+  else if (ua.includes('edge')) browser = 'Edge';
+  
+  let os = 'Unknown';
+  if (ua.includes('win')) os = 'Windows';
+  else if (ua.includes('mac')) os = 'macOS';
+  else if (ua.includes('linux')) os = 'Linux';
+  else if (ua.includes('android')) os = 'Android';
+  else if (ua.includes('ios') || ua.includes('iphone') || ua.includes('ipad')) os = 'iOS';
+
+  const utmSource = (req.query.utm_source as string) || null;
+  const utmMedium = (req.query.utm_medium as string) || null;
+  const utmCampaign = (req.query.utm_campaign as string) || null;
+
   // Record click
   await db.insert(linkClicks).values({
     id: uuidv4(),
     linkId: link.id,
     linkType: 'short_link',
-    country: 'Unknown',
+    country: null,
     city: null,
-    device: req.headers['user-agent']?.includes('Mobile') ? 'mobile' : 'desktop',
-    browser: 'Unknown',
-    os: 'Unknown',
+    device: ua.includes('mobile') ? 'mobile' : 'desktop',
+    browser: browser,
+    os: os,
     referrer: req.headers['referer'] || null,
     ipAddress: null,
+    utmSource,
+    utmMedium,
+    utmCampaign,
     clickedAt: new Date().toISOString(),
   });
 
@@ -551,6 +651,31 @@ export const getLinkAnalytics = asyncHandler(
     return acc;
   }, {});
 
+  const clicksByBrowser = clicks.reduce((acc: any, c) => {
+    const browser = c.browser || 'Unknown';
+    acc[browser] = (acc[browser] || 0) + 1;
+    return acc;
+  }, {});
+
+  const clicksByOS = clicks.reduce((acc: any, c) => {
+    const os = c.os || 'Unknown';
+    acc[os] = (acc[os] || 0) + 1;
+    return acc;
+  }, {});
+
+  const clicksByReferrer = clicks.reduce((acc: any, c) => {
+    const ref = c.referrer || 'Direct';
+    acc[ref] = (acc[ref] || 0) + 1;
+    return acc;
+  }, {});
+
+  const utmData = clicks.reduce((acc: any, c) => {
+    if (c.utmSource) acc.sources[c.utmSource] = (acc.sources[c.utmSource] || 0) + 1;
+    if (c.utmMedium) acc.mediums[c.utmMedium] = (acc.mediums[c.utmMedium] || 0) + 1;
+    if (c.utmCampaign) acc.campaigns[c.utmCampaign] = (acc.campaigns[c.utmCampaign] || 0) + 1;
+    return acc;
+  }, { sources: {}, mediums: {}, campaigns: {} });
+
   res.json({
     success: true,
     data: {
@@ -558,9 +683,37 @@ export const getLinkAnalytics = asyncHandler(
       uniqueClicks: new Set(clicks.map(c => c.ipAddress)).size,
       clicksByDevice: Object.entries(clicksByDevice).map(([device, count]) => ({ device, count })),
       clicksByCountry: Object.entries(clicksByCountry).map(([country, count]) => ({ country, count })),
+      clicksByBrowser: Object.entries(clicksByBrowser).map(([browser, count]) => ({ browser, count })),
+      clicksByOS: Object.entries(clicksByOS).map(([os, count]) => ({ os, count })),
+      clicksByReferrer: Object.entries(clicksByReferrer).map(([referrer, count]) => ({ referrer, count })),
+      utm: {
+        sources: Object.entries(utmData.sources).map(([source, count]) => ({ source, count })),
+        mediums: Object.entries(utmData.mediums).map(([medium, count]) => ({ medium, count })),
+        campaigns: Object.entries(utmData.campaigns).map(([campaign, count]) => ({ campaign, count }))
+      },
       clicksByDay: [] // Simplified for now
     }
   });
+});
+
+export const exportAnalyticsCSV = asyncHandler(
+  async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const { linkId } = req.params;
+
+  const clicks = await db.query.linkClicks.findMany({
+    where: eq(linkClicks.linkId, linkId),
+    orderBy: desc(linkClicks.clickedAt)
+  });
+
+  const header = 'Date,IP,Device,Browser,OS,Country,Referrer,UTM Source,UTM Medium,UTM Campaign\n';
+  const rows = clicks.map(c => 
+    `"${c.clickedAt}","${c.ipAddress || ''}","${c.device || ''}","${c.browser || ''}","${c.os || ''}","${c.country || ''}","${c.referrer || ''}","${c.utmSource || ''}","${c.utmMedium || ''}","${c.utmCampaign || ''}"`
+  ).join('\n');
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="analytics_${linkId}.csv"`);
+  res.send(header + rows);
 });
 
 // DEMO DATA

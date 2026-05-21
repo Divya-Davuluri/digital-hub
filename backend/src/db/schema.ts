@@ -674,6 +674,8 @@ export const shortLinks = sqliteTable('short_links', {
   metaPixelId: text('meta_pixel_id'),
   tiktokPixelId: text('tiktok_pixel_id'),
   googleTagId: text('google_tag_id'),
+  password: text('password'),
+  scheduledAt: text('scheduled_at'),
   clickData: text('click_data').default('[]'),
   // JSON array of click events
   createdAt: text('created_at')
@@ -697,6 +699,9 @@ export const linkClicks = sqliteTable('link_clicks', {
   os: text('os'),
   referrer: text('referrer'),
   ipAddress: text('ip_address'),
+  utmSource: text('utm_source'),
+  utmMedium: text('utm_medium'),
+  utmCampaign: text('utm_campaign'),
   clickedAt: text('clicked_at')
     .default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

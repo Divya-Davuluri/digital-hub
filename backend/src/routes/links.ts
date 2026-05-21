@@ -5,7 +5,7 @@ import {
   updateBioPage, deleteBioPage,
   getBioPageBySlug, trackBioLinkClick, createShortLink,
   getShortLinks, deleteShortLink,
-  trackClick, trackClickApi, getLinkAnalytics,
+  trackClick, trackClickApi, getLinkAnalytics, exportAnalyticsCSV
 } from '../controllers/linkController';
 
 const router = Router();
@@ -22,6 +22,7 @@ router.post('/short', authMiddleware, createShortLink);
 router.get('/short', authMiddleware, getShortLinks);
 router.delete('/short/:id', authMiddleware, deleteShortLink);
 router.get('/analytics/:linkId', authMiddleware, getLinkAnalytics);
+router.get('/analytics/:linkId/export', authMiddleware, exportAnalyticsCSV);
 
 
 // Public routes (no auth)
