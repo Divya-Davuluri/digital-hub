@@ -885,3 +885,106 @@ export const workflowExecutionLogs = sqliteTable('workflow_execution_logs', {
   details: text('details'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
+
+// SEO Keywords Tracking Table
+export const seoKeywords = sqliteTable(
+  'seo_keywords', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id,
+      { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id,
+      { onDelete: 'cascade' }),
+  clientId: text('client_id')
+    .references(() => clients.id,
+      { onDelete: 'cascade' }),
+  keyword: text('keyword').notNull(),
+  domain: text('domain'),
+  currentRank: integer('current_rank'),
+  previousRank: integer('previous_rank'),
+  bestRank: integer('best_rank'),
+  searchVolume: integer('search_volume').default(0),
+  difficulty: integer('difficulty').default(0),
+  // 0-100
+  cpc: real('cpc').default(0),
+  intent: text('intent').default('informational'),
+  // 'informational'|'commercial'|'transactional'
+  // |'navigational'
+  cluster: text('cluster'),
+  // topic cluster name
+  rankChange: integer('rank_change').default(0),
+  // positive = moved up, negative = moved down
+  isTracked: integer('is_tracked').default(1),
+  device: text('device').default('desktop'),
+  // 'desktop'|'mobile'
+  country: text('country').default('US'),
+  lastChecked: text('last_checked'),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+// SEO Site Audit Issues Table
+export const seoAuditIssues = sqliteTable(
+  'seo_audit_issues', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id,
+      { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id,
+      { onDelete: 'cascade' }),
+  clientId: text('client_id')
+    .references(() => clients.id,
+      { onDelete: 'cascade' }),
+  domain: text('domain').notNull(),
+  issueType: text('issue_type').notNull(),
+  // 'broken_link'|'missing_meta'|'slow_page'
+  // |'missing_h1'|'duplicate_content'
+  // |'missing_alt'|'core_web_vitals'
+  severity: text('severity').default('medium'),
+  // 'critical'|'high'|'medium'|'low'
+  url: text('url').notNull(),
+  description: text('description'),
+  recommendation: text('recommendation'),
+  isFixed: integer('is_fixed').default(0),
+  auditDate: text('audit_date'),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+// SEO Content Briefs Table
+export const seoContentBriefs = sqliteTable(
+  'seo_content_briefs', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id,
+      { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id,
+      { onDelete: 'cascade' }),
+  clientId: text('client_id')
+    .references(() => clients.id,
+      { onDelete: 'cascade' }),
+  targetKeyword: text('target_keyword').notNull(),
+  title: text('title').notNull(),
+  suggestedWordCount: integer('suggested_word_count')
+    .default(1500),
+  headings: text('headings').default('[]'),
+  // JSON array of suggested H2/H3 headings
+  keywords: text('keywords').default('[]'),
+  // JSON array of related keywords to include
+  competitors: text('competitors').default('[]'),
+  // JSON array of competing URLs
+  searchVolume: integer('search_volume').default(0),
+  difficulty: integer('difficulty').default(0),
+  intent: text('intent').default('informational'),
+  status: text('status').default('draft'),
+  // 'draft'|'in_progress'|'completed'
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});

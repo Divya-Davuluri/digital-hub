@@ -43,6 +43,7 @@ import linkRoutes from './routes/links';
 import instagramRoutes from './routes/instagram';
 import contactRoutes from './routes/contactRoutes';
 import crmRoutes from './routes/crmRoutes';
+import seoRouter from './routes/seo';
 import { trackClick } from './controllers/linkController';
 import { runDbFixes } from './scripts/fixDb';
 import { WorkflowEngine } from './utils/workflowEngine';
@@ -151,6 +152,7 @@ app.use('/api/links', linkRoutes);
 app.use('/api/instagram', instagramRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/contacts', crmRoutes);
+app.use('/api/seo', seoRouter);
 
 // Root level short link redirect
 app.get('/l/:shortCode', trackClick);

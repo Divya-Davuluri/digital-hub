@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useBranding } from '@/context/BrandingContext';
-import { Zap, Link as LinkIcon } from 'lucide-react';
+import { Zap, Link as LinkIcon, Search } from 'lucide-react';
 
 interface SidebarProps {
   role?: 'admin' | 'team' | 'client';
@@ -36,6 +36,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
       return [
         { name: 'Overview', href: '/dashboard/admin', icon: '🏠' },
         { name: 'Contacts', href: '/dashboard/contacts', icon: '👥' },
+        { name: 'SEO', href: '/dashboard/seo', icon: <Search size={18} /> },
         { name: 'Analytics', href: '/dashboard/analytics', icon: '📊' },
         { name: 'Attribution', href: '/dashboard/attribution', icon: '🌿' },
         { name: 'Social', href: '/dashboard/social', icon: '📅' },
@@ -75,6 +76,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
       return [
         { name: 'Overview', href: '/dashboard/team', icon: '🏠' },
         { name: 'Contacts', href: '/dashboard/contacts', icon: '👥' },
+        { name: 'SEO', href: '/dashboard/seo', icon: <Search size={18} /> },
         { name: 'Analytics', href: '/dashboard/analytics', icon: '📊' },
         { name: 'Attribution', href: '/dashboard/attribution', icon: '🌿' },
         { name: 'Social', href: '/dashboard/social', icon: '📅' },
