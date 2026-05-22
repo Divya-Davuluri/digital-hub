@@ -152,8 +152,8 @@ export default function SEOContentPage() {
       });
       toast.success('Keyword added to tracking!');
       loadStats();
-    } catch (err) {
-      toast.error('Failed to add keyword');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to add keyword');
     }
   };
 

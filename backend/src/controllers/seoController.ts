@@ -335,13 +335,27 @@ export const addKeyword = asyncHandler(
     throw new AppError('Keyword is required', 400);
   }
 
-  let workspaceId = tenantId;
-  try {
-    const ws = await db.query.workspaces.findFirst({
-      where: eq(workspaces.tenantId, tenantId)
-    });
-    if (ws) workspaceId = ws.id;
-  } catch (err) {}
+  let workspaceId = req.user.workspaceId;
+  if (!workspaceId) {
+    try {
+      const ws = await db.select().from(workspaces).where(eq(workspaces.tenantId, tenantId)).limit(1);
+      if (ws.length > 0) workspaceId = ws[0].id;
+    } catch (err) {}
+  }
+
+  if (!workspaceId) {
+    throw new AppError('No active workspace found for this tenant.', 400);
+  }
+
+  const existing = await db.select().from(seoKeywords)
+    .where(and(
+      eq(seoKeywords.workspaceId, workspaceId),
+      eq(seoKeywords.keyword, keyword.trim())
+    )).limit(1);
+    
+  if (existing.length > 0) {
+    throw new AppError('Keyword already tracked in this workspace', 400);
+  }
 
   // Simulate rank data
   const simulatedRank = Math.floor(
@@ -380,14 +394,12 @@ export const addKeyword = asyncHandler(
     updatedAt: now,
   });
 
-  const created = await db.query.seoKeywords
-    .findFirst({
-      where: eq(seoKeywords.id, id)
-    });
+  const created = await db.select().from(seoKeywords)
+    .where(eq(seoKeywords.id, id)).limit(1);
 
   res.status(201).json({
     success: true,
-    data: created
+    data: created[0]
   });
 });
 
@@ -417,13 +429,17 @@ export const runSiteAudit = asyncHandler(
     throw new AppError('Domain is required', 400);
   }
 
-  let workspaceId = tenantId;
-  try {
-    const ws = await db.query.workspaces.findFirst({
-      where: eq(workspaces.tenantId, tenantId)
-    });
-    if (ws) workspaceId = ws.id;
-  } catch (err) {}
+  let workspaceId = req.user.workspaceId;
+  if (!workspaceId) {
+    try {
+      const ws = await db.select().from(workspaces).where(eq(workspaces.tenantId, tenantId)).limit(1);
+      if (ws.length > 0) workspaceId = ws[0].id;
+    } catch (err) {}
+  }
+
+  if (!workspaceId) {
+    throw new AppError('No active workspace found for this tenant.', 400);
+  }
 
   const demoIssues = getDemoAuditIssues(
     domain.trim());
@@ -529,13 +545,17 @@ export const generateContentBrief = asyncHandler(
     throw new AppError('Target keyword is required', 400);
   }
 
-  let workspaceId = tenantId;
-  try {
-    const ws = await db.query.workspaces.findFirst({
-      where: eq(workspaces.tenantId, tenantId)
-    });
-    if (ws) workspaceId = ws.id;
-  } catch (err) {}
+  let workspaceId = req.user.workspaceId;
+  if (!workspaceId) {
+    try {
+      const ws = await db.select().from(workspaces).where(eq(workspaces.tenantId, tenantId)).limit(1);
+      if (ws.length > 0) workspaceId = ws[0].id;
+    } catch (err) {}
+  }
+
+  if (!workspaceId) {
+    throw new AppError('No active workspace found for this tenant.', 400);
+  }
 
   // Generate content brief data
   const kw = keyword.trim();
