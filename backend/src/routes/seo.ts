@@ -5,6 +5,7 @@ import {
   runSiteAudit, getAuditIssues,
   generateContentBrief, getContentBriefs,
   getCompetitorGap, getSEOStats,
+  generateBrief, getBriefs, deleteBrief,
 } from '../controllers/seoController';
 
 const router = Router();
@@ -19,5 +20,10 @@ router.get('/audit', authenticate, getAuditIssues);
 router.post('/content-brief', authenticate, generateContentBrief);
 router.get('/content-briefs', authenticate, getContentBriefs);
 router.get('/competitor-gap', authenticate, getCompetitorGap);
+
+// New SEO briefs endpoints
+router.post('/briefs', authenticate, generateBrief);
+router.get('/briefs', authenticate, getBriefs);
+router.delete('/briefs/:id', authenticate, deleteBrief);
 
 export default router;

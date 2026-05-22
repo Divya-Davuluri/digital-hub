@@ -26,6 +26,7 @@ export default function SEOContentPage() {
   const [domain, setDomain] = useState('');
   const [showAddKeyword, setShowAddKeyword] = useState(false);
   const [showBriefModal, setShowBriefModal] = useState(false);
+  const [selectedBrief, setSelectedBrief] = useState<any>(null);
 
   const [keywordForm, setKeywordForm] = useState({
     keyword: '', domain: '', device: 'desktop',
@@ -75,7 +76,7 @@ export default function SEOContentPage() {
 
   const loadContentBriefs = async () => {
     try {
-      const res = await apiCall('/seo/content-briefs');
+      const res = await apiCall('/seo/briefs');
       const data = res?.data || res || [];
       setContentBriefs(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -228,11 +229,10 @@ export default function SEOContentPage() {
     }
     setBriefLoading(true);
     try {
-      const res = await apiCall('/seo/content-brief', {
+      const res = await apiCall('/seo/briefs', {
         method: 'POST',
         body: JSON.stringify({
-          keyword: briefKeyword.trim(),
-          domain: domain || 'yourdomain.com',
+          target_keyword: briefKeyword.trim()
         })
       });
       const brief = res?.data || res;
@@ -240,11 +240,62 @@ export default function SEOContentPage() {
       setShowBriefModal(false);
       setBriefKeyword('');
       toast.success('Content brief generated!');
-    } catch (err) {
-      toast.error('Failed to generate brief');
+      setActiveTab('briefs'); // Switch to Briefs tab automatically
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to generate brief');
     } finally {
       setBriefLoading(false);
     }
+  };
+
+  const handleDeleteBrief = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this content brief?')) return;
+    try {
+      await apiCall(`/seo/briefs/${id}`, { method: 'DELETE' });
+      setContentBriefs(prev => prev.filter(b => b.id !== id));
+      toast.success('Content brief deleted!');
+    } catch (err) {
+      toast.error('Failed to delete brief');
+    }
+  };
+
+  const formatBriefAsMarkdown = (brief: any) => {
+    return `
+# SEO Content Brief: ${brief.targetKeyword}
+
+- **SEO Title**: ${brief.title}
+- **Meta Description**: ${brief.metaDescription || 'N/A'}
+- **Search Intent**: ${brief.searchIntent || 'N/A'}
+- **Recommended Word Count**: ${brief.recommendedWordCount || 1500} words
+
+---
+
+## 🔑 Primary Keywords
+${Array.isArray(brief.primaryKeywords) ? brief.primaryKeywords.map((k: string) => `- ${k}`).join('\n') : '- ' + brief.targetKeyword}
+
+## 🔑 Secondary Keywords
+${Array.isArray(brief.secondaryKeywords) ? brief.secondaryKeywords.map((k: string) => `- ${k}`).join('\n') : '- N/A'}
+
+---
+
+## 📋 Headings Outline
+${Array.isArray(brief.headings) ? brief.headings.map((h: string) => `- ${h}`).join('\n') : '- N/A'}
+
+---
+
+## 📝 Document Outline & Guidelines
+${brief.outline || 'N/A'}
+
+---
+
+## 📊 Competitor Insights & Notes
+${brief.competitorNotes || 'N/A'}
+
+---
+
+## 💡 Content Recommendations & FAQ Suggestions
+${brief.contentRecommendations || 'N/A'}
+    `.trim();
   };
 
   const getRankBadge = (rank: number | null) => {
@@ -795,63 +846,68 @@ export default function SEOContentPage() {
 
                 <div className="grid grid-cols-2 gap-6">
                   {contentBriefs.map(brief => (
-                    <div key={brief.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                          brief.status === 'completed' ? 'bg-green-100 text-green-700'
-                          : brief.status === 'in_progress' ? 'bg-blue-100 text-blue-700'
-                          : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {brief.status?.replace('_',' ').toUpperCase()}
-                        </span>
-                        <div className="flex gap-2 text-xs text-slate-400">
-                          <span>Vol: {(brief.searchVolume||0).toLocaleString()}</span>
-                          <span>·</span>
-                          <span>Diff: {brief.difficulty}</span>
+                    <div key={brief.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md transition-shadow flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start mb-4">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                            brief.status === 'completed' ? 'bg-green-100 text-green-700'
+                            : brief.status === 'in_progress' ? 'bg-blue-100 text-blue-700'
+                            : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {brief.status?.replace('_',' ').toUpperCase()}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            📅 {brief.createdAt ? new Date(brief.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                          </span>
                         </div>
-                      </div>
 
-                      <p className="text-xs font-bold text-indigo-600 mb-2">🎯 {brief.targetKeyword}</p>
-                      <h3 className="font-black text-slate-900 text-sm mb-3">{brief.title}</h3>
+                        <p className="text-xs font-bold text-indigo-600 mb-2">🎯 {brief.targetKeyword}</p>
+                        <h3 className="font-black text-slate-900 text-sm mb-3">{brief.title}</h3>
 
-                      <div className="flex items-center gap-4 text-xs text-slate-500 mb-4">
-                        <span>📝 {brief.suggestedWordCount} words</span>
-                        <span>📋 {Array.isArray(brief.headings) ? brief.headings.length : 0} headings</span>
-                        <span>🔑 {Array.isArray(brief.keywords) ? brief.keywords.length : 0} keywords</span>
-                      </div>
+                        <div className="flex items-center gap-4 text-xs text-slate-500 mb-4">
+                          <span>📝 {brief.recommendedWordCount || 1500} words</span>
+                          <span>📋 {Array.isArray(brief.headings) ? brief.headings.length : 0} headings</span>
+                          <span>🔑 {Array.isArray(brief.primaryKeywords) ? brief.primaryKeywords.length : 0} keywords</span>
+                        </div>
 
-                      {/* Headings preview */}
-                      {Array.isArray(brief.headings) && brief.headings.length > 0 && (
-                        <div className="mb-4">
-                          <p className="text-xs font-black text-slate-400 uppercase tracking-wide mb-2">
-                            Suggested Headings
-                          </p>
-                          <div className="space-y-1">
-                            {brief.headings.slice(0,4).map((h: string, i: number) => (
-                              <div key={i} className="flex items-center gap-2 text-xs text-slate-600">
-                                <ChevronRight size={12} className="text-slate-400 flex-shrink-0"/>
-                                {h}
-                              </div>
-                            ))}
-                            {brief.headings.length > 4 && (
-                              <p className="text-xs text-slate-400 pl-4">
-                                +{brief.headings.length - 4} more headings...
-                              </p>
-                            )}
+                        {/* Headings preview */}
+                        {Array.isArray(brief.headings) && brief.headings.length > 0 && (
+                          <div className="mb-4">
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-wide mb-2">
+                              Suggested Headings
+                            </p>
+                            <div className="space-y-1">
+                              {brief.headings.slice(0,4).map((h: string, i: number) => (
+                                <div key={i} className="flex items-center gap-2 text-xs text-slate-600">
+                                  <ChevronRight size={12} className="text-slate-400 flex-shrink-0"/>
+                                  {h}
+                                </div>
+                              ))}
+                              {brief.headings.length > 4 && (
+                                <p className="text-xs text-slate-400 pl-4">
+                                  +{brief.headings.length - 4} more headings...
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
 
-                      {/* Keywords */}
-                      {Array.isArray(brief.keywords) && brief.keywords.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {brief.keywords.slice(0,5).map((kw: string, i: number) => (
-                            <span key={i} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold">
-                              {kw}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
+                        <button
+                          onClick={() => setSelectedBrief(brief)}
+                          className="flex-grow py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-colors"
+                        >
+                          View Brief
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBrief(brief.id)}
+                          className="px-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold transition-colors flex items-center justify-center"
+                          title="Delete Brief"
+                        >
+                          <X size={16}/>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -996,6 +1052,174 @@ export default function SEOContentPage() {
                       }`}
                     >
                       {briefLoading ? '⏳ Generating...' : '✨ Generate Brief'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* VIEW DETAILED BRIEF MODAL */}
+            {selectedBrief && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                  {/* Modal Header */}
+                  <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
+                    <div>
+                      <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold mr-3 animate-pulse">
+                        🎯 {selectedBrief.targetKeyword}
+                      </span>
+                      <h2 className="text-lg font-black text-slate-900 mt-2">{selectedBrief.title}</h2>
+                    </div>
+                    <button
+                      onClick={() => setSelectedBrief(null)}
+                      className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-50 rounded-xl"
+                    >
+                      <X size={20}/>
+                    </button>
+                  </div>
+
+                  {/* Modal Content (scrollable) */}
+                  <div className="p-6 overflow-y-auto space-y-8 flex-grow">
+                    {/* Basic Meta Cards */}
+                    <div className="grid grid-cols-4 gap-4">
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Search Intent</span>
+                        <p className="font-bold text-slate-900 mt-1 capitalize">{selectedBrief.searchIntent || 'Informational'}</p>
+                      </div>
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Suggested Length</span>
+                        <p className="font-bold text-slate-900 mt-1">{selectedBrief.recommendedWordCount || 1500} words</p>
+                      </div>
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Status</span>
+                        <p className="font-bold text-slate-900 mt-1 capitalize">{selectedBrief.status}</p>
+                      </div>
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Generated</span>
+                        <p className="font-bold text-slate-900 mt-1">{new Date(selectedBrief.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+
+                    {/* Meta Description */}
+                    <div>
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-wide mb-2">Meta Description</h3>
+                      <div className="p-4 bg-slate-50 border border-slate-150 rounded-xl text-slate-700 text-sm italic">
+                        {selectedBrief.metaDescription || 'No meta description generated.'}
+                      </div>
+                    </div>
+
+                    {/* Keywords Section */}
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-wide mb-3">🔑 Primary Keywords</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.isArray(selectedBrief.primaryKeywords) ? (
+                            selectedBrief.primaryKeywords.map((k: string, i: number) => (
+                              <span key={i} className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl text-xs font-bold">
+                                {k}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl text-xs font-bold">
+                              {selectedBrief.targetKeyword}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-wide mb-3">🔑 Secondary Keywords</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.isArray(selectedBrief.secondaryKeywords) && selectedBrief.secondaryKeywords.length > 0 ? (
+                            selectedBrief.secondaryKeywords.map((k: string, i: number) => (
+                              <span key={i} className="px-3 py-1 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold">
+                                {k}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-400">None generated</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Outline / Outline Guidelines */}
+                    <div>
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-wide mb-3">📋 Document Structure Outline</h3>
+                      <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                        <div className="text-sm font-semibold text-slate-800 border-b border-slate-200 pb-2 mb-3">
+                          Headings Checklist:
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 mb-4">
+                          {Array.isArray(selectedBrief.headings) && selectedBrief.headings.map((h: string, i: number) => (
+                            <div key={i} className="flex items-center gap-2 text-xs text-slate-700 bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
+                              <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full flex-shrink-0"></span>
+                              {h}
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="text-sm font-semibold text-slate-800 border-b border-slate-200 pb-2 pt-2 mb-2">
+                          Outline Section Guidelines:
+                        </div>
+                        <div className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed bg-white p-4 rounded-xl border border-slate-150 shadow-sm">
+                          {selectedBrief.outline}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Competitor Insights */}
+                    <div>
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-wide mb-3">📊 Competitor Insights & Strategy</h3>
+                      <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                        {selectedBrief.competitorNotes}
+                      </div>
+                    </div>
+
+                    {/* Recommendations & FAQ */}
+                    <div>
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-wide mb-3">💡 Optimization Recommendations & FAQs</h3>
+                      <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                        {selectedBrief.contentRecommendations}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl flex justify-between gap-3 flex-shrink-0">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const markdown = formatBriefAsMarkdown(selectedBrief);
+                          navigator.clipboard.writeText(markdown);
+                          toast.success('Formatted Brief copied to Clipboard!');
+                        }}
+                        className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                      >
+                        📋 Copy formatted text
+                      </button>
+                      <button
+                        onClick={() => {
+                          const markdown = formatBriefAsMarkdown(selectedBrief);
+                          const blob = new Blob([markdown], { type: 'text/markdown' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `seo-brief-${selectedBrief.targetKeyword.replace(/\s+/g, '-')}.md`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                          toast.success('Downloaded SEO Brief Markdown file!');
+                        }}
+                        className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                      >
+                        📥 Download .MD file
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setSelectedBrief(null)}
+                      className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 shadow-md"
+                    >
+                      Close Brief
                     </button>
                   </div>
                 </div>

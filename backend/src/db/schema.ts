@@ -988,3 +988,31 @@ export const seoContentBriefs = sqliteTable(
   updatedAt: text('updated_at')
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+// New SEO Briefs Table per updated spec
+export const seoBriefs = sqliteTable(
+  'seo_briefs', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id,
+      { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id,
+      { onDelete: 'cascade' }),
+  targetKeyword: text('target_keyword').notNull(),
+  title: text('title').notNull(),
+  metaDescription: text('meta_description'),
+  searchIntent: text('search_intent').default('informational'),
+  recommendedWordCount: integer('recommended_word_count').default(1500),
+  primaryKeywords: text('primary_keywords').default('[]'),
+  secondaryKeywords: text('secondary_keywords').default('[]'),
+  headings: text('headings').default('[]'),
+  outline: text('outline'),
+  competitorNotes: text('competitor_notes'),
+  contentRecommendations: text('content_recommendations'),
+  status: text('status').default('draft'),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});

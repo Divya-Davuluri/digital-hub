@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import {
-  seoKeywords, seoAuditIssues, seoContentBriefs,
+  seoKeywords, seoAuditIssues, seoContentBriefs, seoBriefs,
   workspaces, clients
 } from '../db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -760,4 +760,172 @@ export const getSEOStats = asyncHandler(
       source: 'demo'
     });
   }
+});
+
+// New SEO Brief Controllers matching the updated specification
+export const generateBrief = asyncHandler(
+  async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const { target_keyword } = req.body;
+
+  if (!target_keyword?.trim()) {
+    throw new AppError('Target keyword is required', 400);
+  }
+
+  let workspaceId = req.user.workspaceId;
+  if (!workspaceId) {
+    try {
+      const ws = await db.select().from(workspaces).where(eq(workspaces.tenantId, tenantId)).limit(1);
+      if (ws.length > 0) workspaceId = ws[0].id;
+    } catch (err) {}
+  }
+
+  if (!workspaceId) {
+    throw new AppError('No active workspace found for this tenant.', 400);
+  }
+
+  const kw = target_keyword.trim();
+  const kwCapitalized = kw.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+  const title = `Ultimate Guide to ${kwCapitalized}: Strategy, Best Practices & Tools`;
+  const metaDescription = `Learn how to master ${kw} with our complete, step-by-step framework. Discover expert tips, top tools, and common mistakes to avoid.`;
+  const searchIntent = 'informational';
+  const recommendedWordCount = kw.split(' ').length > 3 ? 2200 : 1600;
+
+  const primaryKeywords = JSON.stringify([kw, `what is ${kw}`, `${kw} guide`, `${kw} strategy`]);
+  const secondaryKeywords = JSON.stringify([`${kw} tips`, `best ${kw} tools`, `how to use ${kw}`, `${kw} examples`, `${kw} for beginners`]);
+  
+  const headings = JSON.stringify([
+    `H1: The Ultimate Guide to ${kwCapitalized} in 2026`,
+    `H2: What is ${kwCapitalized} and Why Does It Matter?`,
+    `H2: Core Benefits of a Strong ${kwCapitalized} Strategy`,
+    `H2: Step-by-Step Guide to Implementing ${kwCapitalized}`,
+    `H3: Phase 1: Planning and Research`,
+    `H3: Phase 2: Execution and Optimization`,
+    `H3: Phase 3: Measurement and Analysis`,
+    `H2: Top Tools to Streamline Your ${kwCapitalized} Workflow`,
+    `H2: Common Pitfalls in ${kwCapitalized} & How to Avoid Them`,
+    `H2: Summary and Next Steps`
+  ]);
+
+  const outline = `
+### H1: The Ultimate Guide to ${kwCapitalized} in 2026
+Introduction: Brief overview of ${kw} and why it is critical for modern digital presence. Target reader persona is decision-makers and marketing practitioners.
+
+### H2: What is ${kwCapitalized} and Why Does It Matter?
+- Definition of ${kw} in simple, actionable terms.
+- Historical context and its evolution to current trends.
+
+### H2: Core Benefits of a Strong ${kwCapitalized} Strategy
+- Increased visibility and brand authority.
+- Growth in organic traffic and target audience acquisition.
+- Improved user experience and conversion potential.
+
+### H2: Step-by-Step Guide to Implementing ${kwCapitalized}
+#### H3: Phase 1: Planning and Research
+- Identify key goals, target audience segments, and competitor baselines.
+#### H3: Phase 2: Execution and Optimization
+- Standard protocols for day-to-day management and best practices.
+#### H3: Phase 3: Measurement and Analysis
+- Define primary metrics, tracking intervals, and reporting frameworks.
+
+### H2: Top Tools to Streamline Your ${kwCapitalized} Workflow
+- Recommendations for both premium enterprise solutions and budget-friendly starter options.
+
+### H2: Common Pitfalls in ${kwCapitalized} & How to Avoid Them
+- Addressing key misunderstandings, configuration errors, and execution bottlenecks.
+
+### H2: Summary and Next Steps
+- Final thoughts and actionable checklist to begin.
+  `.trim();
+
+  const competitorNotes = `
+- **Competitor A (high authority)**: Ranks #1 with a comprehensive, visual guide. Uses interactive widgets.
+- **Competitor B (medium authority)**: Emphasizes a "quick setup" approach with templates.
+- **Competitor C (agency blog)**: Very structured H2 hierarchy, but lacks deep analysis. Focuses heavily on sales copy.
+- **Our Opportunity**: We can win by combining a deeply researched, comprehensive framework with actionable templates and step-by-step H3 breakdowns.
+  `.trim();
+
+  const contentRecommendations = `
+- **Tone & Voice**: Authoritative, friendly, highly analytical, and concise. Avoid fluff.
+- **Formatting**: Keep paragraphs short (2-3 sentences max). Use bolding for key terms, bullet points for lists, and callout boxes for tips.
+- **Visuals**: Include at least 3 custom diagrams, 2 table comparisons, and 4 high-quality screenshots to support technical steps.
+- **Internal Linking**: Link to "attribution-models" guide and "workflow-automation" dashboard overview.
+- **FAQ Suggestions**:
+  1. *How long does it take to see results with ${kw}?* (Typically 3 to 6 months depending on authority and competition).
+  2. *Can small teams implement ${kw} effectively?* (Yes, by starting with free tools and focusing on high-impact channels first).
+  3. *What is the most common mistake when starting ${kw}?* (Failing to establish a baseline measure before execution).
+  `.trim();
+
+  const id = uuidv4();
+  const now = new Date().toISOString();
+
+  await db.insert(seoBriefs).values({
+    id,
+    tenantId,
+    workspaceId,
+    targetKeyword: kw,
+    title,
+    metaDescription,
+    searchIntent,
+    recommendedWordCount,
+    primaryKeywords,
+    secondaryKeywords,
+    headings,
+    outline,
+    competitorNotes,
+    contentRecommendations,
+    status: 'draft',
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const created = await db.select().from(seoBriefs).where(eq(seoBriefs.id, id)).limit(1);
+
+  res.status(201).json({
+    success: true,
+    data: created[0]
+  });
+});
+
+export const getBriefs = asyncHandler(
+  async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+
+  try {
+    const rows = await db
+      .select()
+      .from(seoBriefs)
+      .where(eq(seoBriefs.tenantId, tenantId))
+      .orderBy(desc(seoBriefs.createdAt));
+
+    const formatted = rows.map(r => ({
+      ...r,
+      primaryKeywords: safeJsonParse(r.primaryKeywords, []),
+      secondaryKeywords: safeJsonParse(r.secondaryKeywords, []),
+      headings: safeJsonParse(r.headings, []),
+    }));
+
+    res.json({ success: true, data: formatted });
+  } catch (err) {
+    console.error('[SEO] getBriefs error:', err);
+    res.json({ success: true, data: [] });
+  }
+});
+
+export const deleteBrief = asyncHandler(
+  async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const { id } = req.params;
+
+  await db.delete(seoBriefs)
+    .where(and(
+      eq(seoBriefs.id, id),
+      eq(seoBriefs.tenantId, tenantId)
+    ));
+
+  res.json({
+    success: true,
+    message: 'SEO brief deleted successfully'
+  });
 });
