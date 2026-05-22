@@ -1016,3 +1016,25 @@ export const seoBriefs = sqliteTable(
   updatedAt: text('updated_at')
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+// New SEO Audits summary table
+export const seoAudits = sqliteTable(
+  'seo_audits', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id,
+      { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id,
+      { onDelete: 'cascade' }),
+  domain: text('domain').notNull(),
+  siteScore: integer('site_score').default(100),
+  criticalIssues: integer('critical_issues').default(0),
+  highIssues: integer('high_issues').default(0),
+  mediumIssues: integer('medium_issues').default(0),
+  lowIssues: integer('low_issues').default(0),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});

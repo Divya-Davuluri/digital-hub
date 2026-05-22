@@ -41,13 +41,39 @@ export default function SEOContentPage() {
 
   const loadAll = async () => {
     setLoading(true);
+    let activeDom = 'yourdomain.com';
+    try {
+      const resK = await apiCall('/seo/keywords');
+      const data = resK?.data || resK || [];
+      setKeywords(Array.isArray(data) ? data : []);
+      if (Array.isArray(data) && data.length > 0) {
+        const found = data.find(k => k.domain);
+        if (found) {
+          setDomain(found.domain);
+          activeDom = found.domain;
+        }
+      }
+    } catch (err) {
+      setKeywords(getDemoKeywordsFallback());
+    }
+
     await Promise.all([
       loadStats(),
-      loadKeywords(),
       loadContentBriefs(),
       loadCompetitorGap(),
+      loadAudit(activeDom),
     ]);
     setLoading(false);
+  };
+
+  const loadAudit = async (currentDomain?: string) => {
+    const d = currentDomain || domain || 'yourdomain.com';
+    try {
+      const res = await apiCall(`/seo/audit?domain=${encodeURIComponent(d)}`);
+      if (res?.data) {
+        setAuditData(res.data);
+      }
+    } catch (err) {}
   };
 
   const loadStats = async () => {
@@ -182,6 +208,7 @@ export default function SEOContentPage() {
       });
       setAuditData(res?.data || res);
       toast.success('Site audit complete!');
+      await loadStats();
     } catch (err) {
       toast.error('Audit failed');
       // Show demo audit data
@@ -369,26 +396,45 @@ ${brief.contentRecommendations || 'N/A'}
 
             {/* STATS BAR */}
             <div className="grid grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
-              {[
-                { label:'Keywords', icon:'🎯', value:stats?.totalKeywords||0 },
-                { label:'Top 10', icon:'🏆', value:stats?.top10Keywords||0 },
-                { label:'Avg Rank', icon:'📊', value:stats?.avgRank||0 },
-                { label:'Improved', icon:'📈', value:stats?.rankingImproved||0 },
-                { label:'Declined', icon:'📉', value:stats?.rankingDeclined||0 },
-                { label:'Issues', icon:'⚠️', value:stats?.totalIssues||0 },
-                { label:'Critical', icon:'🚨', value:stats?.criticalIssues||0 },
-                { label:'Site Score', icon:'💯', value:`${stats?.siteScore||0}` },
-              ].map(stat => (
-                <div key={stat.label} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                  <p className="text-lg mb-1">{stat.icon}</p>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                    {stat.label}
-                  </p>
-                  <p className="text-xl font-black text-slate-900 mt-0.5">
-                    {stat.value}
-                  </p>
-                </div>
-              ))}
+              {loading ? (
+                Array.from({ length: 8 }).map((_, idx) => (
+                  <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 animate-pulse">
+                    <div className="h-6 w-6 bg-slate-100 rounded mb-2"></div>
+                    <div className="h-3 w-16 bg-slate-100 rounded mb-1"></div>
+                    <div className="h-5 w-12 bg-slate-100 rounded"></div>
+                  </div>
+                ))
+              ) : (
+                [
+                  { label:'Keywords', icon:'🎯', value:stats?.totalKeywords||0 },
+                  { label:'Top 10', icon:'🏆', value:stats?.top10Keywords||0 },
+                  { label:'Avg Rank', icon:'📊', value:stats?.avgRank||0 },
+                  { label:'Improved', icon:'📈', value:stats?.rankingImproved||0 },
+                  { label:'Declined', icon:'📉', value:stats?.rankingDeclined||0 },
+                  { label:'Issues', icon:'⚠️', value:stats?.totalIssues||0 },
+                  { label:'Critical', icon:'🚨', value:stats?.criticalIssues||0 },
+                  { label:'Site Score', icon:'💯', value:stats?.siteScore ?? 100 },
+                ].map(stat => {
+                  let valColor = 'text-slate-900';
+                  if (stat.label === 'Site Score') {
+                    const numScore = Number(stat.value);
+                    if (numScore >= 70) valColor = 'text-green-600 font-extrabold';
+                    else if (numScore >= 40) valColor = 'text-yellow-500 font-extrabold';
+                    else valColor = 'text-red-500 font-extrabold';
+                  }
+                  return (
+                    <div key={stat.label} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 transition-all hover:shadow-md">
+                      <p className="text-lg mb-1">{stat.icon}</p>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                        {stat.label}
+                      </p>
+                      <p className={`text-xl font-black mt-0.5 ${valColor}`}>
+                        {stat.value}
+                      </p>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             {/* TAB NAVIGATION */}

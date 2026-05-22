@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import {
-  seoKeywords, seoAuditIssues, seoContentBriefs, seoBriefs,
+  seoKeywords, seoAuditIssues, seoContentBriefs, seoBriefs, seoAudits,
   workspaces, clients
 } from '../db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -420,6 +420,11 @@ export const deleteKeyword = asyncHandler(
   });
 });
 
+const calculateSEOScore = (critical: number, high: number, medium: number, low: number): number => {
+  const score = 100 - (critical * 15) - (high * 8) - (medium * 4) - (low * 1);
+  return Math.min(100, Math.max(0, score));
+};
+
 export const runSiteAudit = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
@@ -441,8 +446,7 @@ export const runSiteAudit = asyncHandler(
     throw new AppError('No active workspace found for this tenant.', 400);
   }
 
-  const demoIssues = getDemoAuditIssues(
-    domain.trim());
+  const demoIssues = getDemoAuditIssues(domain.trim());
   const now = new Date().toISOString();
 
   // Save audit issues to DB
@@ -468,28 +472,68 @@ export const runSiteAudit = asyncHandler(
     console.error('[SEO] Audit save error:', dbErr);
   }
 
-  // Calculate scores
-  const critical = demoIssues.filter(
-    i => i.severity === 'critical').length;
-  const high = demoIssues.filter(
-    i => i.severity === 'high').length;
-  const medium = demoIssues.filter(
-    i => i.severity === 'medium').length;
+  // Calculate scores using the exact new spec formula
+  const critical = demoIssues.filter(i => i.severity === 'critical').length;
+  const high = demoIssues.filter(i => i.severity === 'high').length;
+  const medium = demoIssues.filter(i => i.severity === 'medium').length;
+  const low = demoIssues.filter(i => i.severity === 'low').length;
 
-  const score = Math.max(0, 100 - 
-    (critical * 15) - (high * 8) - (medium * 3));
+  const score = calculateSEOScore(critical, high, medium, low);
+
+  // Save/Update score in seoAudits table
+  try {
+    const existingAudit = await db.select().from(seoAudits)
+      .where(and(
+        eq(seoAudits.tenantId, tenantId),
+        eq(seoAudits.workspaceId, workspaceId),
+        eq(seoAudits.domain, domain.trim())
+      )).limit(1);
+
+    if (existingAudit.length > 0) {
+      await db.update(seoAudits)
+        .set({
+          siteScore: score,
+          criticalIssues: critical,
+          highIssues: high,
+          mediumIssues: medium,
+          lowIssues: low,
+          updatedAt: now
+        })
+        .where(eq(seoAudits.id, existingAudit[0].id));
+    } else {
+      await db.insert(seoAudits).values({
+        id: uuidv4(),
+        tenantId,
+        workspaceId,
+        domain: domain.trim(),
+        siteScore: score,
+        criticalIssues: critical,
+        highIssues: high,
+        mediumIssues: medium,
+        lowIssues: low,
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+  } catch (auditDbErr) {
+    console.error('[SEO] Save audit summary error:', auditDbErr);
+  }
 
   res.json({
     success: true,
     data: {
       domain: domain.trim(),
-      score,
+      score, // old key
+      siteScore: score, // new key
       totalIssues: demoIssues.length,
-      critical,
-      high,
-      medium,
-      low: demoIssues.filter(
-        i => i.severity === 'low').length,
+      critical, // old key
+      criticalIssues: critical, // new key
+      high, // old key
+      highIssues: high, // new key
+      medium, // old key
+      mediumIssues: medium, // new key
+      low, // old key
+      lowIssues: low, // new key
       issues: demoIssues,
       auditDate: now,
       metrics: {
@@ -516,21 +560,86 @@ export const getAuditIssues = asyncHandler(
       .where(eq(seoAuditIssues.tenantId, tenantId))
       .orderBy(desc(seoAuditIssues.createdAt));
 
+    const summary = await db
+      .select()
+      .from(seoAudits)
+      .where(eq(seoAudits.tenantId, tenantId))
+      .orderBy(desc(seoAudits.createdAt))
+      .limit(1);
+
     if (rows.length === 0) {
+      const demo = getDemoAuditIssues((domain as string) || 'yourdomain.com');
+      const critical = demo.filter(i => i.severity === 'critical').length;
+      const high = demo.filter(i => i.severity === 'high').length;
+      const medium = demo.filter(i => i.severity === 'medium').length;
+      const low = demo.filter(i => i.severity === 'low').length;
+      const score = calculateSEOScore(critical, high, medium, low);
+
       return res.json({
         success: true,
-        data: getDemoAuditIssues(
-          (domain as string) || 'yourdomain.com'),
+        data: {
+          domain: (domain as string) || 'yourdomain.com',
+          score,
+          siteScore: score,
+          critical,
+          criticalIssues: critical,
+          high,
+          highIssues: high,
+          medium,
+          mediumIssues: medium,
+          low,
+          lowIssues: low,
+          totalIssues: demo.length,
+          issues: demo,
+          metrics: {
+            pageSpeed: 67,
+            mobileScore: 78,
+            lcp: '3.2s',
+            fid: '45ms',
+            cls: 0.18,
+            ttfb: '0.8s',
+          }
+        },
         source: 'demo'
       });
     }
 
-    res.json({ success: true, data: rows });
+    const critical = rows.filter(i => i.severity === 'critical' && i.isFixed === 0).length;
+    const high = rows.filter(i => i.severity === 'high' && i.isFixed === 0).length;
+    const medium = rows.filter(i => i.severity === 'medium' && i.isFixed === 0).length;
+    const low = rows.filter(i => i.severity === 'low' && i.isFixed === 0).length;
+    const score = summary.length > 0 ? (summary[0].siteScore ?? 100) : calculateSEOScore(critical, high, medium, low);
+
+    res.json({
+      success: true,
+      data: {
+        domain: (domain as string) || rows[0].domain,
+        score,
+        siteScore: score,
+        critical,
+        criticalIssues: critical,
+        high,
+        highIssues: high,
+        medium,
+        mediumIssues: medium,
+        low,
+        lowIssues: low,
+        totalIssues: rows.length,
+        issues: rows,
+        metrics: {
+          pageSpeed: 67,
+          mobileScore: 78,
+          lcp: '3.2s',
+          fid: '45ms',
+          cls: 0.18,
+          ttfb: '0.8s',
+        }
+      }
+    });
   } catch (err) {
     res.json({
       success: true,
-      data: getDemoAuditIssues(
-        (domain as string) || 'yourdomain.com'),
+      data: getDemoAuditIssues((domain as string) || 'yourdomain.com'),
       source: 'demo'
     });
   }
@@ -692,6 +801,13 @@ export const getSEOStats = asyncHandler(
       .from(seoAuditIssues)
       .where(eq(seoAuditIssues.tenantId, tenantId));
 
+    const briefs = await db
+      .select()
+      .from(seoBriefs)
+      .where(eq(seoBriefs.tenantId, tenantId));
+
+    const totalBriefs = briefs.length;
+
     if (keywords.length === 0) {
       return res.json({
         success: true,
@@ -704,30 +820,64 @@ export const getSEOStats = asyncHandler(
           totalIssues:       7,
           criticalIssues:    2,
           siteScore:         62,
-          totalBriefs:       2,
+          totalBriefs:       totalBriefs || 2,
         },
         source: 'demo'
       });
     }
 
     const top10 = keywords.filter(
-      k => (k.currentRank||0) <= 10).length;
+      k => k.currentRank !== null && (k.currentRank ?? 0) > 0 && (k.currentRank ?? 0) <= 10
+    ).length;
+
     const improved = keywords.filter(
-      k => (k.rankChange||0) > 0).length;
+      k => (k.rankChange||0) > 0
+    ).length;
+
     const declined = keywords.filter(
-      k => (k.rankChange||0) < 0).length;
+      k => (k.rankChange||0) < 0
+    ).length;
+
     const avgRank = keywords.length > 0
       ? parseFloat((keywords.reduce(
           (s,k) => s + (k.currentRank||0), 0
         ) / keywords.length).toFixed(1))
       : 0;
+
     const critical = issues.filter(
-      i => i.severity === 'critical' &&
-           i.isFixed === 0).length;
+      i => i.severity === 'critical' && i.isFixed === 0
+    ).length;
+
+    const high = issues.filter(
+      i => i.severity === 'high' && i.isFixed === 0
+    ).length;
+
+    const medium = issues.filter(
+      i => i.severity === 'medium' && i.isFixed === 0
+    ).length;
+
+    const low = issues.filter(
+      i => i.severity === 'low' && i.isFixed === 0
+    ).length;
+
     const totalIssues = issues.filter(
-      i => i.isFixed === 0).length;
-    const score = Math.max(0,
-      100 - (critical * 15) - (totalIssues * 3));
+      i => i.isFixed === 0
+    ).length;
+
+    // Retrieve saved site score summary or calculate fallback
+    const summary = await db
+      .select()
+      .from(seoAudits)
+      .where(eq(seoAudits.tenantId, tenantId))
+      .orderBy(desc(seoAudits.createdAt))
+      .limit(1);
+
+    let score = 100;
+    if (summary.length > 0) {
+      score = summary[0].siteScore ?? 100;
+    } else if (issues.length > 0) {
+      score = calculateSEOScore(critical, high, medium, low);
+    }
 
     res.json({
       success: true,
@@ -740,7 +890,7 @@ export const getSEOStats = asyncHandler(
         totalIssues,
         criticalIssues:  critical,
         siteScore:       score,
-        totalBriefs:     0,
+        totalBriefs:     totalBriefs,
       }
     });
   } catch (err) {
