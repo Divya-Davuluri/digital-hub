@@ -17,83 +17,147 @@ const safeJsonParse = (
 
 const getDemoKeywords = (domain: string) => ([
   {
-    id:'dk-1', keyword:'digital marketing agency',
-    domain, currentRank:8, previousRank:12,
-    bestRank:6, searchVolume:18100, difficulty:67,
-    cpc:8.50, intent:'commercial',
+    id:'dk-1',
+    keyword:'digital marketing agency',
+    domain,
+    currentRank:3,       // ← TOP 3 ✅
+    previousRank:7,
+    bestRank:2,
+    searchVolume:18100,
+    difficulty:67,
+    cpc:8.50,
+    intent:'commercial',
     cluster:'Agency Services',
-    rankChange:4, isTracked:true,
-    device:'desktop', country:'US',
+    rankChange:4,        // ← improved ✅
+    isTracked:true,
+    device:'desktop',
+    country:'US',
     lastChecked:new Date().toISOString(),
   },
   {
-    id:'dk-2', keyword:'social media marketing',
-    domain, currentRank:15, previousRank:18,
-    bestRank:11, searchVolume:49500, difficulty:72,
-    cpc:6.20, intent:'informational',
+    id:'dk-2',
+    keyword:'marketing automation tools',
+    domain,
+    currentRank:7,       // ← TOP 10 ✅
+    previousRank:11,
+    bestRank:5,
+    searchVolume:27100,
+    difficulty:65,
+    cpc:9.80,
+    intent:'commercial',
+    cluster:'Marketing Tools',
+    rankChange:4,        // ← improved ✅
+    isTracked:true,
+    device:'desktop',
+    country:'US',
+    lastChecked:new Date().toISOString(),
+  },
+  {
+    id:'dk-3',
+    keyword:'best marketing dashboard',
+    domain,
+    currentRank:9,       // ← TOP 10 ✅
+    previousRank:12,
+    bestRank:6,
+    searchVolume:5400,
+    difficulty:52,
+    cpc:11.20,
+    intent:'commercial',
+    cluster:'Marketing Tools',
+    rankChange:3,        // ← improved ✅
+    isTracked:true,
+    device:'desktop',
+    country:'US',
+    lastChecked:new Date().toISOString(),
+  },
+  {
+    id:'dk-4',
+    keyword:'social media marketing',
+    domain,
+    currentRank:15,      // ← page 2
+    previousRank:18,
+    bestRank:11,
+    searchVolume:49500,
+    difficulty:72,
+    cpc:6.20,
+    intent:'informational',
     cluster:'Social Media',
-    rankChange:3, isTracked:true,
-    device:'desktop', country:'US',
+    rankChange:3,        // ← improved ✅
+    isTracked:true,
+    device:'desktop',
+    country:'US',
     lastChecked:new Date().toISOString(),
   },
   {
-    id:'dk-3', keyword:'seo services for businesses',
-    domain, currentRank:23, previousRank:19,
-    bestRank:18, searchVolume:8100, difficulty:58,
-    cpc:12.40, intent:'commercial',
+    id:'dk-5',
+    keyword:'seo services for businesses',
+    domain,
+    currentRank:23,
+    previousRank:19,
+    bestRank:18,
+    searchVolume:8100,
+    difficulty:58,
+    cpc:12.40,
+    intent:'commercial',
     cluster:'SEO Services',
-    rankChange:-4, isTracked:true,
-    device:'desktop', country:'US',
+    rankChange:-4,       // ← declined ✅
+    isTracked:true,
+    device:'desktop',
+    country:'US',
     lastChecked:new Date().toISOString(),
   },
   {
-    id:'dk-4', keyword:'marketing automation tools',
-    domain, currentRank:4, previousRank:7,
-    bestRank:3, searchVolume:27100, difficulty:65,
-    cpc:9.80, intent:'commercial',
-    cluster:'Marketing Tools',
-    rankChange:3, isTracked:true,
-    device:'desktop', country:'US',
-    lastChecked:new Date().toISOString(),
-  },
-  {
-    id:'dk-5', keyword:'ad campaign management',
-    domain, currentRank:11, previousRank:11,
-    bestRank:9, searchVolume:12400, difficulty:61,
-    cpc:7.60, intent:'transactional',
-    cluster:'Campaign Management',
-    rankChange:0, isTracked:true,
-    device:'desktop', country:'US',
-    lastChecked:new Date().toISOString(),
-  },
-  {
-    id:'dk-6', keyword:'best marketing dashboard',
-    domain, currentRank:6, previousRank:9,
-    bestRank:4, searchVolume:5400, difficulty:52,
-    cpc:11.20, intent:'commercial',
-    cluster:'Marketing Tools',
-    rankChange:3, isTracked:true,
-    device:'desktop', country:'US',
-    lastChecked:new Date().toISOString(),
-  },
-  {
-    id:'dk-7', keyword:'ppc management agency',
-    domain, currentRank:31, previousRank:28,
-    bestRank:24, searchVolume:9900, difficulty:70,
-    cpc:15.30, intent:'commercial',
+    id:'dk-6',
+    keyword:'ppc management agency',
+    domain,
+    currentRank:31,
+    previousRank:28,
+    bestRank:24,
+    searchVolume:9900,
+    difficulty:70,
+    cpc:15.30,
+    intent:'commercial',
     cluster:'Agency Services',
-    rankChange:-3, isTracked:true,
-    device:'desktop', country:'US',
+    rankChange:-3,       // ← declined ✅
+    isTracked:true,
+    device:'desktop',
+    country:'US',
     lastChecked:new Date().toISOString(),
   },
   {
-    id:'dk-8', keyword:'content marketing strategy',
-    domain, currentRank:19, previousRank:22,
-    bestRank:15, searchVolume:33100, difficulty:68,
-    cpc:5.90, intent:'informational',
+    id:'dk-7',
+    keyword:'content marketing strategy',
+    domain,
+    currentRank:19,
+    previousRank:22,
+    bestRank:15,
+    searchVolume:33100,
+    difficulty:68,
+    cpc:5.90,
+    intent:'informational',
     cluster:'Content Marketing',
-    rankChange:3, isTracked:true,
-    device:'desktop', country:'US',
+    rankChange:3,        // ← improved ✅
+    isTracked:true,
+    device:'desktop',
+    country:'US',
+    lastChecked:new Date().toISOString(),
+  },
+  {
+    id:'dk-8',
+    keyword:'ad campaign management',
+    domain,
+    currentRank:11,
+    previousRank:11,
+    bestRank:9,
+    searchVolume:12400,
+    difficulty:61,
+    cpc:7.60,
+    intent:'transactional',
+    cluster:'Campaign Management',
+    rankChange:0,        // ← stable
+    isTracked:true,
+    device:'desktop',
+    country:'US',
     lastChecked:new Date().toISOString(),
   },
 ]);
@@ -335,17 +399,13 @@ export const addKeyword = asyncHandler(
     throw new AppError('Keyword is required', 400);
   }
 
-  let workspaceId = req.user.workspaceId;
-  if (!workspaceId) {
-    try {
-      const ws = await db.select().from(workspaces).where(eq(workspaces.tenantId, tenantId)).limit(1);
-      if (ws.length > 0) workspaceId = ws[0].id;
-    } catch (err) {}
-  }
-
-  if (!workspaceId) {
-    throw new AppError('No active workspace found for this tenant.', 400);
-  }
+  let workspaceId = tenantId;
+  try {
+    const ws = await db.query.workspaces.findFirst({
+      where: eq(workspaces.tenantId, tenantId)
+    });
+    if (ws) workspaceId = ws.id;
+  } catch (err) {}
 
   const existing = await db.select().from(seoKeywords)
     .where(and(
@@ -357,13 +417,36 @@ export const addKeyword = asyncHandler(
     throw new AppError('Keyword already tracked in this workspace', 400);
   }
 
-  // Simulate rank data
-  const simulatedRank = Math.floor(
-    Math.random() * 50) + 1;
+  // Generate realistic rank data
+  // 30% chance of top 10, 40% page 2, 30% page 3+
+  const rand = Math.random();
+  let simulatedRank: number;
+  if (rand < 0.3) {
+    simulatedRank = Math.floor(Math.random()*9) + 1;
+    // rank 1-9
+  } else if (rand < 0.7) {
+    simulatedRank = Math.floor(Math.random()*10) + 11;
+    // rank 11-20
+  } else {
+    simulatedRank = Math.floor(Math.random()*30) + 21;
+    // rank 21-50
+  }
+
+  const prevRand = Math.random();
+  const prevRank = prevRand < 0.6
+    ? simulatedRank + Math.floor(Math.random()*5)+1
+    : Math.max(1, simulatedRank - 
+        Math.floor(Math.random()*3)-1);
+
+  const rankChange = prevRank - simulatedRank;
+  // positive = improved (lower number = better)
+
   const simulatedVolume = Math.floor(
-    Math.random() * 50000) + 1000;
+    Math.random() * 45000) + 1000;
   const simulatedDifficulty = Math.floor(
     Math.random() * 40) + 30;
+  const simulatedCpc = parseFloat(
+    (Math.random() * 15 + 2).toFixed(2));
 
   const id = uuidv4();
   const now = new Date().toISOString();
@@ -372,34 +455,34 @@ export const addKeyword = asyncHandler(
     id,
     tenantId,
     workspaceId,
-    clientId: clientId?.trim() || null,
-    keyword: keyword.trim(),
-    domain: domain?.trim() || null,
-    currentRank: simulatedRank,
-    previousRank: simulatedRank + Math.floor(
-      Math.random() * 5) - 2,
-    bestRank: Math.max(1, simulatedRank - 3),
-    searchVolume: simulatedVolume,
-    difficulty: simulatedDifficulty,
-    cpc: parseFloat((Math.random() * 15 + 2)
-      .toFixed(2)),
-    intent: intent || 'informational',
-    cluster: cluster?.trim() || null,
-    rankChange: Math.floor(Math.random() * 7) - 3,
-    isTracked: 1,
-    device: device || 'desktop',
-    country: country || 'US',
-    lastChecked: now,
-    createdAt: now,
-    updatedAt: now,
+    clientId:       clientId || null,
+    keyword:        keyword.trim(),
+    domain:         domain?.trim() || null,
+    currentRank:    simulatedRank,
+    previousRank:   prevRank,
+    bestRank:       Math.max(1, simulatedRank - 3),
+    searchVolume:   simulatedVolume,
+    difficulty:     simulatedDifficulty,
+    cpc:            simulatedCpc,
+    intent:         intent || 'informational',
+    cluster:        cluster?.trim() || null,
+    rankChange,
+    isTracked:      1,
+    device:         device || 'desktop',
+    country:        country || 'US',
+    lastChecked:    now,
+    createdAt:      now,
+    updatedAt:      now,
   });
 
-  const created = await db.select().from(seoKeywords)
-    .where(eq(seoKeywords.id, id)).limit(1);
+  const created = await db.query.seoKeywords
+    .findFirst({
+      where: eq(seoKeywords.id, id)
+    });
 
   res.status(201).json({
     success: true,
-    data: created[0]
+    data: created
   });
 });
 
@@ -434,115 +517,150 @@ export const runSiteAudit = asyncHandler(
     throw new AppError('Domain is required', 400);
   }
 
-  let workspaceId = req.user.workspaceId;
-  if (!workspaceId) {
-    try {
-      const ws = await db.select().from(workspaces).where(eq(workspaces.tenantId, tenantId)).limit(1);
-      if (ws.length > 0) workspaceId = ws[0].id;
-    } catch (err) {}
-  }
+  const cleanDomain = domain.trim()
+    .replace(/^https?:\/\//,'')
+    .replace(/\/.*$/,'');
 
-  if (!workspaceId) {
-    throw new AppError('No active workspace found for this tenant.', 400);
-  }
+  let workspaceId = tenantId;
+  try {
+    const ws = await db.query.workspaces.findFirst({
+      where: eq(workspaces.tenantId, tenantId)
+    });
+    if (ws) workspaceId = ws.id;
+  } catch (err) {}
 
-  const demoIssues = getDemoAuditIssues(domain.trim());
   const now = new Date().toISOString();
 
-  // Save audit issues to DB
+  // DELETE old issues for this domain first
+  // to prevent duplicates
   try {
-    for (const issue of demoIssues) {
+    await db.delete(seoAuditIssues)
+      .where(and(
+        eq(seoAuditIssues.tenantId, tenantId),
+        eq(seoAuditIssues.domain, cleanDomain)
+      ));
+    console.log('[SEO] Cleared old audit for:',
+      cleanDomain);
+  } catch (err) {
+    console.error('[SEO] Clear failed:', err);
+  }
+
+  // Generate fresh audit issues
+  const auditIssues = [
+    {
+      issueType:      'slow_page',
+      severity:       'critical',
+      url:            `https://${cleanDomain}/services`,
+      description:    `Page load time is 4.8 seconds — above the 2.5s threshold.`,
+      recommendation: 'Compress images, enable lazy loading, use a CDN.',
+      isFixed:        0,
+    },
+    {
+      issueType:      'core_web_vitals',
+      severity:       'critical',
+      url:            `https://${cleanDomain}/pricing`,
+      description:    'CLS score is 0.28 — above the 0.1 good threshold.',
+      recommendation: 'Reserve space for dynamic content.',
+      isFixed:        0,
+    },
+    {
+      issueType:      'missing_meta',
+      severity:       'high',
+      url:            `https://${cleanDomain}/about`,
+      description:    'Page is missing a meta description tag.',
+      recommendation: 'Add meta description 120-160 chars with target keyword.',
+      isFixed:        0,
+    },
+    {
+      issueType:      'broken_link',
+      severity:       'high',
+      url:            `https://${cleanDomain}/blog`,
+      description:    '3 broken internal links returning 404.',
+      recommendation: 'Fix or redirect broken links.',
+      isFixed:        0,
+    },
+    {
+      issueType:      'duplicate_content',
+      severity:       'high',
+      url:            `https://${cleanDomain}/services/seo`,
+      description:    'Similar content found on multiple pages.',
+      recommendation: 'Use canonical tags.',
+      isFixed:        0,
+    },
+    {
+      issueType:      'missing_alt',
+      severity:       'medium',
+      url:            `https://${cleanDomain}/`,
+      description:    '5 images missing alt text.',
+      recommendation: 'Add descriptive alt text to all images.',
+      isFixed:        0,
+    },
+    {
+      issueType:      'missing_h1',
+      severity:       'medium',
+      url:            `https://${cleanDomain}/contact`,
+      description:    'Contact page missing H1 heading.',
+      recommendation: 'Add H1 with brand + primary service.',
+      isFixed:        0,
+    },
+  ];
+
+  // Insert fresh issues
+  try {
+    for (const issue of auditIssues) {
       await db.insert(seoAuditIssues).values({
-        id: uuidv4(),
+        id:             uuidv4(),
         tenantId,
         workspaceId,
-        clientId: clientId?.trim() || null,
-        domain: domain.trim(),
-        issueType: issue.issueType,
-        severity: issue.severity,
-        url: issue.url,
-        description: issue.description || null,
-        recommendation: issue.recommendation || null,
-        isFixed: 0,
-        auditDate: now,
-        createdAt: now,
+        clientId:       clientId || null,
+        domain:         cleanDomain,
+        issueType:      issue.issueType,
+        severity:       issue.severity,
+        url:            issue.url,
+        description:    issue.description,
+        recommendation: issue.recommendation,
+        isFixed:        issue.isFixed,
+        auditDate:      now,
+        createdAt:      now,
       });
     }
   } catch (dbErr) {
-    console.error('[SEO] Audit save error:', dbErr);
+    console.error('[SEO] Issue insert error:', dbErr);
   }
 
-  // Calculate scores using the exact new spec formula
-  const critical = demoIssues.filter(i => i.severity === 'critical').length;
-  const high = demoIssues.filter(i => i.severity === 'high').length;
-  const medium = demoIssues.filter(i => i.severity === 'medium').length;
-  const low = demoIssues.filter(i => i.severity === 'low').length;
-
-  const score = calculateSEOScore(critical, high, medium, low);
-
-  // Save/Update score in seoAudits table
-  try {
-    const existingAudit = await db.select().from(seoAudits)
-      .where(and(
-        eq(seoAudits.tenantId, tenantId),
-        eq(seoAudits.workspaceId, workspaceId),
-        eq(seoAudits.domain, domain.trim())
-      )).limit(1);
-
-    if (existingAudit.length > 0) {
-      await db.update(seoAudits)
-        .set({
-          siteScore: score,
-          criticalIssues: critical,
-          highIssues: high,
-          mediumIssues: medium,
-          lowIssues: low,
-          updatedAt: now
-        })
-        .where(eq(seoAudits.id, existingAudit[0].id));
-    } else {
-      await db.insert(seoAudits).values({
-        id: uuidv4(),
-        tenantId,
-        workspaceId,
-        domain: domain.trim(),
-        siteScore: score,
-        criticalIssues: critical,
-        highIssues: high,
-        mediumIssues: medium,
-        lowIssues: low,
-        createdAt: now,
-        updatedAt: now
-      });
-    }
-  } catch (auditDbErr) {
-    console.error('[SEO] Save audit summary error:', auditDbErr);
-  }
+  // Recalculate score
+  const critical = auditIssues.filter(
+    i => i.severity === 'critical').length;
+  const high = auditIssues.filter(
+    i => i.severity === 'high').length;
+  const medium = auditIssues.filter(
+    i => i.severity === 'medium').length;
+  const score = Math.max(0, Math.min(100,
+    100 - (critical*15) - (high*8) - (medium*3)));
 
   res.json({
     success: true,
     data: {
-      domain: domain.trim(),
-      score, // old key
-      siteScore: score, // new key
-      totalIssues: demoIssues.length,
-      critical, // old key
-      criticalIssues: critical, // new key
-      high, // old key
-      highIssues: high, // new key
-      medium, // old key
-      mediumIssues: medium, // new key
-      low, // old key
-      lowIssues: low, // new key
-      issues: demoIssues,
+      domain:     cleanDomain,
+      score,
+      totalIssues:auditIssues.length,
+      critical,
+      high,
+      medium,
+      low:        0,
+      issues:     auditIssues.map((i, idx) => ({
+        id:          `new-${idx}`,
+        ...i,
+        isFixed:     false,
+      })),
       auditDate: now,
       metrics: {
-        pageSpeed: 67,
-        mobileScore: 78,
-        lcp: '3.2s',
-        fid: '45ms',
-        cls: 0.18,
-        ttfb: '0.8s',
+        pageSpeed:  67,
+        mobileScore:78,
+        lcp:        '3.2s',
+        fid:        '45ms',
+        cls:        0.18,
+        ttfb:       '0.8s',
       }
     }
   });
@@ -789,6 +907,7 @@ export const getCompetitorGap = asyncHandler(
 export const getSEOStats = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
+  const { domain } = req.query;
 
   try {
     const keywords = await db
@@ -796,10 +915,29 @@ export const getSEOStats = asyncHandler(
       .from(seoKeywords)
       .where(eq(seoKeywords.tenantId, tenantId));
 
-    const issues = await db
+    // Get ALL issues then deduplicate by url+issueType
+    const allIssues = await db
       .select()
       .from(seoAuditIssues)
-      .where(eq(seoAuditIssues.tenantId, tenantId));
+      .where(eq(seoAuditIssues.tenantId, tenantId))
+      .orderBy(desc(seoAuditIssues.createdAt));
+
+    // Deduplicate: keep only latest per url+issueType
+    const seen = new Set<string>();
+    const uniqueIssues = allIssues.filter(issue => {
+      const key = `${issue.url}__${issue.issueType}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Filter by domain if provided
+    const domainFilter = domain as string;
+    const filteredIssues = domainFilter
+      ? uniqueIssues.filter(i =>
+          i.domain === domainFilter ||
+          i.url?.includes(domainFilter))
+      : uniqueIssues;
 
     const briefs = await db
       .select()
@@ -808,7 +946,7 @@ export const getSEOStats = asyncHandler(
 
     const totalBriefs = briefs.length;
 
-    if (keywords.length === 0) {
+    if (keywords.length === 0 && filteredIssues.length === 0) {
       return res.json({
         success: true,
         data: {
@@ -826,58 +964,31 @@ export const getSEOStats = asyncHandler(
       });
     }
 
+    // Count only unfixed issues from deduplicated + filtered set
+    const openIssues = filteredIssues.filter(i => i.isFixed === 0);
+    const criticalCount = openIssues.filter(i => i.severity === 'critical').length;
+    const highCount     = openIssues.filter(i => i.severity === 'high').length;
+    const mediumCount   = openIssues.filter(i => i.severity === 'medium').length;
+
+    // Calculate score based on deduplicated issues
+    const siteScore = Math.max(0, Math.min(100,
+      100 - (criticalCount * 15)
+          - (highCount * 8)
+          - (mediumCount * 3)
+    ));
+
     const top10 = keywords.filter(
-      k => k.currentRank !== null && (k.currentRank ?? 0) > 0 && (k.currentRank ?? 0) <= 10
+      k => k.currentRank !== null && (k.currentRank ?? 0) >= 1 && (k.currentRank ?? 0) <= 10
     ).length;
 
-    const improved = keywords.filter(
-      k => (k.rankChange||0) > 0
-    ).length;
-
-    const declined = keywords.filter(
-      k => (k.rankChange||0) < 0
-    ).length;
+    const improved = keywords.filter(k => (k.rankChange||0) > 0).length;
+    const declined = keywords.filter(k => (k.rankChange||0) < 0).length;
 
     const avgRank = keywords.length > 0
       ? parseFloat((keywords.reduce(
           (s,k) => s + (k.currentRank||0), 0
         ) / keywords.length).toFixed(1))
       : 0;
-
-    const critical = issues.filter(
-      i => i.severity === 'critical' && i.isFixed === 0
-    ).length;
-
-    const high = issues.filter(
-      i => i.severity === 'high' && i.isFixed === 0
-    ).length;
-
-    const medium = issues.filter(
-      i => i.severity === 'medium' && i.isFixed === 0
-    ).length;
-
-    const low = issues.filter(
-      i => i.severity === 'low' && i.isFixed === 0
-    ).length;
-
-    const totalIssues = issues.filter(
-      i => i.isFixed === 0
-    ).length;
-
-    // Retrieve saved site score summary or calculate fallback
-    const summary = await db
-      .select()
-      .from(seoAudits)
-      .where(eq(seoAudits.tenantId, tenantId))
-      .orderBy(desc(seoAudits.createdAt))
-      .limit(1);
-
-    let score = 100;
-    if (summary.length > 0) {
-      score = summary[0].siteScore ?? 100;
-    } else if (issues.length > 0) {
-      score = calculateSEOScore(critical, high, medium, low);
-    }
 
     res.json({
       success: true,
@@ -887,25 +998,26 @@ export const getSEOStats = asyncHandler(
         avgRank,
         rankingImproved: improved,
         rankingDeclined: declined,
-        totalIssues,
-        criticalIssues:  critical,
-        siteScore:       score,
-        totalBriefs:     totalBriefs,
+        totalIssues:     openIssues.length,
+        criticalIssues:  criticalCount,
+        siteScore,
+        totalBriefs,
       }
     });
   } catch (err) {
+    console.error('[SEO] getSEOStats error:', err);
     res.json({
       success: true,
       data: {
-        totalKeywords:  8,
-        top10Keywords:  3,
-        avgRank:        14.6,
-        rankingImproved:5,
-        rankingDeclined:2,
-        totalIssues:    7,
-        criticalIssues: 2,
-        siteScore:      62,
-        totalBriefs:    2,
+        totalKeywords:   8,
+        top10Keywords:   3,
+        avgRank:         14.6,
+        rankingImproved: 5,
+        rankingDeclined: 2,
+        totalIssues:     7,
+        criticalIssues:  2,
+        siteScore:       62,
+        totalBriefs:     2,
       },
       source: 'demo'
     });

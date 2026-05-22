@@ -39,6 +39,16 @@ export default function SEOContentPage() {
     loadAll();
   }, []);
 
+  // Reload stats when domain changes
+  useEffect(() => {
+    if (domain) {
+      const timer = setTimeout(() => {
+        loadStats();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [domain]);
+
   const loadAll = async () => {
     setLoading(true);
     let activeDom = 'yourdomain.com';
@@ -78,7 +88,10 @@ export default function SEOContentPage() {
 
   const loadStats = async () => {
     try {
-      const res = await apiCall('/seo/stats');
+      const query = domain
+        ? `/seo/stats?domain=${encodeURIComponent(domain)}`
+        : '/seo/stats';
+      const res = await apiCall(query);
       setStats(res?.data || res);
     } catch (err) {
       setStats({
@@ -121,25 +134,25 @@ export default function SEOContentPage() {
 
   const getDemoKeywordsFallback = () => ([
     { id:'f1', keyword:'digital marketing agency',
-      currentRank:8, previousRank:12,
+      currentRank:3, previousRank:7,
       searchVolume:18100, difficulty:67,
       cpc:8.50, intent:'commercial',
       cluster:'Agency Services', rankChange:4 },
     { id:'f2', keyword:'marketing automation tools',
-      currentRank:4, previousRank:7,
+      currentRank:7, previousRank:11,
       searchVolume:27100, difficulty:65,
       cpc:9.80, intent:'commercial',
+      cluster:'Marketing Tools', rankChange:4 },
+    { id:'f3', keyword:'best marketing dashboard',
+      currentRank:9, previousRank:12,
+      searchVolume:5400, difficulty:52,
+      cpc:11.20, intent:'commercial',
       cluster:'Marketing Tools', rankChange:3 },
-    { id:'f3', keyword:'social media marketing',
+    { id:'f4', keyword:'social media marketing',
       currentRank:15, previousRank:18,
       searchVolume:49500, difficulty:72,
       cpc:6.20, intent:'informational',
       cluster:'Social Media', rankChange:3 },
-    { id:'f4', keyword:'seo services for businesses',
-      currentRank:23, previousRank:19,
-      searchVolume:8100, difficulty:58,
-      cpc:12.40, intent:'commercial',
-      cluster:'SEO Services', rankChange:-4 },
   ]);
 
   const getDemoGapFallback = () => ({
@@ -406,34 +419,88 @@ ${brief.contentRecommendations || 'N/A'}
                 ))
               ) : (
                 [
-                  { label:'Keywords', icon:'🎯', value:stats?.totalKeywords||0 },
-                  { label:'Top 10', icon:'🏆', value:stats?.top10Keywords||0 },
-                  { label:'Avg Rank', icon:'📊', value:stats?.avgRank||0 },
-                  { label:'Improved', icon:'📈', value:stats?.rankingImproved||0 },
-                  { label:'Declined', icon:'📉', value:stats?.rankingDeclined||0 },
-                  { label:'Issues', icon:'⚠️', value:stats?.totalIssues||0 },
-                  { label:'Critical', icon:'🚨', value:stats?.criticalIssues||0 },
-                  { label:'Site Score', icon:'💯', value:stats?.siteScore ?? 100 },
-                ].map(stat => {
-                  let valColor = 'text-slate-900';
-                  if (stat.label === 'Site Score') {
-                    const numScore = Number(stat.value);
-                    if (numScore >= 70) valColor = 'text-green-600 font-extrabold';
-                    else if (numScore >= 40) valColor = 'text-yellow-500 font-extrabold';
-                    else valColor = 'text-red-500 font-extrabold';
-                  }
-                  return (
-                    <div key={stat.label} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 transition-all hover:shadow-md">
-                      <p className="text-lg mb-1">{stat.icon}</p>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                        {stat.label}
-                      </p>
-                      <p className={`text-xl font-black mt-0.5 ${valColor}`}>
-                        {stat.value}
-                      </p>
-                    </div>
-                  );
-                })
+                  {
+                    label:  'Keywords',
+                    icon:   '🎯',
+                    value:  stats?.totalKeywords || 0,
+                    color:  'indigo',
+                  },
+                  {
+                    label:  'Top 10',
+                    icon:   '🏆',
+                    value:  stats?.top10Keywords || 0,
+                    color:  (stats?.top10Keywords || 0) > 0
+                              ? 'green' : 'slate',
+                  },
+                  {
+                    label:  'Avg Rank',
+                    icon:   '📊',
+                    value:  `#${stats?.avgRank || 0}`,
+                    color:  (stats?.avgRank || 0) <= 10
+                              ? 'green'
+                              : (stats?.avgRank || 0) <= 20
+                              ? 'yellow'
+                              : 'orange',
+                  },
+                  {
+                    label:  'Improved',
+                    icon:   '📈',
+                    value:  stats?.rankingImproved || 0,
+                    color:  'green',
+                  },
+                  {
+                    label:  'Declined',
+                    icon:   '📉',
+                    value:  stats?.rankingDeclined || 0,
+                    color:  (stats?.rankingDeclined || 0) > 0
+                              ? 'red' : 'slate',
+                  },
+                  {
+                    label:  'Issues',
+                    icon:   '⚠️',
+                    value:  stats?.totalIssues || 0,
+                    color:  (stats?.totalIssues || 0) > 10
+                              ? 'red'
+                              : (stats?.totalIssues || 0) > 5
+                              ? 'orange'
+                              : 'green',
+                  },
+                  {
+                    label:  'Critical',
+                    icon:   '🚨',
+                    value:  stats?.criticalIssues || 0,
+                    color:  (stats?.criticalIssues || 0) > 0
+                              ? 'red' : 'green',
+                  },
+                  {
+                    label:  'Score',
+                    icon:   '💯',
+                    value:  stats?.siteScore || 0,
+                    color:  (stats?.siteScore || 0) >= 80
+                              ? 'green'
+                              : (stats?.siteScore || 0) >= 60
+                              ? 'yellow'
+                              : 'red',
+                  },
+                ].map(stat => (
+                  <div key={stat.label}
+                    className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 transition-all hover:shadow-md">
+                    <p className="text-lg mb-1">{stat.icon}</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                      {stat.label}
+                    </p>
+                    <p className={`text-xl font-black mt-0.5 ${
+                      stat.color === 'green'  ? 'text-green-600'
+                      : stat.color === 'red'   ? 'text-red-600'
+                      : stat.color === 'orange'? 'text-orange-500'
+                      : stat.color === 'yellow'? 'text-yellow-600'
+                      : stat.color === 'indigo'? 'text-indigo-600'
+                      : 'text-slate-900'
+                    }`}>
+                      {stat.value}
+                    </p>
+                  </div>
+                ))
               )}
             </div>
 
