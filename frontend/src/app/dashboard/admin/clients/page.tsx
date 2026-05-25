@@ -82,7 +82,8 @@ export default function AdminClientsPage() {
         body: JSON.stringify({
           name: editingClient.name,
           email: editingClient.email,
-          status: editingClient.status
+          status: editingClient.status,
+          assignedTeamMemberId: editingClient.assignedTeamMemberId || null
         }),
       });
       setShowEditModal(false);
@@ -231,8 +232,27 @@ export default function AdminClientsPage() {
             <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl relative z-10 p-8 space-y-6">
               <h2 className="text-xl font-bold text-slate-900">Edit Settings</h2>
               <form className="space-y-4" onSubmit={handleUpdateClient}>
-                <input type="text" value={editingClient.name} onChange={(e) => setEditingClient({...editingClient, name: e.target.value})} className="w-full px-5 py-3 bg-slate-50 border rounded-2xl" required />
-                <button type="submit" disabled={submitting} className="w-full py-3 bg-slate-900 text-white rounded-2xl font-bold">{submitting ? "Saving..." : "Update"}</button>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 mb-1">Contact Name</label>
+                  <input type="text" value={editingClient.name} onChange={(e) => setEditingClient({...editingClient, name: e.target.value})} className="w-full px-5 py-3 bg-slate-50 border rounded-2xl" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 mb-1">Status</label>
+                  <select className="w-full px-5 py-3 bg-slate-50 border rounded-2xl" value={editingClient.status || "active"} onChange={(e) => setEditingClient({...editingClient, status: e.target.value})} >
+                    <option value="active">Active</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest pl-1 mb-1">Assigned Team Member</label>
+                  <select className="w-full px-5 py-3 bg-slate-50 border rounded-2xl" value={editingClient.assignedTeamMemberId || ""} onChange={(e) => setEditingClient({...editingClient, assignedTeamMemberId: e.target.value})} >
+                    <option value="">No Member Assigned</option>
+                    {teamMembers.map(member => (
+                      <option key={member.id} value={member.id}>{member.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <button type="submit" disabled={submitting} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold mt-4 shadow-lg shadow-indigo-100">{submitting ? "Saving..." : "Update"}</button>
               </form>
             </div>
           </div>

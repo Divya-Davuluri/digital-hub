@@ -165,11 +165,16 @@ export const createClient = asyncHandler(async (req: any, res: Response) => {
 
 export const updateClient = asyncHandler(async (req: any, res: Response) => {
   const { id } = req.params;
-  const { name, email, status } = req.body;
+  const { name, email, status, assignedTeamMemberId } = req.body;
   const { tenantId } = req.user;
 
+  const updateFields: any = { name, email, status };
+  if (assignedTeamMemberId !== undefined) {
+    updateFields.assignedTeamMemberId = assignedTeamMemberId || null;
+  }
+
   await db.update(clients)
-    .set({ name, email, status })
+    .set(updateFields)
     .where(and(eq(clients.id, id), eq(clients.tenantId, tenantId)));
 
   res.json({ success: true, message: 'Client updated successfully' });

@@ -833,11 +833,16 @@ export const teamAssignments = sqliteTable('team_assignments', {
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  teamMemberId: text('team_member_id'),
   clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
   campaignId: text('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }),
   contactId: text('contact_id').references(() => contacts.id, { onDelete: 'cascade' }),
   workflowId: text('workflow_id').references(() => workflows.id, { onDelete: 'cascade' }),
+  projectId: text('project_id'),
+  assignedBy: text('assigned_by'),
+  status: text('status'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const clientUsers = sqliteTable('client_users', {

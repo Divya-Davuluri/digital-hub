@@ -4,7 +4,7 @@ import { config } from '../config/env';
 import { AppError } from '../utils/errors';
 import { db } from '../db';
 import { teamAssignments, users, workspaces } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 
 /**
  * Middleware to verify JWT and attach user context
@@ -13,12 +13,9 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
   const authHeader = req.headers.authorization;
   const tokenFromCookie = req.cookies?.token;
 
-  let token = '';
-
+  let token = tokenFromCookie;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (tokenFromCookie) {
-    token = tokenFromCookie;
   }
 
   if (!token) {
@@ -34,12 +31,17 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     let assignedWorkflowIds: string[] = [];
 
     // For team members, fetch their specific assignments from DB
-    if (decoded.role === 'team') {
+    if (decoded.role === 'team' || decoded.role === 'TEAM_MEMBER') {
       try {
-        const assignments = await db.select().from(teamAssignments).where(eq(teamAssignments.userId, decoded.userId));
+        const assignments = await db.select().from(teamAssignments).where(
+          or(
+            eq(teamAssignments.userId, decoded.userId),
+            eq(teamAssignments.teamMemberId, decoded.userId)
+          )
+        );
         assignments.forEach(a => {
           if (a.clientId) assignedClientIds.push(a.clientId);
-          if (a.campaignId) assignedCampaignIds.push(a.campaignId);
+          if (a.campaignId || a.projectId) assignedCampaignIds.push((a.campaignId || a.projectId) as string);
           if (a.contactId) assignedContactIds.push(a.contactId);
           if (a.workflowId) assignedWorkflowIds.push(a.workflowId);
         });

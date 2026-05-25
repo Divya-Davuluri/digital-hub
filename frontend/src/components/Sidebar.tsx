@@ -63,6 +63,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
           )
         },
         { name: 'Manage Clients', href: '/dashboard/admin/clients', icon: '🏢' },
+        { name: 'Team Members', href: '/dashboard/admin/team-members', icon: '👥' },
         { name: 'Campaigns', href: '/dashboard/campaigns', icon: '🚀' },
         { name: 'Budget', href: '/dashboard/budget', icon: '💰' },
         { name: 'Creative Assets', href: '/dashboard/creatives', icon: '🖼️' },

@@ -2,9 +2,9 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import {
   seoKeywords, seoAuditIssues, seoContentBriefs, seoBriefs, seoAudits,
-  workspaces, clients, seoProjects, users, clientUsers
+  workspaces, clients, seoProjects, users, clientUsers, teamAssignments
 } from '../db/schema';
-import { eq, and, desc, isNull, inArray } from 'drizzle-orm';
+import { eq, and, or, desc, isNull, inArray } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { AppError, asyncHandler } from '../utils/errors';
 
@@ -1356,7 +1356,25 @@ export const getSeoProjects = asyncHandler(
   let conditions = [eq(seoProjects.tenantId, tenantId)];
 
   if (role === 'team') {
-    conditions.push(eq(seoProjects.assignedUserId, userId));
+    const assignments = await db.select().from(teamAssignments).where(
+      and(
+        eq(teamAssignments.tenantId, tenantId),
+        or(eq(teamAssignments.userId, userId), eq(teamAssignments.teamMemberId, userId))
+      )
+    );
+
+    const assignedProjectIds = assignments.map(a => a.projectId || a.campaignId).filter(Boolean) as string[];
+    const assignedClientIds = assignments.map(a => a.clientId).filter(Boolean) as string[];
+
+    let orConditions = [eq(seoProjects.assignedUserId, userId)];
+    if (assignedProjectIds.length > 0) {
+      orConditions.push(inArray(seoProjects.id, assignedProjectIds));
+    }
+    if (assignedClientIds.length > 0) {
+      orConditions.push(inArray(seoProjects.clientId, assignedClientIds));
+    }
+
+    conditions.push(or(...orConditions) as any);
   } else if (role === 'client') {
     let clientIds: string[] = [];
     const mappings = await db.select().from(clientUsers).where(eq(clientUsers.userId, userId));

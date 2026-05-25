@@ -334,6 +334,14 @@ export async function runDbFixes() {
     { table: 'users', column: 'tenant_id', type: "TEXT DEFAULT 'default-tenant'" },
     { table: 'users', column: 'workspace_id', type: "TEXT" },
     { table: 'users', column: 'role', type: "TEXT DEFAULT 'team'" },
+    { table: 'users', column: 'status', type: "TEXT DEFAULT 'active'" },
+    { table: 'users', column: 'password_hash', type: 'TEXT' },
+    { table: 'users', column: 'updated_at', type: 'TEXT' },
+    { table: 'team_assignments', column: 'team_member_id', type: 'TEXT' },
+    { table: 'team_assignments', column: 'project_id', type: 'TEXT' },
+    { table: 'team_assignments', column: 'assigned_by', type: 'TEXT' },
+    { table: 'team_assignments', column: 'status', type: "TEXT DEFAULT 'active'" },
+    { table: 'team_assignments', column: 'updated_at', type: 'TEXT' },
   ];
 
   console.log('🔄 Checking and correcting table column structures...');
