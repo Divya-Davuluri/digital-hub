@@ -2,9 +2,9 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import {
   seoKeywords, seoAuditIssues, seoContentBriefs, seoBriefs, seoAudits,
-  workspaces, clients
+  workspaces, clients, seoProjects, users, clientUsers
 } from '../db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, isNull, inArray } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { AppError, asyncHandler } from '../utils/errors';
 
@@ -356,18 +356,33 @@ const getDemoCompetitorGap = (domain: string) => ({
 export const getKeywords = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
-  const { clientId, domain } = req.query;
+  const { clientId, domain, projectId, seoProjectId } = req.query;
+  const activeProjectId = (seoProjectId || projectId) as string;
 
   try {
+    const conditions = [eq(seoKeywords.tenantId, tenantId)];
+    if (activeProjectId) {
+      conditions.push(eq(seoKeywords.seoProjectId, activeProjectId));
+    } else {
+      conditions.push(isNull(seoKeywords.seoProjectId));
+    }
+
     const rows = await db
       .select()
       .from(seoKeywords)
-      .where(eq(seoKeywords.tenantId, tenantId))
+      .where(and(...conditions))
       .orderBy(seoKeywords.currentRank);
 
     if (rows.length === 0) {
-      const useDomain = (domain as string)
-        || 'yourdomain.com';
+      let useDomain = (domain as string);
+      if (!useDomain && activeProjectId) {
+        const proj = await db.query.seoProjects.findFirst({
+          where: eq(seoProjects.id, activeProjectId)
+        });
+        if (proj) useDomain = proj.domain;
+      }
+      if (!useDomain) useDomain = 'yourdomain.com';
+
       return res.json({
         success: true,
         data: getDemoKeywords(useDomain),
@@ -380,8 +395,7 @@ export const getKeywords = asyncHandler(
     console.error('[SEO] getKeywords error:', err);
     res.json({
       success: true,
-      data: getDemoKeywords(
-        (domain as string) || 'yourdomain.com'),
+      data: getDemoKeywords((domain as string) || 'yourdomain.com'),
       source: 'demo'
     });
   }
@@ -392,8 +406,10 @@ export const addKeyword = asyncHandler(
   const { tenantId } = req.user;
   const {
     keyword, domain, clientId,
-    device, country, cluster, intent
+    device, country, cluster, intent,
+    seoProjectId, projectId, seo_project_id, project_id
   } = req.body;
+  const activeProjectId = seoProjectId || projectId || seo_project_id || project_id;
 
   if (!keyword?.trim()) {
     throw new AppError('Keyword is required', 400);
@@ -407,14 +423,21 @@ export const addKeyword = asyncHandler(
     if (ws) workspaceId = ws.id;
   } catch (err) {}
 
+  const existingConditions = [
+    eq(seoKeywords.workspaceId, workspaceId),
+    eq(seoKeywords.keyword, keyword.trim())
+  ];
+  if (activeProjectId) {
+    existingConditions.push(eq(seoKeywords.seoProjectId, activeProjectId));
+  } else {
+    existingConditions.push(isNull(seoKeywords.seoProjectId));
+  }
+
   const existing = await db.select().from(seoKeywords)
-    .where(and(
-      eq(seoKeywords.workspaceId, workspaceId),
-      eq(seoKeywords.keyword, keyword.trim())
-    )).limit(1);
+    .where(and(...existingConditions)).limit(1);
     
   if (existing.length > 0) {
-    throw new AppError('Keyword already tracked in this workspace', 400);
+    throw new AppError('Keyword already tracked in this project/workspace', 400);
   }
 
   // Generate realistic rank data
@@ -456,6 +479,7 @@ export const addKeyword = asyncHandler(
     tenantId,
     workspaceId,
     clientId:       clientId || null,
+    seoProjectId:   activeProjectId || null,
     keyword:        keyword.trim(),
     domain:         domain?.trim() || null,
     currentRank:    simulatedRank,
@@ -511,7 +535,8 @@ const calculateSEOScore = (critical: number, high: number, medium: number, low: 
 export const runSiteAudit = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
-  const { domain, clientId } = req.body;
+  const { domain, clientId, seoProjectId, projectId, seo_project_id, project_id } = req.body;
+  const activeProjectId = seoProjectId || projectId || seo_project_id || project_id;
 
   if (!domain?.trim()) {
     throw new AppError('Domain is required', 400);
@@ -531,16 +556,21 @@ export const runSiteAudit = asyncHandler(
 
   const now = new Date().toISOString();
 
-  // DELETE old issues for this domain first
+  // DELETE old issues for this domain and project first
   // to prevent duplicates
   try {
-    await db.delete(seoAuditIssues)
-      .where(and(
-        eq(seoAuditIssues.tenantId, tenantId),
-        eq(seoAuditIssues.domain, cleanDomain)
-      ));
-    console.log('[SEO] Cleared old audit for:',
-      cleanDomain);
+    const deleteConditions = [
+      eq(seoAuditIssues.tenantId, tenantId),
+      eq(seoAuditIssues.domain, cleanDomain)
+    ];
+    if (activeProjectId) {
+      deleteConditions.push(eq(seoAuditIssues.seoProjectId, activeProjectId));
+    } else {
+      deleteConditions.push(isNull(seoAuditIssues.seoProjectId));
+    }
+
+    await db.delete(seoAuditIssues).where(and(...deleteConditions));
+    console.log('[SEO] Cleared old audit for:', cleanDomain);
   } catch (err) {
     console.error('[SEO] Clear failed:', err);
   }
@@ -613,6 +643,7 @@ export const runSiteAudit = asyncHandler(
         tenantId,
         workspaceId,
         clientId:       clientId || null,
+        seoProjectId:   activeProjectId || null,
         domain:         cleanDomain,
         issueType:      issue.issueType,
         severity:       issue.severity,
@@ -637,6 +668,52 @@ export const runSiteAudit = asyncHandler(
     i => i.severity === 'medium').length;
   const score = Math.max(0, Math.min(100,
     100 - (critical*15) - (high*8) - (medium*3)));
+
+  // Save score summary to db
+  try {
+    const auditConditions = [
+      eq(seoAudits.tenantId, tenantId),
+      eq(seoAudits.domain, cleanDomain)
+    ];
+    if (activeProjectId) {
+      auditConditions.push(eq(seoAudits.seoProjectId, activeProjectId));
+    } else {
+      auditConditions.push(isNull(seoAudits.seoProjectId));
+    }
+
+    const existingAudit = await db.select().from(seoAudits)
+      .where(and(...auditConditions)).limit(1);
+
+    if (existingAudit.length > 0) {
+      await db.update(seoAudits)
+        .set({
+          siteScore: score,
+          criticalIssues: critical,
+          highIssues: high,
+          mediumIssues: medium,
+          lowIssues: 0,
+          updatedAt: now
+        })
+        .where(eq(seoAudits.id, existingAudit[0].id));
+    } else {
+      await db.insert(seoAudits).values({
+        id: uuidv4(),
+        tenantId,
+        workspaceId,
+        seoProjectId: activeProjectId || null,
+        domain: cleanDomain,
+        siteScore: score,
+        criticalIssues: critical,
+        highIssues: high,
+        mediumIssues: medium,
+        lowIssues: 0,
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+  } catch (auditDbErr) {
+    console.error('[SEO] Save audit summary error:', auditDbErr);
+  }
 
   res.json({
     success: true,
@@ -669,24 +746,48 @@ export const runSiteAudit = asyncHandler(
 export const getAuditIssues = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
-  const { domain } = req.query;
+  const { domain, projectId, seoProjectId, project_id, seo_project_id } = req.query;
+  const activeProjectId = (seoProjectId || projectId || seo_project_id || project_id) as string;
 
   try {
+    const issueConditions = [eq(seoAuditIssues.tenantId, tenantId)];
+    if (activeProjectId) {
+      issueConditions.push(eq(seoAuditIssues.seoProjectId, activeProjectId));
+    } else {
+      issueConditions.push(isNull(seoAuditIssues.seoProjectId));
+    }
+
     const rows = await db
       .select()
       .from(seoAuditIssues)
-      .where(eq(seoAuditIssues.tenantId, tenantId))
+      .where(and(...issueConditions))
       .orderBy(desc(seoAuditIssues.createdAt));
+
+    const auditConditions = [eq(seoAudits.tenantId, tenantId)];
+    if (activeProjectId) {
+      auditConditions.push(eq(seoAudits.seoProjectId, activeProjectId));
+    } else {
+      auditConditions.push(isNull(seoAudits.seoProjectId));
+    }
 
     const summary = await db
       .select()
       .from(seoAudits)
-      .where(eq(seoAudits.tenantId, tenantId))
+      .where(and(...auditConditions))
       .orderBy(desc(seoAudits.createdAt))
       .limit(1);
 
     if (rows.length === 0) {
-      const demo = getDemoAuditIssues((domain as string) || 'yourdomain.com');
+      let useDomain = (domain as string);
+      if (!useDomain && activeProjectId) {
+        const proj = await db.query.seoProjects.findFirst({
+          where: eq(seoProjects.id, activeProjectId)
+        });
+        if (proj) useDomain = proj.domain;
+      }
+      if (!useDomain) useDomain = 'yourdomain.com';
+
+      const demo = getDemoAuditIssues(useDomain);
       const critical = demo.filter(i => i.severity === 'critical').length;
       const high = demo.filter(i => i.severity === 'high').length;
       const medium = demo.filter(i => i.severity === 'medium').length;
@@ -696,7 +797,7 @@ export const getAuditIssues = asyncHandler(
       return res.json({
         success: true,
         data: {
-          domain: (domain as string) || 'yourdomain.com',
+          domain: useDomain,
           score,
           siteScore: score,
           critical,
@@ -907,19 +1008,34 @@ export const getCompetitorGap = asyncHandler(
 export const getSEOStats = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
-  const { domain } = req.query;
+  const { domain, projectId, seoProjectId, project_id, seo_project_id } = req.query;
+  const activeProjectId = (seoProjectId || projectId || seo_project_id || project_id) as string;
 
   try {
+    const keywordConditions = [eq(seoKeywords.tenantId, tenantId)];
+    if (activeProjectId) {
+      keywordConditions.push(eq(seoKeywords.seoProjectId, activeProjectId));
+    } else {
+      keywordConditions.push(isNull(seoKeywords.seoProjectId));
+    }
+
     const keywords = await db
       .select()
       .from(seoKeywords)
-      .where(eq(seoKeywords.tenantId, tenantId));
+      .where(and(...keywordConditions));
 
     // Get ALL issues then deduplicate by url+issueType
+    const issueConditions = [eq(seoAuditIssues.tenantId, tenantId)];
+    if (activeProjectId) {
+      issueConditions.push(eq(seoAuditIssues.seoProjectId, activeProjectId));
+    } else {
+      issueConditions.push(isNull(seoAuditIssues.seoProjectId));
+    }
+
     const allIssues = await db
       .select()
       .from(seoAuditIssues)
-      .where(eq(seoAuditIssues.tenantId, tenantId))
+      .where(and(...issueConditions))
       .orderBy(desc(seoAuditIssues.createdAt));
 
     // Deduplicate: keep only latest per url+issueType
@@ -932,17 +1048,31 @@ export const getSEOStats = asyncHandler(
     });
 
     // Filter by domain if provided
-    const domainFilter = domain as string;
+    let domainFilter = domain as string;
+    if (!domainFilter && activeProjectId) {
+      const proj = await db.query.seoProjects.findFirst({
+        where: eq(seoProjects.id, activeProjectId)
+      });
+      if (proj) domainFilter = proj.domain;
+    }
+
     const filteredIssues = domainFilter
       ? uniqueIssues.filter(i =>
           i.domain === domainFilter ||
           i.url?.includes(domainFilter))
       : uniqueIssues;
 
+    const briefConditions = [eq(seoBriefs.tenantId, tenantId)];
+    if (activeProjectId) {
+      briefConditions.push(eq(seoBriefs.seoProjectId, activeProjectId));
+    } else {
+      briefConditions.push(isNull(seoBriefs.seoProjectId));
+    }
+
     const briefs = await db
       .select()
       .from(seoBriefs)
-      .where(eq(seoBriefs.tenantId, tenantId));
+      .where(and(...briefConditions));
 
     const totalBriefs = briefs.length;
 
@@ -970,12 +1100,28 @@ export const getSEOStats = asyncHandler(
     const highCount     = openIssues.filter(i => i.severity === 'high').length;
     const mediumCount   = openIssues.filter(i => i.severity === 'medium').length;
 
-    // Calculate score based on deduplicated issues
-    const siteScore = Math.max(0, Math.min(100,
-      100 - (criticalCount * 15)
-          - (highCount * 8)
-          - (mediumCount * 3)
-    ));
+    // Retrieve saved site score summary or calculate
+    const auditConditions = [eq(seoAudits.tenantId, tenantId)];
+    if (activeProjectId) {
+      auditConditions.push(eq(seoAudits.seoProjectId, activeProjectId));
+    } else {
+      auditConditions.push(isNull(seoAudits.seoProjectId));
+    }
+
+    const summary = await db
+      .select()
+      .from(seoAudits)
+      .where(and(...auditConditions))
+      .orderBy(desc(seoAudits.createdAt))
+      .limit(1);
+
+    const siteScore = summary.length > 0
+      ? (summary[0].siteScore ?? 100)
+      : Math.max(0, Math.min(100,
+          100 - (criticalCount * 15)
+              - (highCount * 8)
+              - (mediumCount * 3)
+        ));
 
     const top10 = keywords.filter(
       k => k.currentRank !== null && (k.currentRank ?? 0) >= 1 && (k.currentRank ?? 0) <= 10
@@ -1028,7 +1174,8 @@ export const getSEOStats = asyncHandler(
 export const generateBrief = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
-  const { target_keyword } = req.body;
+  const { target_keyword, seoProjectId, projectId, seo_project_id, project_id } = req.body;
+  const activeProjectId = seoProjectId || projectId || seo_project_id || project_id;
 
   if (!target_keyword?.trim()) {
     throw new AppError('Target keyword is required', 400);
@@ -1126,6 +1273,7 @@ Introduction: Brief overview of ${kw} and why it is critical for modern digital 
     id,
     tenantId,
     workspaceId,
+    seoProjectId: activeProjectId || null,
     targetKeyword: kw,
     title,
     metaDescription,
@@ -1153,12 +1301,21 @@ Introduction: Brief overview of ${kw} and why it is critical for modern digital 
 export const getBriefs = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
+  const { projectId, seoProjectId, project_id, seo_project_id } = req.query;
+  const activeProjectId = (seoProjectId || projectId || seo_project_id || project_id) as string;
 
   try {
+    const conditions = [eq(seoBriefs.tenantId, tenantId)];
+    if (activeProjectId) {
+      conditions.push(eq(seoBriefs.seoProjectId, activeProjectId));
+    } else {
+      conditions.push(isNull(seoBriefs.seoProjectId));
+    }
+
     const rows = await db
       .select()
       .from(seoBriefs)
-      .where(eq(seoBriefs.tenantId, tenantId))
+      .where(and(...conditions))
       .orderBy(desc(seoBriefs.createdAt));
 
     const formatted = rows.map(r => ({
@@ -1190,4 +1347,125 @@ export const deleteBrief = asyncHandler(
     success: true,
     message: 'SEO brief deleted successfully'
   });
+});
+
+export const getSeoProjects = asyncHandler(
+  async (req: any, res: Response) => {
+  const { tenantId, role, id: userId } = req.user;
+
+  let conditions = [eq(seoProjects.tenantId, tenantId)];
+
+  if (role === 'team') {
+    conditions.push(eq(seoProjects.assignedUserId, userId));
+  } else if (role === 'client') {
+    let clientIds: string[] = [];
+    const mappings = await db.select().from(clientUsers).where(eq(clientUsers.userId, userId));
+    if (mappings.length > 0) {
+      clientIds = mappings.map(m => m.clientId);
+    } else {
+      const clientRecord = await db.query.clients.findFirst({
+        where: and(eq(clients.tenantId, tenantId), eq(clients.email, req.user.email))
+      });
+      if (clientRecord) clientIds = [clientRecord.id];
+    }
+
+    if (clientIds.length > 0) {
+      conditions.push(inArray(seoProjects.clientId, clientIds));
+    } else {
+      return res.json({ success: true, data: [] });
+    }
+  }
+
+  const projects = await db
+    .select()
+    .from(seoProjects)
+    .where(and(...conditions))
+    .orderBy(desc(seoProjects.createdAt));
+
+  res.json({ success: true, data: projects });
+});
+
+export const createSeoProject = asyncHandler(
+  async (req: any, res: Response) => {
+  const { tenantId, id: userId } = req.user;
+  const { projectName, domain, clientId, assignedUserId } = req.body;
+
+  if (!projectName?.trim() || !domain?.trim()) {
+    throw new AppError('Project name and domain are required', 400);
+  }
+
+  let workspaceId = req.user.workspaceId;
+  if (clientId) {
+    const clientRecord = await db.query.clients.findFirst({
+      where: eq(clients.id, clientId)
+    });
+    if (clientRecord) {
+      workspaceId = clientRecord.workspaceId;
+    }
+  }
+
+  if (!workspaceId) {
+    const ws = await db.query.workspaces.findFirst({
+      where: eq(workspaces.tenantId, tenantId)
+    });
+    if (ws) {
+      workspaceId = ws.id;
+    } else {
+      throw new AppError('Workspace context not found', 400);
+    }
+  }
+
+  const id = uuidv4();
+  const now = new Date().toISOString();
+
+  await db.insert(seoProjects).values({
+    id,
+    tenantId,
+    workspaceId,
+    clientId: clientId || null,
+    assignedUserId: assignedUserId || null,
+    projectName: projectName.trim(),
+    domain: domain.trim(),
+    status: 'active',
+    createdBy: userId,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const created = await db.query.seoProjects.findFirst({
+    where: eq(seoProjects.id, id)
+  });
+
+  res.status(201).json({ success: true, data: created });
+});
+
+export const getSeoClients = asyncHandler(
+  async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const clientsList = await db
+    .select()
+    .from(clients)
+    .where(eq(clients.tenantId, tenantId))
+    .orderBy(desc(clients.createdAt));
+  res.json({ success: true, data: clientsList });
+});
+
+export const getSeoTeamMembers = asyncHandler(
+  async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const teamUsers = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+    })
+    .from(users)
+    .where(
+      and(
+        eq(users.tenantId, tenantId),
+        eq(users.role, 'team')
+      )
+    );
+  res.json({ success: true, data: teamUsers });
 });

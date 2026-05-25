@@ -13,7 +13,12 @@ import {
   RefreshCw, ChevronRight, ExternalLink
 } from 'lucide-react';
 
+import { useAuth } from '@/context/AuthContext';
+
 export default function SEOContentPage() {
+  const { user } = useAuth();
+  const isClient = user?.role === 'client';
+
   const [activeTab, setActiveTab] = useState<'rankings'|'audit'|'gaps'|'briefs'>('rankings');
   const [keywords, setKeywords] = useState<any[]>([]);
   const [auditData, setAuditData] = useState<any>(null);
@@ -28,6 +33,19 @@ export default function SEOContentPage() {
   const [showBriefModal, setShowBriefModal] = useState(false);
   const [selectedBrief, setSelectedBrief] = useState<any>(null);
 
+  // Project Assignment States
+  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [showAddProject, setShowAddProject] = useState(false);
+  const [projectForm, setProjectForm] = useState({
+    projectName: '',
+    domain: '',
+    clientId: '',
+    assignedUserId: '',
+  });
+  const [clientsList, setClientsList] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+
   const [keywordForm, setKeywordForm] = useState({
     keyword: '', domain: '', device: 'desktop',
     country: 'US', cluster: '', intent: 'informational',
@@ -35,61 +53,89 @@ export default function SEOContentPage() {
 
   const [briefKeyword, setBriefKeyword] = useState('');
 
+  // Load Projects on mount
   useEffect(() => {
-    loadAll();
+    loadProjects();
   }, []);
 
-  // Reload stats when domain changes
+  // Reload data when active project ID changes
   useEffect(() => {
-    if (domain) {
-      const timer = setTimeout(() => {
-        loadStats();
-      }, 500);
-      return () => clearTimeout(timer);
+    if (selectedProjectId) {
+      loadProjectData(selectedProjectId);
+    } else if (projects.length === 0) {
+      // Clear data or show empty state
+      setKeywords([]);
+      setAuditData(null);
+      setStats(null);
+      setContentBriefs([]);
     }
-  }, [domain]);
+  }, [selectedProjectId, projects]);
 
-  const loadAll = async () => {
+  const loadProjects = async () => {
     setLoading(true);
-    let activeDom = 'yourdomain.com';
     try {
-      const resK = await apiCall('/seo/keywords');
-      const data = resK?.data || resK || [];
-      setKeywords(Array.isArray(data) ? data : []);
-      if (Array.isArray(data) && data.length > 0) {
-        const found = data.find(k => k.domain);
-        if (found) {
-          setDomain(found.domain);
-          activeDom = found.domain;
+      const res = await apiCall('/seo/projects');
+      const data = res?.data || [];
+      setProjects(data);
+      if (data.length > 0) {
+        if (!selectedProjectId || !data.some((p: any) => p.id === selectedProjectId)) {
+          setSelectedProjectId(data[0].id);
         }
+      } else {
+        setSelectedProjectId('');
       }
     } catch (err) {
-      setKeywords(getDemoKeywordsFallback());
+      console.error('Failed to load SEO projects', err);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const loadProjectData = async (projectId: string) => {
+    setLoading(true);
+    const activeProject = projects.find(p => p.id === projectId);
+    const activeDom = activeProject?.domain || 'yourdomain.com';
+    setDomain(activeDom);
 
     await Promise.all([
-      loadStats(),
-      loadContentBriefs(),
-      loadCompetitorGap(),
-      loadAudit(activeDom),
+      loadStats(projectId),
+      loadKeywords(projectId),
+      loadContentBriefs(projectId),
+      loadCompetitorGap(activeDom),
+      loadAudit(activeDom, projectId),
     ]);
     setLoading(false);
   };
 
-  const loadAudit = async (currentDomain?: string) => {
-    const d = currentDomain || domain || 'yourdomain.com';
+  const loadDropdowns = async () => {
     try {
-      const res = await apiCall(`/seo/audit?domain=${encodeURIComponent(d)}`);
+      const [resClients, resTeam] = await Promise.all([
+        apiCall('/seo/clients'),
+        apiCall('/seo/team')
+      ]);
+      setClientsList(resClients?.data || []);
+      setTeamMembers(resTeam?.data || []);
+    } catch (err) {
+      console.error('Failed to load dropdown data', err);
+    }
+  };
+
+  const loadAudit = async (currentDomain?: string, projectId?: string) => {
+    const d = currentDomain || domain || 'yourdomain.com';
+    const pId = projectId || selectedProjectId;
+    try {
+      const res = await apiCall(`/seo/audit?domain=${encodeURIComponent(d)}&seoProjectId=${pId}`);
       if (res?.data) {
         setAuditData(res.data);
       }
     } catch (err) {}
   };
 
-  const loadStats = async () => {
+  const loadStats = async (projectId?: string) => {
+    const pId = projectId || selectedProjectId;
     try {
-      const query = domain
-        ? `/seo/stats?domain=${encodeURIComponent(domain)}`
+      const query = pId
+        ? `/seo/stats?seoProjectId=${pId}`
         : '/seo/stats';
       const res = await apiCall(query);
       setStats(res?.data || res);
@@ -103,9 +149,10 @@ export default function SEOContentPage() {
     }
   };
 
-  const loadKeywords = async () => {
+  const loadKeywords = async (projectId?: string) => {
+    const pId = projectId || selectedProjectId;
     try {
-      const res = await apiCall('/seo/keywords');
+      const res = await apiCall(`/seo/keywords?seoProjectId=${pId}`);
       const data = res?.data || res || [];
       setKeywords(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -113,9 +160,10 @@ export default function SEOContentPage() {
     }
   };
 
-  const loadContentBriefs = async () => {
+  const loadContentBriefs = async (projectId?: string) => {
+    const pId = projectId || selectedProjectId;
     try {
-      const res = await apiCall('/seo/briefs');
+      const res = await apiCall(`/seo/briefs?seoProjectId=${pId}`);
       const data = res?.data || res || [];
       setContentBriefs(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -123,9 +171,10 @@ export default function SEOContentPage() {
     }
   };
 
-  const loadCompetitorGap = async () => {
+  const loadCompetitorGap = async (activeDom?: string) => {
+    const d = activeDom || domain || 'yourdomain.com';
     try {
-      const res = await apiCall('/seo/competitor-gap');
+      const res = await apiCall(`/seo/competitor-gap?domain=${encodeURIComponent(d)}`);
       setCompetitorGap(res?.data || res);
     } catch (err) {
       setCompetitorGap(getDemoGapFallback());
@@ -173,6 +222,36 @@ export default function SEOContentPage() {
     ]
   });
 
+  const handleAddProject = async () => {
+    if (!projectForm.projectName.trim() || !projectForm.domain.trim()) {
+      toast.error('Project Name and Domain are required');
+      return;
+    }
+    try {
+      const res = await apiCall('/seo/projects', {
+        method: 'POST',
+        body: JSON.stringify(projectForm)
+      });
+      if (res?.success) {
+        toast.success('SEO Project created successfully!');
+        setShowAddProject(false);
+        setProjectForm({
+          projectName: '',
+          domain: '',
+          clientId: '',
+          assignedUserId: '',
+        });
+        const newProj = res.data;
+        setProjects(prev => [newProj, ...prev]);
+        setSelectedProjectId(newProj.id);
+      } else {
+        throw new Error(res?.message || 'Failed to create SEO project');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create SEO project');
+    }
+  };
+
   const handleAddKeyword = async () => {
     if (!keywordForm.keyword.trim()) {
       toast.error('Keyword is required'); return;
@@ -180,7 +259,11 @@ export default function SEOContentPage() {
     try {
       const res = await apiCall('/seo/keywords', {
         method: 'POST',
-        body: JSON.stringify(keywordForm)
+        body: JSON.stringify({
+          ...keywordForm,
+          domain: domain || keywordForm.domain,
+          seoProjectId: selectedProjectId
+        })
       });
       const newKw = res?.data || res;
       setKeywords(prev => [newKw, ...prev]);
@@ -191,7 +274,7 @@ export default function SEOContentPage() {
         intent:'informational',
       });
       toast.success('Keyword added to tracking!');
-      loadStats();
+      loadStats(selectedProjectId);
     } catch (err: any) {
       toast.error(err.message || 'Failed to add keyword');
     }
@@ -203,8 +286,9 @@ export default function SEOContentPage() {
       await apiCall(`/seo/keywords/${id}`,
         { method: 'DELETE' });
       toast.success('Keyword removed');
+      loadStats(selectedProjectId);
     } catch (err) {
-      loadKeywords();
+      loadKeywords(selectedProjectId);
     }
   };
 
@@ -217,11 +301,14 @@ export default function SEOContentPage() {
     try {
       const res = await apiCall('/seo/audit', {
         method: 'POST',
-        body: JSON.stringify({ domain: domain.trim() })
+        body: JSON.stringify({
+          domain: domain.trim(),
+          seoProjectId: selectedProjectId
+        })
       });
       setAuditData(res?.data || res);
       toast.success('Site audit complete!');
-      await loadStats();
+      await loadStats(selectedProjectId);
     } catch (err) {
       toast.error('Audit failed');
       // Show demo audit data
@@ -272,7 +359,8 @@ export default function SEOContentPage() {
       const res = await apiCall('/seo/briefs', {
         method: 'POST',
         body: JSON.stringify({
-          target_keyword: briefKeyword.trim()
+          target_keyword: briefKeyword.trim(),
+          seoProjectId: selectedProjectId
         })
       });
       const brief = res?.data || res;
@@ -376,7 +464,7 @@ ${brief.contentRecommendations || 'N/A'}
   };
 
   return (
-    <RoleGuard allowedRoles={['admin', 'team']}>
+    <RoleGuard allowedRoles={['admin', 'team', 'client']}>
       <div className="flex min-h-screen bg-slate-50">
         <Sidebar />
         <div className="flex-1 pl-[260px]">
@@ -393,17 +481,50 @@ ${brief.contentRecommendations || 'N/A'}
                   Track rankings, audit your site, find content gaps and generate briefs
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
+                {/* Project Selector */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Project:</span>
+                  <select
+                    value={selectedProjectId}
+                    onChange={(e) => setSelectedProjectId(e.target.value)}
+                    className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 min-w-[200px]"
+                  >
+                    {projects.length === 0 ? (
+                      <option value="">No Active Projects</option>
+                    ) : (
+                      projects.map((p: any) => (
+                        <option key={p.id} value={p.id}>
+                          {p.projectName}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
                 <div className="flex items-center gap-2">
                   <Globe size={16} className="text-slate-400"/>
                   <input
                     type="text"
                     value={domain}
                     onChange={e => setDomain(e.target.value)}
+                    disabled={!!selectedProjectId}
                     placeholder="yourdomain.com"
-                    className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 w-52"
+                    className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 w-52 disabled:opacity-75 disabled:bg-slate-100"
                   />
                 </div>
+
+                {!isClient && (
+                  <button
+                    onClick={() => {
+                      loadDropdowns();
+                      setShowAddProject(true);
+                    }}
+                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-1.5"
+                  >
+                    <Plus size={16}/> New Project
+                  </button>
+                )}
               </div>
             </div>
 
@@ -538,19 +659,21 @@ ${brief.contentRecommendations || 'N/A'}
                       Track daily position updates
                     </p>
                   </div>
-                  <button
-                    onClick={() => setShowAddKeyword(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-lg"
-                  >
-                    <Plus size={16}/> Add Keyword
-                  </button>
+                  {!isClient && (
+                    <button
+                      onClick={() => setShowAddKeyword(true)}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-lg"
+                    >
+                      <Plus size={16}/> Add Keyword
+                    </button>
+                  )}
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                   <table className="w-full">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-100">
-                        {['Keyword','Cluster','Rank','Change','Volume','Difficulty','CPC','Intent','Actions']
+                        {['Keyword','Cluster','Rank','Change','Volume','Difficulty','CPC','Intent',...(!isClient ? ['Actions'] : [])]
                         .map(h => (
                           <th key={h} className="px-4 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-wide">
                             {h}
@@ -656,14 +779,16 @@ ${brief.contentRecommendations || 'N/A'}
                           </td>
 
                           {/* Actions */}
-                          <td className="px-4 py-4">
-                            <button
-                              onClick={() => handleDeleteKeyword(kw.id)}
-                              className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                            >
-                              <X size={14}/>
-                            </button>
-                          </td>
+                          {!isClient && (
+                            <td className="px-4 py-4">
+                              <button
+                                onClick={() => handleDeleteKeyword(kw.id)}
+                                className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                              >
+                                <X size={14}/>
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -675,12 +800,14 @@ ${brief.contentRecommendations || 'N/A'}
                       <p className="font-bold text-slate-900">
                         No keywords tracked yet
                       </p>
-                      <button
-                        onClick={() => setShowAddKeyword(true)}
-                        className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold"
-                      >
-                        + Add First Keyword
-                      </button>
+                      {!isClient && (
+                        <button
+                          onClick={() => setShowAddKeyword(true)}
+                          className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold"
+                        >
+                          + Add First Keyword
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -691,39 +818,41 @@ ${brief.contentRecommendations || 'N/A'}
             {activeTab === 'audit' && (
               <div>
                 {/* Audit Input */}
-                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm mb-6">
-                  <h3 className="font-black text-slate-900 mb-4 flex items-center gap-2">
-                    <Globe size={18} className="text-indigo-600"/>
-                    Run Site Audit
-                  </h3>
-                  <div className="flex gap-3">
-                    <input
-                      type="text"
-                      value={domain}
-                      onChange={e => setDomain(e.target.value)}
-                      placeholder="Enter domain: nike.com"
-                      className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <button
-                      onClick={handleRunAudit}
-                      disabled={auditLoading || !domain.trim()}
-                      className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all ${
-                        auditLoading || !domain.trim()
-                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                          : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg'
-                      }`}
-                    >
-                      {auditLoading ? (
-                        <>
-                          <RefreshCw size={16} className="animate-spin"/>
-                          Auditing...
-                        </>
-                      ) : (
-                        <><Search size={16}/>Run Audit</>
-                      )}
-                    </button>
+                {!isClient && (
+                  <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm mb-6">
+                    <h3 className="font-black text-slate-900 mb-4 flex items-center gap-2">
+                      <Globe size={18} className="text-indigo-600"/>
+                      Run Site Audit
+                    </h3>
+                    <div className="flex gap-3">
+                      <input
+                        type="text"
+                        value={domain}
+                        onChange={e => setDomain(e.target.value)}
+                        placeholder="Enter domain: nike.com"
+                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <button
+                        onClick={handleRunAudit}
+                        disabled={auditLoading || !domain.trim()}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all ${
+                          auditLoading || !domain.trim()
+                            ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg'
+                        }`}
+                      >
+                        {auditLoading ? (
+                          <>
+                            <RefreshCw size={16} className="animate-spin"/>
+                            Auditing...
+                          </>
+                        ) : (
+                          <><Search size={16}/>Run Audit</>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Audit Results */}
                 {auditData && (
@@ -886,15 +1015,17 @@ ${brief.contentRecommendations || 'N/A'}
                           }`}>
                             {opp.opportunity} Opportunity
                           </span>
-                          <button
-                            onClick={() => {
-                              setBriefKeyword(opp.keyword);
-                              setShowBriefModal(true);
-                            }}
-                            className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700"
-                          >
-                            + Brief
-                          </button>
+                          {!isClient && (
+                            <button
+                              onClick={() => {
+                                setBriefKeyword(opp.keyword);
+                                setShowBriefModal(true);
+                              }}
+                              className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700"
+                            >
+                              + Brief
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -949,12 +1080,14 @@ ${brief.contentRecommendations || 'N/A'}
                     <h2 className="font-black text-slate-900">Content Briefs</h2>
                     <p className="text-sm text-slate-500">AI-powered content briefs for target keywords</p>
                   </div>
-                  <button
-                    onClick={() => setShowBriefModal(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-lg"
-                  >
-                    <Plus size={16}/> Generate Brief
-                  </button>
+                  {!isClient && (
+                    <button
+                      onClick={() => setShowBriefModal(true)}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-lg"
+                    >
+                      <Plus size={16}/> Generate Brief
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
@@ -1006,20 +1139,22 @@ ${brief.contentRecommendations || 'N/A'}
                         )}
                       </div>
 
-                      <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
+                      <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100 font-bold">
                         <button
                           onClick={() => setSelectedBrief(brief)}
                           className="flex-grow py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-colors"
                         >
                           View Brief
                         </button>
-                        <button
-                          onClick={() => handleDeleteBrief(brief.id)}
-                          className="px-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold transition-colors flex items-center justify-center"
-                          title="Delete Brief"
-                        >
-                          <X size={16}/>
-                        </button>
+                        {!isClient && (
+                          <button
+                            onClick={() => handleDeleteBrief(brief.id)}
+                            className="px-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold transition-colors flex items-center justify-center"
+                            title="Delete Brief"
+                          >
+                            <X size={16}/>
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1032,12 +1167,14 @@ ${brief.contentRecommendations || 'N/A'}
                     <p className="text-slate-500 text-sm mb-6">
                       Generate your first brief to get an AI-powered content strategy
                     </p>
-                    <button
-                      onClick={() => setShowBriefModal(true)}
-                      className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold"
-                    >
-                      + Generate Brief
-                    </button>
+                    {!isClient && (
+                      <button
+                        onClick={() => setShowBriefModal(true)}
+                        className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold"
+                      >
+                        + Generate Brief
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1338,7 +1475,87 @@ ${brief.contentRecommendations || 'N/A'}
                 </div>
               </div>
             )}
+            {/* CREATE NEW SEO PROJECT MODAL */}
+            {showAddProject && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                  <div className="flex justify-between items-center mb-5">
+                    <h2 className="text-lg font-black text-slate-900">Create New SEO Project</h2>
+                    <button onClick={() => setShowAddProject(false)} className="text-slate-400 hover:text-slate-600">
+                      <X size={20}/>
+                    </button>
+                  </div>
 
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Project Name *</label>
+                      <input
+                        type="text"
+                        value={projectForm.projectName}
+                        onChange={e => setProjectForm(p => ({...p, projectName: e.target.value}))}
+                        placeholder="e.g. Acme Organic SEO"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Domain *</label>
+                      <input
+                        type="text"
+                        value={projectForm.domain}
+                        onChange={e => setProjectForm(p => ({...p, domain: e.target.value}))}
+                        placeholder="e.g. acme.com"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Client Association</label>
+                      <select
+                        value={projectForm.clientId}
+                        onChange={e => setProjectForm(p => ({...p, clientId: e.target.value}))}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800"
+                      >
+                        <option value="">-- Select Client (Optional) --</option>
+                        {clientsList.map((c: any) => (
+                          <option key={c.id} value={c.id}>
+                            {c.companyName || c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-wide block mb-1.5">Assigned Team Member</label>
+                      <select
+                        value={projectForm.assignedUserId}
+                        onChange={e => setProjectForm(p => ({...p, assignedUserId: e.target.value}))}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800"
+                      >
+                        <option value="">-- Assign Team Member (Optional) --</option>
+                        {teamMembers.map((t: any) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({t.email})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => setShowAddProject(false)}
+                      className="flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAddProject}
+                      className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg text-sm"
+                    >
+                      Create Project
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </main>
         </div>
       </div>

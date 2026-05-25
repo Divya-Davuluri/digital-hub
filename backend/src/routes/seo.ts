@@ -6,9 +6,17 @@ import {
   generateContentBrief, getContentBriefs,
   getCompetitorGap, getSEOStats,
   generateBrief, getBriefs, deleteBrief,
+  getSeoProjects, createSeoProject,
+  getSeoClients, getSeoTeamMembers
 } from '../controllers/seoController';
 
 const router = Router();
+
+// Projects
+router.get('/projects', authenticate, getSeoProjects);
+router.post('/projects', authenticate, createSeoProject);
+router.get('/clients', authenticate, getSeoClients);
+router.get('/team', authenticate, getSeoTeamMembers);
 
 // Stats first — before parameterized routes
 router.get('/stats', authenticate, getSEOStats);

@@ -886,6 +886,28 @@ export const workflowExecutionLogs = sqliteTable('workflow_execution_logs', {
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+// SEO Projects Assignment Table
+export const seoProjects = sqliteTable(
+  'seo_projects', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  clientId: text('client_id')
+    .references(() => clients.id, { onDelete: 'cascade' }),
+  assignedUserId: text('assigned_user_id')
+    .references(() => users.id, { onDelete: 'set null' }),
+  projectName: text('project_name').notNull(),
+  domain: text('domain').notNull(),
+  status: text('status').default('active'),
+  createdBy: text('created_by'),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
 // SEO Keywords Tracking Table
 export const seoKeywords = sqliteTable(
   'seo_keywords', {
@@ -898,6 +920,9 @@ export const seoKeywords = sqliteTable(
       { onDelete: 'cascade' }),
   clientId: text('client_id')
     .references(() => clients.id,
+      { onDelete: 'cascade' }),
+  seoProjectId: text('seo_project_id')
+    .references(() => seoProjects.id,
       { onDelete: 'cascade' }),
   keyword: text('keyword').notNull(),
   domain: text('domain'),
@@ -939,6 +964,9 @@ export const seoAuditIssues = sqliteTable(
   clientId: text('client_id')
     .references(() => clients.id,
       { onDelete: 'cascade' }),
+  seoProjectId: text('seo_project_id')
+    .references(() => seoProjects.id,
+      { onDelete: 'cascade' }),
   domain: text('domain').notNull(),
   issueType: text('issue_type').notNull(),
   // 'broken_link'|'missing_meta'|'slow_page'
@@ -967,6 +995,9 @@ export const seoContentBriefs = sqliteTable(
       { onDelete: 'cascade' }),
   clientId: text('client_id')
     .references(() => clients.id,
+      { onDelete: 'cascade' }),
+  seoProjectId: text('seo_project_id')
+    .references(() => seoProjects.id,
       { onDelete: 'cascade' }),
   targetKeyword: text('target_keyword').notNull(),
   title: text('title').notNull(),
@@ -999,6 +1030,9 @@ export const seoBriefs = sqliteTable(
   workspaceId: text('workspace_id').notNull()
     .references(() => workspaces.id,
       { onDelete: 'cascade' }),
+  seoProjectId: text('seo_project_id')
+    .references(() => seoProjects.id,
+      { onDelete: 'cascade' }),
   targetKeyword: text('target_keyword').notNull(),
   title: text('title').notNull(),
   metaDescription: text('meta_description'),
@@ -1027,6 +1061,9 @@ export const seoAudits = sqliteTable(
   workspaceId: text('workspace_id').notNull()
     .references(() => workspaces.id,
       { onDelete: 'cascade' }),
+  seoProjectId: text('seo_project_id')
+    .references(() => seoProjects.id,
+      { onDelete: 'cascade' }),
   domain: text('domain').notNull(),
   siteScore: integer('site_score').default(100),
   criticalIssues: integer('critical_issues').default(0),
@@ -1037,4 +1074,23 @@ export const seoAudits = sqliteTable(
     .default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at')
     .default(sql`CURRENT_TIMESTAMP`),
+});
+
+// SEO Content Gaps Table
+export const seoContentGaps = sqliteTable(
+  'seo_content_gaps', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id').notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' }),
+  seoProjectId: text('seo_project_id')
+    .references(() => seoProjects.id, { onDelete: 'cascade' }),
+  keyword: text('keyword').notNull(),
+  searchVolume: integer('search_volume').default(0),
+  difficulty: integer('difficulty').default(0),
+  competitorRank: integer('competitor_rank'),
+  ourRank: integer('our_rank'),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

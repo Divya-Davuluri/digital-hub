@@ -245,6 +245,20 @@ export async function runDbFixes() {
       status TEXT NOT NULL,
       details TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    // SEO Projects table
+    `CREATE TABLE IF NOT EXISTS seo_projects (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      client_id TEXT,
+      assigned_user_id TEXT,
+      project_name TEXT NOT NULL,
+      domain TEXT NOT NULL,
+      status TEXT DEFAULT 'active',
+      created_by TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`
   ];
 
@@ -298,6 +312,11 @@ export async function runDbFixes() {
     { table: 'tenant_branding', column: 'card_bg', type: "TEXT DEFAULT '#ffffff'" },
     { table: 'tenant_branding', column: 'sidebar_theme', type: "TEXT DEFAULT 'dark'" },
     { table: 'tenant_branding', column: 'login_page_branding', type: "TEXT DEFAULT 'center'" },
+    { table: 'seo_keywords', column: 'seo_project_id', type: 'TEXT' },
+    { table: 'seo_audits', column: 'seo_project_id', type: 'TEXT' },
+    { table: 'seo_briefs', column: 'seo_project_id', type: 'TEXT' },
+    { table: 'seo_content_gaps', column: 'seo_project_id', type: 'TEXT' },
+    { table: 'seo_audit_issues', column: 'seo_project_id', type: 'TEXT' },
   ];
 
   console.log('🔄 Checking and correcting table column structures...');
