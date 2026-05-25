@@ -44,6 +44,7 @@ import instagramRoutes from './routes/instagram';
 import contactRoutes from './routes/contactRoutes';
 import crmRoutes from './routes/crmRoutes';
 import seoRouter from './routes/seo';
+import billingRouter from './routes/billing';
 import { trackClick } from './controllers/linkController';
 import { runDbFixes } from './scripts/fixDb';
 import { WorkflowEngine } from './utils/workflowEngine';
@@ -87,6 +88,7 @@ app.use(cors({
 }));
 
 app.use(cookieParser());
+app.use('/api/billing', billingRouter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(tenantMiddleware);

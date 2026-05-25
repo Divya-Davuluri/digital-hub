@@ -69,6 +69,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
         { name: 'Creative Assets', href: '/dashboard/creatives', icon: '🖼️' },
         { name: 'White-Labeling', href: '/dashboard/settings/branding', icon: '🎨' },
         { name: 'Reports', href: '/dashboard/reports', icon: '📈' },
+        { name: 'Billing', href: '/dashboard/billing', icon: '💳' },
         { name: 'Settings', href: '/dashboard/admin/settings', icon: '⚙️' },
       ];
     }

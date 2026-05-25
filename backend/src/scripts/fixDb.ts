@@ -273,6 +273,24 @@ export async function runDbFixes() {
       expires_at TEXT NOT NULL,
       used INTEGER DEFAULT 0 NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    // Subscriptions table
+    `CREATE TABLE IF NOT EXISTS subscriptions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      plan TEXT NOT NULL,
+      status TEXT DEFAULT 'active',
+      billing_cycle TEXT DEFAULT 'monthly',
+      price_monthly REAL DEFAULT 0,
+      stripe_customer_id TEXT,
+      stripe_subscription_id TEXT,
+      stripe_price_id TEXT,
+      current_period_start TEXT,
+      current_period_end TEXT,
+      cancel_at_period_end INTEGER DEFAULT 0,
+      trial_end TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`
   ];
 

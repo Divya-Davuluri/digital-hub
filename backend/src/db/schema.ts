@@ -1103,3 +1103,32 @@ export const seoContentGaps = sqliteTable(
   createdAt: text('created_at')
     .default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
+
+export const subscriptions = sqliteTable(
+  'subscriptions', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull()
+    .references(() => tenants.id,
+      { onDelete: 'cascade' }),
+  plan: text('plan').notNull(),
+  // 'starter'|'growth'|'agency_pro'|'enterprise'
+  status: text('status').default('active'),
+  // 'active'|'cancelled'|'past_due'|'trialing'
+  billingCycle: text('billing_cycle')
+    .default('monthly'),
+  // 'monthly'|'annual'
+  priceMonthly: real('price_monthly').default(0),
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text(
+    'stripe_subscription_id'),
+  stripePriceId: text('stripe_price_id'),
+  currentPeriodStart: text('current_period_start'),
+  currentPeriodEnd: text('current_period_end'),
+  cancelAtPeriodEnd: integer(
+    'cancel_at_period_end').default(0),
+  trialEnd: text('trial_end'),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`),
+});
