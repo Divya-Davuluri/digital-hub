@@ -9,7 +9,7 @@ import {
 const router = Router();
 
 // --- Agency Admin & Team Routes ---
-router.get('/team-members', authMiddleware, authorize('admin'), getTeamMembers);
+router.get('/team-members', authMiddleware, authorize('admin', 'team'), getTeamMembers);
 router.get('/stats', authMiddleware, authorize('admin', 'team'), getAgencyStats);
 router.get('/transactions', authMiddleware, authorize('admin', 'team'), getRecentTransactions);
 router.get('/clients', authMiddleware, authorize('admin', 'team'), getClients);

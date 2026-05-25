@@ -15,6 +15,7 @@ export default function ContactsPage() {
   const router = useRouter();
   const [contacts, setContacts] = useState<any[]>([]);
   const [workflows, setWorkflows] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalContacts: 0,
     newLeads: 0,
@@ -49,6 +50,7 @@ export default function ContactsPage() {
   const [formLeadScore, setFormLeadScore] = useState(10);
   const [formTags, setFormTags] = useState('');
   const [formMessage, setFormMessage] = useState('');
+  const [formAssignedTeamMemberId, setFormAssignedTeamMemberId] = useState('');
 
   // Tag Form Field
   const [newTag, setNewTag] = useState('');
@@ -61,7 +63,15 @@ export default function ContactsPage() {
   useEffect(() => {
     loadContacts();
     loadWorkflows();
+    loadTeamMembers();
   }, [search, statusFilter, workflowStatusFilter, sourceFilter, page, limit]);
+
+  const loadTeamMembers = async () => {
+    try {
+      const res = await apiCall('/agency/team-members');
+      setTeamMembers(res || []);
+    } catch (err) {}
+  };
 
   const loadContacts = async () => {
     setLoading(true);
@@ -120,7 +130,8 @@ export default function ContactsPage() {
         status: formStatus,
         leadScore: formLeadScore,
         tags: formTags,
-        message: formMessage
+        message: formMessage,
+        assignedTeamMemberId: formAssignedTeamMemberId || null
       };
 
       const res = await apiCall('/contacts', {
@@ -155,7 +166,8 @@ export default function ContactsPage() {
         status: formStatus,
         leadScore: formLeadScore,
         tags: formTags,
-        message: formMessage
+        message: formMessage,
+        assignedTeamMemberId: formAssignedTeamMemberId || null
       };
 
       const res = await apiCall(`/contacts/${selectedContact.id}`, {
@@ -271,6 +283,7 @@ export default function ContactsPage() {
     setFormLeadScore(contact.leadScore || 0);
     setFormTags(contact.tags || '');
     setFormMessage(contact.message || '');
+    setFormAssignedTeamMemberId(contact.assignedTeamMemberId || '');
     setIsEditOpen(true);
   };
 
@@ -289,6 +302,7 @@ export default function ContactsPage() {
     setFormLeadScore(10);
     setFormTags('');
     setFormMessage('');
+    setFormAssignedTeamMemberId('');
   };
 
   return (
@@ -425,7 +439,14 @@ export default function ContactsPage() {
                         >
                           <div className="flex flex-col">
                             <span className="hover:text-indigo-600 transition-colors">{c.name}</span>
-                            {c.company && <span className="text-xs text-slate-400 font-medium">{c.company}</span>}
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {c.company && <span className="text-xs text-slate-400 font-medium">{c.company}</span>}
+                              {c.assignedTeamMemberName && (
+                                <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-black">
+                                  👤 {c.assignedTeamMemberName}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="py-4 px-6 text-slate-500 font-medium text-sm">{c.email}</td>
@@ -567,6 +588,18 @@ export default function ContactsPage() {
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Created Date</p>
                     <p className="text-sm font-bold text-slate-800 mt-0.5">
                       {selectedContact.createdAt ? new Date(selectedContact.createdAt).toLocaleString() : 'Never'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 flex items-start gap-3 col-span-2">
+                  <Info className="text-indigo-600 mt-0.5" size={18} />
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assigned Team Member</p>
+                    <p className="text-sm font-bold text-slate-800 mt-0.5">
+                      {selectedContact.assignedTeamMemberName 
+                        ? `👤 ${selectedContact.assignedTeamMemberName}`
+                        : 'Unassigned (No team member)'}
                     </p>
                   </div>
                 </div>
@@ -771,6 +804,22 @@ export default function ContactsPage() {
               </div>
 
               <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Assigned Team Member</label>
+                <select
+                  value={formAssignedTeamMemberId}
+                  onChange={e => setFormAssignedTeamMemberId(e.target.value)}
+                  className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-900 bg-white"
+                >
+                  <option value="">Unassigned (No team member)</option>
+                  {teamMembers.map((m: any) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Tags (comma-separated)</label>
                 <input
                   type="text"
@@ -892,6 +941,22 @@ export default function ContactsPage() {
                     <option value="newsletter">Newsletter</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Assigned Team Member</label>
+                <select
+                  value={formAssignedTeamMemberId}
+                  onChange={e => setFormAssignedTeamMemberId(e.target.value)}
+                  className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-900 bg-white"
+                >
+                  <option value="">Unassigned (No team member)</option>
+                  {teamMembers.map((m: any) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.email})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

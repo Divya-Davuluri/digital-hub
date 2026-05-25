@@ -1,15 +1,33 @@
 import { Response } from 'express';
 import { db } from '../db';
-import { contacts, workflows, workspaces, contactActivities, contactEmails, contactNotes, clients, teamAssignments } from '../db/schema';
+import { contacts, workflows, workspaces, contactActivities, contactEmails, contactNotes, clients, teamAssignments, users } from '../db/schema';
 import { eq, and, or, like, desc, sql, inArray } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncHandler, AppError } from '../utils/errors';
 import { sendEmail } from '../utils/email';
 import { WorkflowEngine } from '../utils/workflowEngine';
 
+// Helper to append assigned team member name
+const formatContactWithMemberName = async (contactRecord: any) => {
+  if (!contactRecord) return null;
+  if (!contactRecord.assignedTeamMemberId) {
+    return {
+      ...contactRecord,
+      assignedTeamMemberName: null,
+      assigned_team_member_name: null
+    };
+  }
+  const u = await db.select({ name: users.name }).from(users).where(eq(users.id, contactRecord.assignedTeamMemberId)).limit(1);
+  return {
+    ...contactRecord,
+    assignedTeamMemberName: u[0]?.name || null,
+    assigned_team_member_name: u[0]?.name || null
+  };
+};
+
 // 1. Get Contacts with stats and filters
 export const getContacts = asyncHandler(async (req: any, res: Response) => {
-  const { role, tenantId, workspaceId, id: userId, assignedClientIds } = req.user;
+  const { role, tenantId, workspaceId, id: userId } = req.user;
   const { search, status, workflowStatus, source, assignedTeamMemberId, page = 1, limit = 50 } = req.query;
   const offset = (Number(page) - 1) * Number(limit);
 
@@ -17,34 +35,9 @@ export const getContacts = asyncHandler(async (req: any, res: Response) => {
   let baseCondition: any = eq(contacts.tenantId, tenantId);
   
   if (role === 'team') {
-    const teamWsIds: string[] = [];
-    
-    // Fetch workspace IDs for clients where assignedTeamMemberId = userId
-    const assignedClients = await db.select({ workspaceId: clients.workspaceId })
-      .from(clients)
-      .where(eq(clients.assignedTeamMemberId, userId));
-    assignedClients.forEach(c => teamWsIds.push(c.workspaceId));
-
-    // Fetch workspace IDs for client assignments in req.user.assignedClientIds
-    const assignedCltIds = assignedClientIds || [];
-    if (assignedCltIds.length > 0) {
-      const clientWorkspaces = await db.select({ workspaceId: clients.workspaceId })
-        .from(clients)
-        .where(inArray(clients.id, assignedCltIds));
-      clientWorkspaces.forEach(c => teamWsIds.push(c.workspaceId));
-    }
-
-    // Fetch direct workspace assignments from team_assignments
-    const directAssignments = await db.select({ workspaceId: teamAssignments.workspaceId })
-      .from(teamAssignments)
-      .where(eq(teamAssignments.userId, userId));
-    directAssignments.forEach(a => teamWsIds.push(a.workspaceId));
-
-    const uniqueWsIds = Array.from(new Set(teamWsIds)).filter(Boolean);
-
     baseCondition = and(
       eq(contacts.tenantId, tenantId),
-      uniqueWsIds.length > 0 ? inArray(contacts.workspaceId, uniqueWsIds) : sql`1 = 0`
+      eq(contacts.assignedTeamMemberId, userId)
     );
   } else if (role !== 'admin') {
     let resolvedWorkspaceId = workspaceId;
@@ -91,13 +84,23 @@ export const getContacts = asyncHandler(async (req: any, res: Response) => {
     conditions.push(eq(contacts.assignedTeamMemberId, assignedTeamMemberId));
   }
 
-  // Execute queries
-  const allContacts = await db.select()
+  // Execute query with left join to users to get team member name
+  const rows = await db.select({
+    contact: contacts,
+    assignedTeamMemberName: users.name
+  })
     .from(contacts)
+    .leftJoin(users, eq(contacts.assignedTeamMemberId, users.id))
     .where(and(...conditions))
     .orderBy(desc(contacts.createdAt))
     .limit(Number(limit))
     .offset(offset);
+
+  const formattedContacts = rows.map(r => ({
+    ...r.contact,
+    assignedTeamMemberName: r.assignedTeamMemberName || null,
+    assigned_team_member_name: r.assignedTeamMemberName || null,
+  }));
 
   // Compute metrics for the active filters/tenant scope
   const statsConditions = [baseCondition];
@@ -112,7 +115,7 @@ export const getContacts = asyncHandler(async (req: any, res: Response) => {
 
   res.json({
     success: true,
-    data: allContacts,
+    data: formattedContacts,
     pagination: {
       total: totalContacts,
       page: Number(page),
@@ -146,28 +149,7 @@ export const getContact = asyncHandler(async (req: any, res: Response) => {
 
   // Team permission validation
   if (role === 'team') {
-    const teamWsIds: string[] = [];
-    const assignedClients = await db.select({ workspaceId: clients.workspaceId })
-      .from(clients)
-      .where(eq(clients.assignedTeamMemberId, userId));
-    assignedClients.forEach(c => teamWsIds.push(c.workspaceId));
-
-    const assignedCltIds = assignedClientIds || [];
-    if (assignedCltIds.length > 0) {
-      const clientWorkspaces = await db.select({ workspaceId: clients.workspaceId })
-        .from(clients)
-        .where(inArray(clients.id, assignedCltIds));
-      clientWorkspaces.forEach(c => teamWsIds.push(c.workspaceId));
-    }
-
-    const directAssignments = await db.select({ workspaceId: teamAssignments.workspaceId })
-      .from(teamAssignments)
-      .where(eq(teamAssignments.userId, userId));
-    directAssignments.forEach(a => teamWsIds.push(a.workspaceId));
-
-    const uniqueWsIds = Array.from(new Set(teamWsIds)).filter(Boolean);
-
-    if (!uniqueWsIds.includes(contact.workspaceId || '')) {
+    if (contact.assignedTeamMemberId !== userId) {
       throw new AppError('Access denied to this contact', 403);
     }
   } else if (role !== 'admin' && contact.workspaceId !== req.user.workspaceId) {
@@ -210,10 +192,12 @@ export const getContact = asyncHandler(async (req: any, res: Response) => {
     }
   }
 
+  const formattedContact = await formatContactWithMemberName(contact);
+
   res.json({
     success: true,
     data: {
-      ...contact,
+      ...formattedContact,
       activities,
       emails,
       notes,
@@ -254,6 +238,13 @@ export const createContact = asyncHandler(async (req: any, res: Response) => {
     throw new AppError('Contact with this email already exists in this workspace', 400);
   }
 
+  if (assignedTeamMemberId) {
+    const teamUser = await db.select({ role: users.role }).from(users).where(eq(users.id, assignedTeamMemberId)).limit(1);
+    if (teamUser.length === 0 || teamUser[0].role !== 'team') {
+      throw new AppError('Invalid assigned team member ID', 400);
+    }
+  }
+
   const id = uuidv4();
   await db.insert(contacts).values({
     id,
@@ -274,6 +265,7 @@ export const createContact = asyncHandler(async (req: any, res: Response) => {
   });
 
   const created = await db.select().from(contacts).where(eq(contacts.id, id)).limit(1);
+  const formattedCreated = await formatContactWithMemberName(created[0]);
 
   // Log Activity
   try {
@@ -291,7 +283,7 @@ export const createContact = asyncHandler(async (req: any, res: Response) => {
 
   res.status(201).json({
     success: true,
-    data: created[0]
+    data: formattedCreated
   });
 });
 
@@ -341,15 +333,23 @@ export const updateContact = asyncHandler(async (req: any, res: Response) => {
   if (workflowStatus !== undefined) updateData.workflowStatus = workflowStatus || null;
   if (assignedTeamMemberId !== undefined) updateData.assignedTeamMemberId = assignedTeamMemberId || null;
 
+  if (assignedTeamMemberId) {
+    const teamUser = await db.select({ role: users.role }).from(users).where(eq(users.id, assignedTeamMemberId)).limit(1);
+    if (teamUser.length === 0 || teamUser[0].role !== 'team') {
+      throw new AppError('Invalid assigned team member ID', 400);
+    }
+  }
+
   await db.update(contacts)
     .set(updateData)
     .where(eq(contacts.id, id));
 
   const updated = await db.select().from(contacts).where(eq(contacts.id, id)).limit(1);
+  const formattedUpdated = await formatContactWithMemberName(updated[0]);
 
   res.json({
     success: true,
-    data: updated[0]
+    data: formattedUpdated
   });
 });
 
