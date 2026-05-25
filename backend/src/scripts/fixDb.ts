@@ -259,6 +259,20 @@ export async function runDbFixes() {
       created_by TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    // Invitations table
+    `CREATE TABLE IF NOT EXISTS invitations (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      email TEXT NOT NULL,
+      role TEXT NOT NULL,
+      workspace_id TEXT,
+      name TEXT,
+      token TEXT NOT NULL UNIQUE,
+      expires_at TEXT NOT NULL,
+      used INTEGER DEFAULT 0 NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`
   ];
 
@@ -317,6 +331,9 @@ export async function runDbFixes() {
     { table: 'seo_briefs', column: 'seo_project_id', type: 'TEXT' },
     { table: 'seo_content_gaps', column: 'seo_project_id', type: 'TEXT' },
     { table: 'seo_audit_issues', column: 'seo_project_id', type: 'TEXT' },
+    { table: 'users', column: 'tenant_id', type: "TEXT DEFAULT 'default-tenant'" },
+    { table: 'users', column: 'workspace_id', type: "TEXT" },
+    { table: 'users', column: 'role', type: "TEXT DEFAULT 'team'" },
   ];
 
   console.log('🔄 Checking and correcting table column structures...');

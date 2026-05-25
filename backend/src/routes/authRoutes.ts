@@ -5,7 +5,8 @@ import {
   forgotPassword, resetPassword, 
   reset2FARequest, reset2FAConfirm,
   updateProfile,
-  disable2FA_Dev, generateTokens
+  disable2FA_Dev, generateTokens,
+  inviteUser, checkInvitation
 } from '../controllers/authController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { config } from '../config/env';
@@ -30,6 +31,8 @@ safeAttach('post', '/register', register);
 safeAttach('post', '/login', login);
 safeAttach('post', '/refresh', refresh);
 safeAttach('post', '/update-profile', authMiddleware, updateProfile);
+safeAttach('post', '/invite', authMiddleware, inviteUser);
+safeAttach('get', '/check-invite', checkInvitation);
 
 // --- 2FA ---
 safeAttach('post', '/2fa/setup', authMiddleware, setup2FA);

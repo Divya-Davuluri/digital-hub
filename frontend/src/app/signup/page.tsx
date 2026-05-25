@@ -1,17 +1,56 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiCall from '@/lib/api';
 
 export default function SignupPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [roleContext, setRoleContext] = useState<string | null>(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tokenParam = params.get('token');
+      const emailParam = params.get('email');
+      
+      if (tokenParam) {
+        setToken(tokenParam);
+        setMessage({ type: 'success', text: 'Verifying your invite token...' });
+        
+        // Fetch invite details to auto-populate and verify
+        apiCall(`/api/auth/check-invite?token=${tokenParam}`)
+          .then((res) => {
+            setFormData({
+              name: res.invitation.name || '',
+              email: res.invitation.email || emailParam || '',
+              password: ''
+            });
+            setRoleContext(res.invitation.role);
+            setMessage({ 
+              type: 'success', 
+              text: `Valid invite token verified. Role: ${res.invitation.role.toUpperCase()}` 
+            });
+          })
+          .catch((err) => {
+            console.error("Token verification failed:", err);
+            setMessage({ 
+              type: 'error', 
+              text: err.message || 'Invitation token is invalid or has expired.' 
+            });
+          });
+      } else if (emailParam) {
+        setFormData(prev => ({ ...prev, email: emailParam }));
+      }
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +59,10 @@ export default function SignupPage() {
     try {
       await apiCall('/auth/register', {
         method: 'POST',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          token: token || undefined
+        }),
       });
 
       setMessage({ type: 'success', text: 'Account created successfully! Redirecting to login...' });
@@ -47,8 +89,15 @@ export default function SignupPage() {
             </div>
             <span className="text-2xl font-bold tracking-tight text-white">Hub<span className="text-indigo-500">SaaS</span></span>
           </Link>
-          <h2 className="text-3xl font-bold text-white tracking-tight">Create Account</h2>
-          <p className="text-slate-400 mt-2 text-sm">Join the leading platform for modern agencies</p>
+          <h2 className="text-3xl font-bold text-white tracking-tight">
+            {roleContext ? 'Join Agency' : 'Create Account'}
+          </h2>
+          <p className="text-slate-400 mt-2 text-sm">
+            {roleContext 
+              ? `Accepting team invitation as ${roleContext.toUpperCase()}`
+              : 'Join the leading platform for modern agencies'
+            }
+          </p>
         </div>
 
         {message.text && (
@@ -69,8 +118,8 @@ export default function SignupPage() {
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-indigo-500 transition-all"
-              placeholder="Agency or Your Name"
+              className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-indigo-500 transition-all text-sm"
+              placeholder="e.g. John Doe"
             />
           </div>
 
@@ -79,9 +128,12 @@ export default function SignupPage() {
             <input 
               type="email" 
               required
+              disabled={!!token} // Force email matching the invite
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-indigo-500 transition-all"
+              className={`w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-indigo-500 transition-all text-sm ${
+                token ? 'opacity-60 cursor-not-allowed' : ''
+              }`}
               placeholder="name@agency.com"
             />
           </div>
@@ -93,7 +145,7 @@ export default function SignupPage() {
               required
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-indigo-500 transition-all"
+              className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3.5 text-white outline-none focus:border-indigo-500 transition-all text-sm"
               placeholder="••••••••"
             />
           </div>
@@ -101,25 +153,29 @@ export default function SignupPage() {
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50"
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50 text-sm"
           >
-            {loading ? "Creating Workspace..." : "Get Started Now"}
+            {loading ? "Registering Account..." : "Get Started Now"}
           </button>
         </form>
 
-        <div className="relative my-8">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/5"></div>
-          </div>
-          <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
-            <span className="px-4 bg-[#1e293b]/50 backdrop-blur-sm">Social Register</span>
-          </div>
-        </div>
+        {!token && (
+          <>
+            <div className="relative my-8">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/5"></div>
+              </div>
+              <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                <span className="px-4 bg-[#1e293b]/50 backdrop-blur-sm">Social Register</span>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 gap-4">
-           <button onClick={() => window.location.href = `${apiUrl}/api/auth/google`} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm">Google</button>
-           <button onClick={() => window.location.href = `${apiUrl}/api/auth/facebook`} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm">Facebook</button>
-        </div>
+            <div className="grid grid-cols-2 gap-4">
+               <button onClick={() => window.location.href = `${apiUrl}/api/auth/google`} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm">Google</button>
+               <button onClick={() => window.location.href = `${apiUrl}/api/auth/facebook`} className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl border border-white/5 transition-all text-sm">Facebook</button>
+            </div>
+          </>
+        )}
 
         <p className="mt-10 text-center text-sm text-slate-400 font-medium">
           Already have an account?{' '}

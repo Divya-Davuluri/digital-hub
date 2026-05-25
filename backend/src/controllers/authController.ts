@@ -7,7 +7,7 @@ import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { db } from '../db';
-import { users, backupCodes, sessions, resetTokens, tenants, workspaces } from '../db/schema';
+import { users, backupCodes, sessions, resetTokens, tenants, workspaces, invitations, clients } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { encrypt, decrypt } from '../utils/crypto';
 import { getCookieOptions } from '../config/cookies';
@@ -19,6 +19,7 @@ const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email format'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
+  token: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -62,7 +63,7 @@ export const generateTokens = async (userId: string, role: string, tenantId: str
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const validated = registerSchema.parse(req.body);
-  const { name, email, password } = validated;
+  const { name, email, password, token } = validated;
 
   const existingUser = await db.query.users.findFirst({
     where: eq(users.email, email.toLowerCase()),
@@ -75,26 +76,94 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   const hashedPassword = await bcrypt.hash(password, 12);
   const userId = uuidv4();
   
-  // For public signup, we use a default tenant or the one provided by the admin context
-  // Based on the user's setup, we'll use the provided admin tenant_id
-  const DEFAULT_TENANT_ID = '9142f583-09e6-4df9-b4a2-bcab048799b5';
-  
-  // 1. Create User as 'client' by default
+  let tenantId = '9142f583-09e6-4df9-b4a2-bcab048799b5'; // DEFAULT_TENANT_ID fallback
+  let workspaceId: string | null = null;
+  let role: 'admin' | 'team' | 'client' = 'client';
+
+  if (token) {
+    console.log(`[REGISTER] Processing invitation token: ${token}`);
+    const invitation = await db.query.invitations.findFirst({
+      where: and(
+        eq(invitations.token, token),
+        eq(invitations.used, 0)
+      )
+    });
+
+    if (!invitation) {
+      throw new AppError('Invalid or used invitation token', 400);
+    }
+
+    if (new Date() > new Date(invitation.expiresAt)) {
+      throw new AppError('Invitation token has expired', 400);
+    }
+
+    if (email.toLowerCase() !== invitation.email.toLowerCase()) {
+      throw new AppError('This invitation token was issued for a different email address', 400);
+    }
+
+    tenantId = invitation.tenantId;
+    workspaceId = invitation.workspaceId || null;
+    role = invitation.role as 'admin' | 'team' | 'client';
+
+    // Mark invitation as used
+    await db.update(invitations).set({ used: 1 }).where(eq(invitations.id, invitation.id));
+    console.log(`[REGISTER] Marked token as used. Role: ${role}, Workspace: ${workspaceId}`);
+  } else {
+    // Public registration
+    const firstTenant = await db.query.tenants.findFirst();
+    if (firstTenant) {
+      tenantId = firstTenant.id;
+    }
+
+    // Automatically create a new Client Workspace for them so workspaceId is never null
+    const newWorkspaceId = uuidv4();
+    const newClientId = uuidv4();
+
+    console.log(`[REGISTER] Creating fallback client workspace: ${newWorkspaceId}`);
+    await db.insert(workspaces).values({
+      id: newWorkspaceId,
+      tenantId,
+      clientId: newClientId,
+      clientName: name,
+      name: `${name}'s Workspace`,
+      slug: `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-workspace-${Math.random().toString(36).slice(-4)}`,
+      status: 'active'
+    });
+
+    await db.insert(clients).values({
+      id: newClientId,
+      tenantId,
+      workspaceId: newWorkspaceId,
+      name: name,
+      email: email.toLowerCase(),
+      companyName: `${name} Inc.`,
+      status: 'active',
+      plan: 'starter'
+    });
+
+    workspaceId = newWorkspaceId;
+  }
+
+  // Double check workspaceId is not null, fallback to 'default-workspace' if it's still missing for any reason
+  if (!workspaceId) {
+    workspaceId = 'default-workspace';
+  }
+
   await db.insert(users).values({
     id: userId,
-    tenantId: DEFAULT_TENANT_ID,
-    workspaceId: null, // Clients start without a workspace until assigned
+    tenantId,
+    workspaceId,
     name,
     email: email.toLowerCase(),
     password: hashedPassword,
     provider: 'local',
-    role: 'client', 
+    role,
   });
 
   res.status(201).json({ 
     success: true,
     message: 'Account created successfully. Please log in.',
-    user: { id: userId, email, name, role: 'client' } 
+    user: { id: userId, email, name, role } 
   });
 });
 
@@ -328,4 +397,96 @@ export const logout = asyncHandler(async (req: any, res: Response) => {
   res.clearCookie('token');
   res.clearCookie('refreshToken');
   res.json({ success: true, message: 'Logged out successfully' });
+});
+
+export const inviteUser = asyncHandler(async (req: Request, res: Response) => {
+  const { email, role, name, workspaceId } = req.body;
+  const adminUser = req.user as any;
+
+  if (!adminUser) {
+    throw new AppError('Unauthorized', 401);
+  }
+
+  if (adminUser.role !== 'admin') {
+    throw new AppError('Only Admins can invite users', 403);
+  }
+  
+  if (!email || !role || !name) {
+    throw new AppError('Email, role, and name are required', 400);
+  }
+  
+  const targetWorkspaceId = workspaceId || adminUser.workspaceId || 'default-workspace';
+  const tenantId = adminUser.tenantId || 'default-tenant';
+  
+  // Check if user already exists
+  const existingUser = await db.query.users.findFirst({
+    where: eq(users.email, email.toLowerCase())
+  });
+  
+  if (existingUser) {
+    throw new AppError('User with this email is already registered', 400);
+  }
+  
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  
+  const inviteId = uuidv4();
+  await db.insert(invitations).values({
+    id: inviteId,
+    tenantId,
+    userId: adminUser.id,
+    email: email.toLowerCase(),
+    role,
+    workspaceId: targetWorkspaceId,
+    name,
+    token,
+    expiresAt,
+    used: 0
+  });
+  
+  // Return the invitation details and the invitation URL
+  const inviteUrl = `/register?token=${token}&email=${encodeURIComponent(email)}`;
+  
+  res.json({
+    success: true,
+    message: 'Invitation generated successfully',
+    invitation: {
+      id: inviteId,
+      email,
+      role,
+      name,
+      token,
+      inviteUrl,
+      expiresAt
+    }
+  });
+});
+
+export const checkInvitation = asyncHandler(async (req: Request, res: Response) => {
+  const { token } = req.query;
+  
+  if (!token) {
+    throw new AppError('Token is required', 400);
+  }
+  
+  const invitation = await db.query.invitations.findFirst({
+    where: and(
+      eq(invitations.token, token as string),
+      eq(invitations.used, 0)
+    )
+  });
+  
+  if (!invitation || new Date() > new Date(invitation.expiresAt)) {
+    throw new AppError('Invitation is invalid or has expired', 400);
+  }
+  
+  res.json({
+    success: true,
+    invitation: {
+      email: invitation.email,
+      role: invitation.role,
+      name: invitation.name,
+      workspaceId: invitation.workspaceId
+    }
+  });
 });
