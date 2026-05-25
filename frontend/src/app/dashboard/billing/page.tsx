@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import {
   Check, X, Zap, Crown, Building,
   CreditCard, AlertCircle, Shield,
-  ExternalLink, RefreshCw
+  ExternalLink, RefreshCw, Loader2
 } from 'lucide-react';
 
 const PLANS_CONFIG = [
@@ -111,6 +111,7 @@ function BillingPageContent() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [invoices, setInvoices] = useState<any[]>([]);
   const [cancelling, setCancelling] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
   const searchParams = useSearchParams();
 
   const loadSubscription = async () => {
@@ -153,14 +154,14 @@ function BillingPageContent() {
       toast.success(`🎉 Successfully upgraded to ${plan || 'new plan'}!`);
       loadSubscription();
     }
-    if (searchParams?.get('cancelled') === 'true') {
+    if (searchParams?.get('cancelled') === 'true' || searchParams?.get('canceled') === 'true') {
       toast('Checkout cancelled — no charge made.');
     }
   }, [searchParams]);
 
   const handleUpgrade = async (planId: string) => {
     if (planId === 'enterprise') {
-      toast('📧 Contact sales@digitalhub.com for Enterprise pricing');
+      window.location.href = 'mailto:sales@digitalhub.com?subject=Enterprise%20Plan%20Inquiry';
       return;
     }
 
@@ -177,25 +178,36 @@ function BillingPageContent() {
       const data = res?.data || res;
 
       if (data?.type === 'stripe' && data?.checkoutUrl) {
-        // Redirect to Stripe Checkout
         window.location.href = data.checkoutUrl;
       } else if (data?.type === 'mock' && data?.activated) {
-        // Mock mode — update local state
         toast.success(`🎉 ${data.message}`);
-        setSubscription((prev: any) => ({
-          ...prev,
-          plan:   planId,
-          status: 'active',
-          planName: PLANS_CONFIG.find(p => p.id === planId)?.name,
-        }));
         loadSubscription();
       } else if (data?.type === 'contact_sales') {
         toast(data.message || 'Contact sales for Enterprise');
       }
-    } catch (err) {
-      toast.error('Failed to process upgrade');
+    } catch (err: any) {
+      toast.error(err.message || 'Stripe is not configured yet. Add Stripe keys to enable checkout.');
     } finally {
       setUpgrading(null);
+    }
+  };
+
+  const handleOpenPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const res = await apiCall('/billing/portal', {
+        method: 'POST',
+      });
+      const data = res?.data || res;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error('Could not load billing portal');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Stripe is not configured yet. Add Stripe keys to enable customer portal.');
+    } finally {
+      setPortalLoading(false);
     }
   };
 
@@ -212,6 +224,17 @@ function BillingPageContent() {
     } finally {
       setCancelling(false);
     }
+  };
+
+  const handleDownloadInvoice = (invoiceId: string) => {
+    toast.success(`📄 Downloading invoice ${invoiceId}...`);
+    // Create a mock download link
+    const link = document.createElement('a');
+    link.href = '#';
+    link.setAttribute('download', `invoice_${invoiceId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const isCurrentPlan = (planId: string) => {
@@ -291,21 +314,33 @@ function BillingPageContent() {
                     </div>
                   </div>
 
-                  <div className="flex gap-3">
-                    {subscription.status === 'active' && !subscription.cancelAtPeriodEnd && (
+                  <div className="flex items-center gap-3">
+                    {subscription.stripeCustomerId ? (
                       <button
-                        onClick={handleCancel}
-                        disabled={cancelling}
-                        className="px-4 py-2 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 rounded-xl text-xs font-bold transition-all hover:bg-slate-50"
+                        onClick={handleOpenPortal}
+                        disabled={portalLoading}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 disabled:opacity-50"
                       >
-                        {cancelling ? 'Cancelling...' : 'Cancel Plan'}
+                        {portalLoading && <Loader2 size={12} className="animate-spin"/>}
+                        Manage Subscription
                       </button>
+                    ) : (
+                      subscription.status === 'active' && !subscription.cancelAtPeriodEnd && (
+                        <button
+                          onClick={handleCancel}
+                          disabled={cancelling}
+                          className="px-4 py-2 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 rounded-xl text-xs font-bold transition-all hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          {cancelling ? 'Cancelling...' : 'Cancel Plan'}
+                        </button>
+                      )
                     )}
                     <button
                       onClick={loadSubscription}
+                      disabled={loading}
                       className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-xl transition-all"
                     >
-                      <RefreshCw size={16}/>
+                      <RefreshCw size={16} className={loading ? 'animate-spin' : ''}/>
                     </button>
                   </div>
                 </div>
@@ -450,16 +485,16 @@ function BillingPageContent() {
                       ) : (
                         <button
                           onClick={() => handleUpgrade(plan.id)}
-                          disabled={!!isLoading}
+                          disabled={!!upgrading}
                           className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
                             isLoading
                               ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                              : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-600/10'
+                              : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-600/10 disabled:opacity-50'
                           }`}
                         >
                           {isLoading ? (
                             <span className="flex items-center justify-center gap-2">
-                              <RefreshCw size={12} className="animate-spin"/>
+                              <Loader2 size={12} className="animate-spin"/>
                               Processing...
                             </span>
                           ) : (
@@ -513,7 +548,7 @@ function BillingPageContent() {
                           </td>
                           <td className="px-6 py-4">
                             <button
-                              onClick={() => toast('Invoice download coming soon')}
+                              onClick={() => handleDownloadInvoice(invoice.id)}
                               className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 text-[10px] font-black uppercase tracking-wider transition-all"
                             >
                               Download

@@ -3,7 +3,7 @@ import { authMiddleware as authenticate } from '../middleware/authMiddleware';
 import {
   getSubscription, createCheckoutSession,
   cancelSubscription, stripeWebhook,
-  getInvoices,
+  getInvoices, createPortalSession,
 } from '../controllers/billingController';
 
 const router = Router();
@@ -18,6 +18,8 @@ router.get('/subscription',
   authenticate, getSubscription);
 router.post('/checkout',
   authenticate, createCheckoutSession);
+router.post('/portal',
+  authenticate, createPortalSession);
 router.post('/cancel',
   authenticate, cancelSubscription);
 router.get('/invoices',

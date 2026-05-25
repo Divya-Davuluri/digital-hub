@@ -278,9 +278,11 @@ export async function runDbFixes() {
     `CREATE TABLE IF NOT EXISTS subscriptions (
       id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      workspace_id TEXT,
       plan TEXT NOT NULL,
       status TEXT DEFAULT 'active',
       billing_cycle TEXT DEFAULT 'monthly',
+      billing_interval TEXT DEFAULT 'monthly',
       price_monthly REAL DEFAULT 0,
       stripe_customer_id TEXT,
       stripe_subscription_id TEXT,
@@ -289,6 +291,7 @@ export async function runDbFixes() {
       current_period_end TEXT,
       cancel_at_period_end INTEGER DEFAULT 0,
       trial_end TEXT,
+      trial_ends_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`
@@ -360,6 +363,9 @@ export async function runDbFixes() {
     { table: 'team_assignments', column: 'assigned_by', type: 'TEXT' },
     { table: 'team_assignments', column: 'status', type: "TEXT DEFAULT 'active'" },
     { table: 'team_assignments', column: 'updated_at', type: 'TEXT' },
+    { table: 'subscriptions', column: 'workspace_id', type: 'TEXT' },
+    { table: 'subscriptions', column: 'billing_interval', type: "TEXT DEFAULT 'monthly'" },
+    { table: 'subscriptions', column: 'trial_ends_at', type: 'TEXT' },
   ];
 
   console.log('🔄 Checking and correcting table column structures...');

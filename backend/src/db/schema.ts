@@ -1110,6 +1110,7 @@ export const subscriptions = sqliteTable(
   tenantId: text('tenant_id').notNull()
     .references(() => tenants.id,
       { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id'),
   plan: text('plan').notNull(),
   // 'starter'|'growth'|'agency_pro'|'enterprise'
   status: text('status').default('active'),
@@ -1117,6 +1118,8 @@ export const subscriptions = sqliteTable(
   billingCycle: text('billing_cycle')
     .default('monthly'),
   // 'monthly'|'annual'
+  billingInterval: text('billing_interval')
+    .default('monthly'),
   priceMonthly: real('price_monthly').default(0),
   stripeCustomerId: text('stripe_customer_id'),
   stripeSubscriptionId: text(
@@ -1127,6 +1130,7 @@ export const subscriptions = sqliteTable(
   cancelAtPeriodEnd: integer(
     'cancel_at_period_end').default(0),
   trialEnd: text('trial_end'),
+  trialEndsAt: text('trial_ends_at'),
   createdAt: text('created_at')
     .default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at')

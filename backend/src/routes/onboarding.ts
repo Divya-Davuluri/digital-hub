@@ -26,10 +26,18 @@ router.get('/team-members', authMiddleware, authorize('admin'), asyncHandler(asy
   res.json(teamMembers);
 }));
 
+import { checkPlanLimit } from '../utils/billingLimits';
+
 // POST /api/admin/onboarding/client
 router.post('/onboarding/client', authMiddleware, authorize('admin'), asyncHandler(async (req: express.Request, res: express.Response) => {
   const { fullName, email, companyName, plan, assignedTeamMemberId, sendWelcomeEmail } = req.body;
   const { tenantId } = req.user as any;
+
+  // Check plan workspace limits
+  const limitCheck = await checkPlanLimit(tenantId, 'workspaces');
+  if (!limitCheck.allowed) {
+    throw new AppError(limitCheck.message || 'Workspace limit reached', 403);
+  }
 
   if (!fullName || !email) throw new AppError('Name and email are required', 400);
 

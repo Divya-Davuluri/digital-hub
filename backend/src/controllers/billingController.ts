@@ -11,7 +11,7 @@ let stripe: any = null;
 const initStripe = () => {
   if (stripe) return stripe;
   if (!process.env.STRIPE_SECRET_KEY) {
-    console.log('[Billing] No Stripe key — mock mode');
+    console.log('[Billing] No Stripe key — mock mode active');
     return null;
   }
   try {
@@ -47,6 +47,7 @@ export const getSubscription = asyncHandler(
           plan:            'starter',
           status:          'trialing',
           billingCycle:    'monthly',
+          billingInterval: 'monthly',
           priceMonthly:    49,
           isActive:        true,
           isTrial:         true,
@@ -77,7 +78,8 @@ export const getSubscription = asyncHandler(
         plan:            sub.plan,
         planName:        plan.name,
         status:          sub.status,
-        billingCycle:    sub.billingCycle,
+        billingCycle:    sub.billingInterval || sub.billingCycle || 'monthly',
+        billingInterval: sub.billingInterval || sub.billingCycle || 'monthly',
         priceMonthly:    sub.priceMonthly || plan.price,
         isActive:        sub.status === 'active'
                          || sub.status === 'trialing',
@@ -91,6 +93,7 @@ export const getSubscription = asyncHandler(
         limits:          plan.limits,
         hasStripe:       !!process.env.STRIPE_SECRET_KEY,
         stripeCustomerId:sub.stripeCustomerId || null,
+        workspaceId:     sub.workspaceId || null,
       }
     });
   } catch (err) {
@@ -101,6 +104,7 @@ export const getSubscription = asyncHandler(
         plan:         'starter',
         status:       'trialing',
         billingCycle: 'monthly',
+        billingInterval: 'monthly',
         priceMonthly: 49,
         isActive:     true,
         isTrial:      true,
@@ -117,6 +121,7 @@ export const getSubscription = asyncHandler(
 export const createCheckoutSession = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
+  const workspaceId = req.user.workspaceId || req.user.workspace_id || null;
   const { planId, billingCycle } = req.body;
 
   const plan = PLANS[planId as PlanId];
@@ -137,67 +142,11 @@ export const createCheckoutSession = asyncHandler(
 
   const stripeClient = initStripe();
 
-  // Mock mode if no Stripe
+  // If Stripe keys missing → Return error message toast to satisfy spec
   if (!stripeClient) {
-    const now = new Date();
-    const periodEnd = new Date(
-      now.getTime() + 30*86400000);
-
-    // Create/update subscription in DB
-    try {
-      const existing = await db.query.subscriptions
-        .findFirst({
-          where: eq(subscriptions.tenantId, tenantId)
-        });
-
-      const subData = {
-        plan:           planId,
-        status:         'active',
-        billingCycle:   billingCycle || 'monthly',
-        priceMonthly:   plan.price,
-        currentPeriodStart: now.toISOString(),
-        currentPeriodEnd:   periodEnd.toISOString(),
-        updatedAt:      now.toISOString(),
-      };
-
-      if (existing) {
-        await db.update(subscriptions)
-          .set(subData)
-          .where(
-            eq(subscriptions.tenantId, tenantId));
-      } else {
-        await db.insert(subscriptions).values({
-          id:      uuidv4(),
-          tenantId,
-          plan: subData.plan,
-          status: subData.status,
-          billingCycle: subData.billingCycle,
-          priceMonthly: subData.priceMonthly,
-          currentPeriodStart: subData.currentPeriodStart,
-          currentPeriodEnd: subData.currentPeriodEnd,
-          stripeCustomerId:     null,
-          stripeSubscriptionId: null,
-          stripePriceId:        null,
-          cancelAtPeriodEnd:    0,
-          trialEnd:             null,
-          createdAt:            now.toISOString(),
-          updatedAt:            now.toISOString(),
-        });
-      }
-    } catch (dbErr) {
-      console.error('[Billing] DB error:', dbErr);
-    }
-
-    return res.json({
-      success: true,
-      data: {
-        type:      'mock',
-        plan:      planId,
-        planName:  plan.name,
-        price:     plan.price,
-        message:   `Successfully upgraded to ${plan.name}!`,
-        activated: true,
-      }
+    return res.status(400).json({
+      success: false,
+      message: 'Stripe is not configured yet. Add Stripe keys to enable checkout.',
     });
   }
 
@@ -213,7 +162,7 @@ export const createCheckoutSession = asyncHandler(
 
     if (!priceId) {
       throw new AppError(
-        'Stripe price not configured for this plan',
+        'Stripe price not configured for this plan in local environment',
         400);
     }
 
@@ -228,13 +177,14 @@ export const createCheckoutSession = asyncHandler(
         success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}` +
           `/dashboard/billing?success=true&plan=${planId}`,
         cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}` +
-          `/dashboard/billing?cancelled=true`,
+          `/dashboard/billing?canceled=true`,
         metadata: {
           tenantId,
+          workspaceId: workspaceId || '',
           planId,
           billingCycle: billingCycle || 'monthly',
         },
-        customer_email: tenant?.name || undefined,
+        customer_email: tenant?.supportEmail || undefined,
       });
 
     res.json({
@@ -245,13 +195,49 @@ export const createCheckoutSession = asyncHandler(
         checkoutUrl:session.url,
       }
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Billing] Stripe checkout error:', err);
-    throw new AppError('Failed to create checkout', 500);
+    throw new AppError(err.message || 'Failed to create checkout session', 500);
   }
 });
 
-// 3. cancelSubscription (POST /api/billing/cancel)
+// 3. createPortalSession (POST /api/billing/portal)
+export const createPortalSession = asyncHandler(
+  async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const stripeClient = initStripe();
+
+  if (!stripeClient) {
+    throw new AppError('Stripe is not configured yet. Add Stripe keys to enable customer portal.', 400);
+  }
+
+  try {
+    const sub = await db.query.subscriptions.findFirst({
+      where: eq(subscriptions.tenantId, tenantId),
+    });
+
+    if (!sub || !sub.stripeCustomerId) {
+      throw new AppError('No active customer billing details found. Please upgrade first.', 400);
+    }
+
+    const session = await stripeClient.billingPortal.sessions.create({
+      customer: sub.stripeCustomerId,
+      return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/billing`,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        url: session.url,
+      },
+    });
+  } catch (err: any) {
+    console.error('[Billing] Portal session error:', err);
+    throw new AppError(err.message || 'Failed to create portal session', 500);
+  }
+});
+
+// 4. cancelSubscription (POST /api/billing/cancel)
 export const cancelSubscription = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
@@ -273,7 +259,7 @@ export const cancelSubscription = asyncHandler(
   }
 });
 
-// 4. stripeWebhook (POST /api/billing/webhook)
+// 5. stripeWebhook (POST /api/billing/webhook)
 export const stripeWebhook = asyncHandler(
   async (req: any, res: Response) => {
   const stripeClient = initStripe();
@@ -304,7 +290,7 @@ export const stripeWebhook = asyncHandler(
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
-        const { tenantId, planId, billingCycle } 
+        const { tenantId, workspaceId, planId, billingCycle } 
           = session.metadata || {};
 
         if (tenantId && planId) {
@@ -314,34 +300,41 @@ export const stripeWebhook = asyncHandler(
               where: eq(subscriptions.tenantId, tenantId)
             });
 
+          const subValues = {
+            plan:                planId,
+            status:              'active',
+            billingCycle:        billingCycle || 'monthly',
+            billingInterval:     billingCycle || 'monthly',
+            priceMonthly:        plan?.price || 0,
+            stripeCustomerId:    session.customer || null,
+            stripeSubscriptionId:session.subscription || null,
+            workspaceId:         workspaceId || null,
+            updatedAt:           now,
+          };
+
           if (existing) {
             await db.update(subscriptions)
-              .set({
-                stripeSubscriptionId: session.subscription || null,
-                stripeCustomerId: session.customer || null,
-                plan: planId,
-                status: 'active',
-                billingCycle: billingCycle || 'monthly',
-                priceMonthly: plan?.price || 0,
-                updatedAt: now,
-              })
+              .set(subValues)
               .where(eq(subscriptions.tenantId, tenantId));
           } else {
             await db.insert(subscriptions).values({
               id: uuidv4(),
               tenantId,
-              plan:                planId,
-              status:              'active',
-              billingCycle:        billingCycle || 'monthly',
-              priceMonthly:        plan?.price || 0,
-              stripeCustomerId:    session.customer || null,
-              stripeSubscriptionId:session.subscription || null,
+              plan:                subValues.plan,
+              status:              subValues.status,
+              billingCycle:        subValues.billingCycle,
+              billingInterval:     subValues.billingInterval,
+              priceMonthly:        subValues.priceMonthly,
+              stripeCustomerId:    subValues.stripeCustomerId,
+              stripeSubscriptionId:subValues.stripeSubscriptionId,
+              workspaceId:         subValues.workspaceId,
               stripePriceId:       null,
               currentPeriodStart:  now,
               currentPeriodEnd:    new Date(
                 Date.now()+30*86400000).toISOString(),
               cancelAtPeriodEnd:   0,
               trialEnd:            null,
+              trialEndsAt:         null,
               createdAt:           now,
               updatedAt:           now,
             });
@@ -379,7 +372,7 @@ export const stripeWebhook = asyncHandler(
   res.json({ received: true });
 });
 
-// 5. getInvoices (GET /api/billing/invoices)
+// 6. getInvoices (GET /api/billing/invoices)
 export const getInvoices = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;

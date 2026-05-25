@@ -214,6 +214,8 @@ router.get('/team-members', async (req: any, res: any) => {
   }
 });
 
+import { checkPlanLimit } from '../utils/billingLimits';
+
 router.post('/team-members', async (req: any, res: any) => {
   try {
     const { name, email, password, role, assignedClients, assignedProjects, status } = req.body;
@@ -224,6 +226,12 @@ router.post('/team-members', async (req: any, res: any) => {
     }
 
     const tenantId = adminUser.tenantId || 'default-tenant';
+
+    // Check plan team seat limits
+    const limitCheck = await checkPlanLimit(tenantId, 'teamSeats');
+    if (!limitCheck.allowed) {
+      return res.status(403).json({ success: false, error: limitCheck.message || 'Team seats limit reached' });
+    }
     const workspaceId = adminUser.workspaceId || 'default-workspace';
 
     // Check if email already registered
