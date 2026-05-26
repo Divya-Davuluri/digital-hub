@@ -171,6 +171,7 @@ function BillingPageContent() {
         method: 'POST',
         body: JSON.stringify({
           planId,
+          billingInterval: billingCycle,
           billingCycle,
         })
       });

@@ -14,6 +14,9 @@ router.post('/webhook',
   stripeWebhook
 );
 
+// Enable JSON parsing middleware for subsequent routes
+router.use(express.json());
+
 router.get('/subscription',
   authenticate, getSubscription);
 router.post('/checkout',

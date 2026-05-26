@@ -122,31 +122,49 @@ export const createCheckoutSession = asyncHandler(
   async (req: any, res: Response) => {
   const { tenantId } = req.user;
   const workspaceId = req.user.workspaceId || req.user.workspace_id || null;
-  const { planId, billingCycle } = req.body;
+
+  // Defensive check for body parsing
+  const body = req.body || {};
+  const { planId, billingInterval, billingCycle } = body;
+
+  // Validate planId presence
+  if (!planId) {
+    return res.status(400).json({
+      error: 'Missing planId'
+    });
+  }
+
+  // Plan Validation
+  const allowedPlans = ['starter', 'growth', 'agency_pro'];
+  if (!allowedPlans.includes(planId)) {
+    return res.status(400).json({
+      error: `Invalid planId. Allowed plans: ${allowedPlans.join(', ')}`
+    });
+  }
+
+  // Interval Validation
+  const interval = billingInterval || billingCycle || 'monthly';
+  const allowedIntervals = ['monthly', 'annual'];
+  if (!allowedIntervals.includes(interval)) {
+    return res.status(400).json({
+      error: `Invalid billingInterval. Allowed intervals: ${allowedIntervals.join(', ')}`
+    });
+  }
 
   const plan = PLANS[planId as PlanId];
   if (!plan) {
-    throw new AppError('Invalid plan', 400);
-  }
-
-  if (planId === 'enterprise') {
-    return res.json({
-      success: true,
-      data: {
-        type: 'contact_sales',
-        message: 'Please contact our sales team for Enterprise pricing.',
-        email: 'sales@digitalhub.com',
-      }
+    return res.status(400).json({
+      error: 'Plan configuration not found'
     });
   }
 
   const stripeClient = initStripe();
 
-  // If Stripe keys missing → Return error message toast to satisfy spec
+  // If Stripe keys missing → Return error message to display toast
   if (!stripeClient) {
     return res.status(400).json({
       success: false,
-      message: 'Stripe is not configured yet. Add Stripe keys to enable checkout.',
+      message: 'Stripe is not configured yet. Checkout is disabled in demo mode.',
     });
   }
 
@@ -156,14 +174,15 @@ export const createCheckoutSession = asyncHandler(
       where: eq(tenants.id, tenantId)
     });
 
-    const priceId = billingCycle === 'annual'
+    const priceId = interval === 'annual'
       ? plan.stripePriceIdAnnual
       : plan.stripePriceIdMonthly;
 
     if (!priceId) {
-      throw new AppError(
-        'Stripe price not configured for this plan in local environment',
-        400);
+      return res.status(400).json({
+        success: false,
+        message: `Stripe price not configured for plan ${planId} with ${interval} billing in local environment`,
+      });
     }
 
     const session = await stripeClient.checkout
@@ -182,7 +201,7 @@ export const createCheckoutSession = asyncHandler(
           tenantId,
           workspaceId: workspaceId || '',
           planId,
-          billingCycle: billingCycle || 'monthly',
+          billingCycle: interval,
         },
         customer_email: tenant?.supportEmail || undefined,
       });
@@ -197,7 +216,10 @@ export const createCheckoutSession = asyncHandler(
     });
   } catch (err: any) {
     console.error('[Billing] Stripe checkout error:', err);
-    throw new AppError(err.message || 'Failed to create checkout session', 500);
+    return res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to create checkout session'
+    });
   }
 });
 
@@ -208,7 +230,10 @@ export const createPortalSession = asyncHandler(
   const stripeClient = initStripe();
 
   if (!stripeClient) {
-    throw new AppError('Stripe is not configured yet. Add Stripe keys to enable customer portal.', 400);
+    return res.status(400).json({
+      success: false,
+      message: 'Stripe is not configured yet. Checkout is disabled in demo mode.',
+    });
   }
 
   try {
@@ -217,7 +242,10 @@ export const createPortalSession = asyncHandler(
     });
 
     if (!sub || !sub.stripeCustomerId) {
-      throw new AppError('No active customer billing details found. Please upgrade first.', 400);
+      return res.status(400).json({
+        success: false,
+        message: 'No active customer billing details found. Please upgrade first.',
+      });
     }
 
     const session = await stripeClient.billingPortal.sessions.create({
@@ -233,7 +261,10 @@ export const createPortalSession = asyncHandler(
     });
   } catch (err: any) {
     console.error('[Billing] Portal session error:', err);
-    throw new AppError(err.message || 'Failed to create portal session', 500);
+    return res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to create portal session'
+    });
   }
 });
 
