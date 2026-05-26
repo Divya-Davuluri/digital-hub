@@ -254,11 +254,36 @@ export const updateBranding = asyncHandler(
 });
 
 /**
- * POST /api/branding/upload
- * Uploads branding asset to Cloudinary, fallback to local storage.
+ * POST /api/settings/branding/upload (and legacy fallback)
+ * Uploads branding asset to Cloudinary, fallback to local storage under public/uploads/branding.
  */
 export const uploadBrandingAsset = asyncHandler(async (req: any, res: Response) => {
   if (!req.file) throw new AppError('No file uploaded', 400);
+
+  // Validate File Type
+  const allowedExtensions = ['.png', '.jpg', '.jpeg', '.svg', '.ico'];
+  const allowedMimeTypes = [
+    'image/png', 
+    'image/jpeg', 
+    'image/jpg', 
+    'image/svg+xml', 
+    'image/x-icon', 
+    'image/vnd.microsoft.icon',
+    'image/vnd.microsoft.icon'
+  ];
+  
+  const fileExt = path.extname(req.file.originalname).toLowerCase();
+  const mimeType = req.file.mimetype.toLowerCase();
+  
+  if (!allowedExtensions.includes(fileExt) && !allowedMimeTypes.includes(mimeType)) {
+    throw new AppError('Invalid file type. Supported types: PNG, JPG, JPEG, SVG, ICO', 400);
+  }
+
+  // Validate File Size (Max 5MB)
+  const maxSize = 5 * 1024 * 1024;
+  if (req.file.size > maxSize) {
+    throw new AppError('File size exceeds the 5MB limit', 400);
+  }
 
   const hasCloudinary = process.env.CLOUDINARY_CLOUD_NAME && 
                         process.env.CLOUDINARY_API_KEY && 
@@ -286,28 +311,31 @@ export const uploadBrandingAsset = asyncHandler(async (req: any, res: Response) 
     }
   }
 
-  // Fallback to local storage in public/uploads
+  // Fallback to local storage in public/uploads/branding
   console.log('Using local fallback storage for uploaded asset');
-  const uploadDir = path.join(__dirname, '../../public/uploads');
+  const uploadDir = path.join(__dirname, '../../public/uploads/branding');
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
 
-  const fileExt = path.extname(req.file.originalname) || '.png';
-  const filename = `${req.user.tenantId}_${Date.now()}${fileExt}`;
+  const filename = `${req.user.tenantId || 'default'}_${Date.now()}${fileExt}`;
   const filePath = path.join(uploadDir, filename);
 
   fs.writeFileSync(filePath, req.file.buffer);
 
-  const host = req.get('host') || 'localhost:5000';
-  const protocol = req.protocol || 'http';
-  
-  const logoUrl = `${protocol}://${host}/uploads/${filename}`;
+  // Return exactly "/uploads/branding/filename.png"
+  const logoUrl = `/uploads/branding/${filename}`;
   console.log('Saved local asset to path:', filePath, 'URL:', logoUrl);
+
+  const isRender = !!process.env.RENDER;
+  const warningMessage = isRender
+    ? 'Warning: Running on Render with ephemeral storage. Local file uploads will be lost on redeployment. Please configure Cloudinary for permanent hosting.'
+    : undefined;
 
   res.json({
     success: true,
-    url: logoUrl
+    url: logoUrl,
+    warning: warningMessage
   });
 });
 

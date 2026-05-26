@@ -124,6 +124,11 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
   const menuItems = getMenuItems();
   const { branding } = useBranding();
   const isLightTheme = branding?.sidebarTheme === 'light';
+  const [logoError, setLogoError] = useState(false);
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [branding?.logoUrl]);
 
   return (
     <aside 
@@ -141,7 +146,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
       }}
     >
       <div className="p-6 flex items-center gap-3">
-        {branding?.logoUrl ? (
+        {branding?.logoUrl && !logoError ? (
           <Image 
             src={branding.logoUrl} 
             alt="Logo" 
@@ -149,6 +154,7 @@ export default function Sidebar({ role: initialRole }: SidebarProps) {
             height={40}
             className="h-10 w-auto object-contain" 
             unoptimized
+            onError={() => setLogoError(true)}
           />
         ) : (
           <>

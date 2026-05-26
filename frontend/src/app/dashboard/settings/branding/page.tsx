@@ -34,6 +34,16 @@ export default function BrandingSettingsPage() {
   const { refreshBranding } = useBranding();
 
   const [domains, setDomains] = useState<any[]>([]);
+  const [logoError, setLogoError] = useState(false);
+  const [faviconError, setFaviconError] = useState(false);
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [branding.logoUrl]);
+
+  useEffect(() => {
+    setFaviconError(false);
+  }, [branding.faviconUrl]);
   const [newDomain, setNewDomain] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -155,7 +165,7 @@ export default function BrandingSettingsPage() {
       const baseUrl = envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
 
       const response = await fetch(
-        `${baseUrl}/branding/upload`,
+        `${baseUrl}/settings/branding/upload`,
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
@@ -169,7 +179,12 @@ export default function BrandingSettingsPage() {
           ...prev,
           [type === 'logo' ? 'logoUrl' : 'faviconUrl']: data.url
         }));
-        toast.success(`${type === 'logo' ? 'Logo' : 'Favicon'} uploaded successfully!`, { id: uploadToast });
+        if (data.warning) {
+          toast.success(`${type === 'logo' ? 'Logo' : 'Favicon'} uploaded successfully!`, { id: uploadToast });
+          toast.error(data.warning, { duration: 6000 });
+        } else {
+          toast.success(`${type === 'logo' ? 'Logo' : 'Favicon'} uploaded successfully!`, { id: uploadToast });
+        }
       } else {
         throw new Error(data.error || 'Upload failed');
       }
@@ -382,8 +397,13 @@ export default function BrandingSettingsPage() {
                         onChange={() => handleFileUpload('logo')} 
                       />
                       <div className="p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center gap-4">
-                        {branding.logoUrl ? (
-                          <img src={branding.logoUrl} alt="Logo" className="h-12 object-contain" />
+                        {branding.logoUrl && !logoError ? (
+                          <img 
+                            src={branding.logoUrl} 
+                            alt="Logo" 
+                            className="h-12 object-contain" 
+                            onError={() => setLogoError(true)}
+                          />
                         ) : (
                           <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400"><ImageIcon size={24} /></div>
                         )}
@@ -405,8 +425,13 @@ export default function BrandingSettingsPage() {
                         onChange={() => handleFileUpload('favicon')} 
                       />
                       <div className="p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center gap-4">
-                        {branding.faviconUrl ? (
-                          <img src={branding.faviconUrl} alt="Favicon" className="w-8 h-8 object-contain" />
+                        {branding.faviconUrl && !faviconError ? (
+                          <img 
+                            src={branding.faviconUrl} 
+                            alt="Favicon" 
+                            className="w-8 h-8 object-contain" 
+                            onError={() => setFaviconError(true)}
+                          />
                         ) : (
                           <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400"><Globe size={16} /></div>
                         )}
