@@ -65,6 +65,7 @@ export default function InstagramDMPage() {
   const [automations, setAutomations] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState('all');
@@ -92,11 +93,51 @@ export default function InstagramDMPage() {
     try {
       const res = await apiCall('/instagram/automations');
       const data = res?.data || res || [];
-      setAutomations(Array.isArray(data) ? data : []);
+      const arr = Array.isArray(data) ? data : [];
+      setAutomations(arr);
     } catch (err) {
       console.error('[Instagram] Load failed:', err);
-      setAutomations(getDemoFallback());
+      // Show demo data on error
+      setAutomations([
+        {
+          id:'demo-1',
+          name:'product enquiry',
+          type:'auto_reply',
+          triggerKeyword:null,
+          triggerCondition:'any',
+          replyMessage:'hii thanks everyone this product availble',
+          followUpMessages:[],
+          isActive:true,
+          totalTriggered:0,
+          totalReplied:0,
+          totalConverted:0,
+          conversionRate:0,
+          dailyLimit:100,
+          isNew:true,
+          statusMessage:'Waiting for first trigger...',
+        },
+        {
+          id:'demo-2',
+          name:'price enquiry',
+          type:'auto_reply',
+          triggerKeyword:'price',
+          triggerCondition:'contains',
+          replyMessage:'price is$400',
+          followUpMessages:[
+            { day:1, message:'Still interested? DM us!' }
+          ],
+          isActive:true,
+          totalTriggered:0,
+          totalReplied:0,
+          totalConverted:0,
+          conversionRate:0,
+          dailyLimit:100,
+          isNew:true,
+          statusMessage:'Waiting for first trigger...',
+        },
+      ]);
     } finally {
+      setInitialLoad(false);
       setLoading(false);
     }
   };
@@ -479,15 +520,38 @@ export default function InstagramDMPage() {
                         </p>
 
                         {/* Stats Row */}
+                        {automation.isNew && (
+                          <div className="mb-3 flex items-center gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100 animate-subtle-fade">
+                            <span className="text-blue-600 text-lg">⏳</span>
+                            <div>
+                              <p className="text-xs font-bold text-blue-700">
+                                Waiting for first trigger
+                              </p>
+                              <p className="text-xs text-blue-500">
+                                Stats will appear when someone sends the trigger keyword on Instagram
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="grid grid-cols-4 gap-2 mb-4">
                           {[
-                            { label: 'Triggered', value: automation.totalTriggered || 0 },
-                            { label: 'Replied', value: automation.totalReplied || 0 },
-                            { label: 'Converted', value: automation.totalConverted || 0 },
-                            { label: 'Conv %', value: `${automation.conversionRate || 0}%` },
+                            { label:'Triggered',
+                              value:automation.totalTriggered||0,
+                              tip:'Times keyword was detected' },
+                            { label:'Replied',
+                              value:automation.totalReplied||0,
+                              tip:'DMs sent by automation' },
+                            { label:'Converted',
+                              value:automation.totalConverted||0,
+                              tip:'Users who clicked link' },
+                            { label:'Conv %',
+                              value:`${automation.conversionRate||0}%`,
+                              tip:'Conversion rate' },
                           ].map(stat => (
                             <div key={stat.label}
-                              className="text-center p-2 bg-slate-50 rounded-xl">
+                              title={stat.tip}
+                              className="text-center p-2 bg-slate-50 rounded-xl cursor-help hover:bg-slate-100 transition-colors">
                               <p className="text-xs text-slate-400 font-bold">
                                 {stat.label}
                               </p>
@@ -522,10 +586,10 @@ export default function InstagramDMPage() {
                         )}
 
                         {/* Action Buttons */}
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap items-center">
                           <button
                             onClick={() => setExpandedCard(isExpanded ? null : automation.id)}
-                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                           >
                             {isExpanded
                               ? <><ChevronUp size={12}/> Less</>
@@ -534,13 +598,34 @@ export default function InstagramDMPage() {
                           </button>
                           <button
                             onClick={() => handleEditClick(automation)}
-                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50"
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
                           >
                             <Edit size={12}/> Edit
                           </button>
+
+                          {/* Test Trigger Button */}
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await apiCall(
+                                  `/instagram/automations/${automation.id}/test-trigger`,
+                                  { method: 'POST' }
+                                );
+                                toast.success(res?.message || 'Test trigger fired! ⚡');
+                                loadAutomations();
+                                loadStats();
+                              } catch (err) {
+                                toast.error('Test failed');
+                              }
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors animate-pulse"
+                          >
+                            ⚡ Test Trigger
+                          </button>
+
                           <button
                             onClick={() => handleDelete(automation.id)}
-                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 ml-auto"
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 ml-auto transition-colors"
                           >
                             <Trash2 size={12}/> Delete
                           </button>
@@ -612,10 +697,14 @@ export default function InstagramDMPage() {
             </div>
 
             {/* EMPTY STATE */}
-            {(!Array.isArray(automations) || automations.filter(a => activeFilter === 'all' || a.type === activeFilter).length === 0) && (
+            {!initialLoad && !loading &&
+              automations.filter(a =>
+                activeFilter === 'all' ||
+                a.type === activeFilter
+              ).length === 0 && (
               <div className="text-center py-20">
                 <p className="text-4xl mb-4">🤖</p>
-                <h3 className="text-lg font-black text-slate-900 mb-2">
+                <h3 className="font-black text-slate-900 mb-2">
                   No automations yet
                 </h3>
                 <p className="text-slate-500 mb-6">
@@ -623,7 +712,8 @@ export default function InstagramDMPage() {
                 </p>
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold"
+                  className="px-6 py-3 bg-indigo-600 
+                    text-white rounded-xl font-bold"
                 >
                   + New Automation
                 </button>

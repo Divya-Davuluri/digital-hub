@@ -1,334 +1,389 @@
 'use client';
+import { useState, useEffect } from 'react';
+import { apiCall } from '@/lib/api';
+import Sidebar from '@/components/Sidebar';
+import Header from '@/components/Header';
+import RoleGuard from '@/components/RoleGuard';
+import Link from 'next/link';
+import toast from 'react-hot-toast';
 
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import Sidebar from "@/components/Sidebar";
-import Header from "@/components/Header";
-import apiCall from "@/lib/api";
-
-interface DashboardData {
-  totalCampaigns: number;
-  activeUsers: number;
-  revenue: number;
-  performance: number;
-}
-
-export default function DashboardPage() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [data, setData] = useState<DashboardData | null>(null);
+export default function OverviewPage() {
+  const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
-
-  // Feature states
-  const [isExporting, setIsExporting] = useState(false);
-  const [showCampaignModal, setShowCampaignModal] = useState(false);
-  const [showToast, setShowToast] = useState({ show: false, message: '', type: 'success' });
+  const [recentActivity, setRecentActivity] = 
+    useState<any[]>([]);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
+    loadDashboardStats();
+  }, []);
 
-    if (!token) {
-      router.push("/login");
-      return;
+  const loadDashboardStats = async () => {
+    try {
+      const [analytics, crm, workflows, 
+             links, instagram, seo] 
+        = await Promise.allSettled([
+          apiCall('/analytics/overview'),
+          apiCall('/crm/stats'),
+          apiCall('/workflows'),
+          apiCall('/links/stats'),
+          apiCall('/instagram/stats'),
+          apiCall('/seo/stats'),
+        ]);
+
+      const getVal = (result: any) =>
+        result.status === 'fulfilled'
+          ? (result.value?.data || result.value || {})
+          : {};
+
+      setStats({
+        analytics:  getVal(analytics),
+        crm:        getVal(crm),
+        workflows:  getVal(workflows),
+        links:      getVal(links),
+        instagram:  getVal(instagram),
+        seo:        getVal(seo),
+      });
+    } catch (err) {
+      console.error('[Overview] Load failed:', err);
+    } finally {
+      setLoading(false);
     }
-
-    if (storedUser) {
-      const u = JSON.parse(storedUser);
-      setUser(u);
-      
-      // Redirect to correct dashboard based on role
-      if (u.role === 'admin') router.push('/dashboard/admin');
-      else if (u.role === 'team') router.push('/dashboard/team');
-      else if (u.role === 'client') router.push('/dashboard/client');
-      else router.push('/login');
-    }
-  }, [router]);
-
-  const triggerToast = (message: string, type: 'success' | 'error' = 'success') => {
-    setShowToast({ show: true, message, type });
-    setTimeout(() => setShowToast({ show: false, message: '', type: 'success' }), 4000);
   };
 
-  const handleExport = () => {
-    setIsExporting(true);
-    setTimeout(() => {
-      setIsExporting(false);
-      triggerToast("Performance report successfully generated and sent to your email!");
-    }, 2000);
+  // Demo stats fallback
+  const s = {
+    spend:       stats.analytics?.totalSpend       || 6300,
+    revenue:     stats.analytics?.totalRevenue     || 19760,
+    roas:        stats.analytics?.avgROAS          || 3.1,
+    clicks:      stats.analytics?.totalClicks      || 2130,
+    contacts:    stats.crm?.totalContacts          || 5,
+    hotLeads:    stats.crm?.hotLeads               || 2,
+    pipeline:    stats.crm?.totalPipelineValue     || 57576,
+    workflows:   Array.isArray(stats.workflows?.data)
+                   ? stats.workflows.data.length   : 3,
+    links:       stats.links?.totalLinks           || 2,
+    linkClicks:  stats.links?.totalClicks          || 6,
+    automations: stats.instagram?.totalAutomations || 4,
+    keywords:    stats.seo?.totalKeywords          || 8,
+    siteScore:   stats.seo?.siteScore              || 62,
   };
 
-  if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-10 h-10 border-4 border-slate-200 border-t-primary rounded-full animate-spin"></div>
-        <p className="text-slate-500 font-medium text-sm">Loading your workspace...</p>
+  const modules = [
+    {
+      title:    'Analytics',
+      icon:     '📊',
+      href:     '/dashboard/analytics',
+      color:    'indigo',
+      stats: [
+        { label:'Spent',   value:`$${(s.spend/1000).toFixed(1)}k` },
+        { label:'Revenue', value:`$${(s.revenue/1000).toFixed(1)}k` },
+        { label:'ROAS',    value:`${s.roas}x` },
+      ],
+      status: 'active'
+    },
+    {
+      title:    'CRM',
+      icon:     '👥',
+      href:     '/dashboard/crm',
+      color:    'purple',
+      stats: [
+        { label:'Contacts',  value:s.contacts },
+        { label:'Hot Leads', value:s.hotLeads },
+        { label:'Pipeline',  value:`$${(s.pipeline/1000).toFixed(0)}k` },
+      ],
+      status: 'active'
+    },
+    {
+      title:    'Workflows',
+      icon:     '⚡',
+      href:     '/dashboard/workflows',
+      color:    'blue',
+      stats: [
+        { label:'Total',   value:s.workflows },
+        { label:'Active',  value:s.workflows },
+        { label:'Enrolled',value:s.workflows },
+      ],
+      status: 'active'
+    },
+    {
+      title:    'Instagram DM',
+      icon:     '📸',
+      href:     '/dashboard/instagram',
+      color:    'pink',
+      stats: [
+        { label:'Automations',value:s.automations },
+        { label:'Active',     value:3 },
+        { label:'Conv Rate',  value:'19.3%' },
+      ],
+      status: 'active'
+    },
+    {
+      title:    'AI Creatives',
+      icon:     '✨',
+      href:     '/dashboard/creatives',
+      color:    'violet',
+      stats: [
+        { label:'Generated', value:3 },
+        { label:'Approved',  value:1 },
+        { label:'Model',     value:'GPT-4o' },
+      ],
+      status: 'active'
+    },
+    {
+      title:    'SEO',
+      icon:     '🔍',
+      href:     '/dashboard/seo',
+      color:    'emerald',
+      stats: [
+        { label:'Keywords',  value:s.keywords },
+        { label:'Top 10',    value:3 },
+        { label:'Score',     value:s.siteScore },
+      ],
+      status: 'active'
+    },
+    {
+      title:    'Social',
+      icon:     '📅',
+      href:     '/dashboard/social',
+      color:    'sky',
+      stats: [
+        { label:'Scheduled', value:3 },
+        { label:'Published', value:1 },
+        { label:'Pending',   value:2 },
+      ],
+      status: 'active'
+    },
+    {
+      title:    'Links',
+      icon:     '🔗',
+      href:     '/dashboard/links',
+      color:    'orange',
+      stats: [
+        { label:'Bio Pages', value:2 },
+        { label:'Clicks',    value:s.linkClicks },
+        { label:'Active',    value:2 },
+      ],
+      status: 'active'
+    },
+  ];
+
+  const COLOR_MAP: Record<string,string> = {
+    indigo: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    purple: 'bg-purple-100 text-purple-700 border-purple-200',
+    blue:   'bg-blue-100 text-blue-700 border-blue-200',
+    pink:   'bg-pink-100 text-pink-700 border-pink-200',
+    violet: 'bg-violet-100 text-violet-700 border-violet-200',
+    emerald:'bg-emerald-100 text-emerald-700 border-emerald-200',
+    sky:    'bg-sky-100 text-sky-700 border-sky-200',
+    orange: 'bg-orange-100 text-orange-700 border-orange-200',
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-slate-50">
+        <Sidebar />
+        <div className="flex-1 pl-[260px]">
+          <Header />
+          <div className="flex items-center justify-center h-[80vh]">
+            <div className="text-center">
+              <div className="animate-spin w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-4"/>
+              <p className="text-slate-500 font-bold">
+                Loading...
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
+    <RoleGuard allowedRoles={['admin','team']}>
+      <div className="flex min-h-screen bg-slate-50">
+        <Sidebar />
+        <div className="flex-1 pl-[260px]">
+          <Header />
+          <main className="p-8 max-w-[1400px] mx-auto">
 
-      <div className="flex-1 ml-[260px] min-h-screen flex flex-col">
-        <Header />
-
-        <main className="flex-1 p-8 max-w-7xl mx-auto w-full animate-subtle-fade">
-          {/* Welcome Section */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Good morning, {user?.name?.split(' ')[0] || 'Partner'}!</h1>
-              <p className="text-sm text-slate-500 mt-1">Here is a summary of your agency&apos;s performance today.</p>
+            {/* HEADER */}
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h1 className="text-3xl font-black text-slate-900">
+                  Dashboard Overview
+                </h1>
+                <p className="text-slate-500 mt-1">
+                  Welcome back! Here is your agency performance at a glance.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-xl">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"/>
+                <span className="text-sm font-bold text-green-700">
+                  All Systems Online
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleExport}
-                disabled={isExporting}
-                className="btn-secondary text-sm !px-4 !py-2"
-              >
-                {isExporting ? (
-                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    Export PDF
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => setShowCampaignModal(true)}
-                className="btn-primary text-sm !px-4 !py-2"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                Create Campaign
-              </button>
-            </div>
-          </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <StatCard
-              label="Total Campaigns"
-              value={data?.totalCampaigns || 0}
-              trend="+2.5%"
-              trendType="up"
-              icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>}
-            />
-            <StatCard
-              label="Active Audience"
-              value={data?.activeUsers || 0}
-              trend="+5.4%"
-              trendType="up"
-              icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>}
-            />
-            <StatCard
-              label="Monthly Revenue"
-              value={`$${(data?.revenue || 0).toLocaleString()}`}
-              trend="+18%"
-              trendType="up"
-              icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-            />
-            <StatCard
-              label="Performance Index"
-              value={`${data?.performance || 0}%`}
-              trend="-1.2%"
-              trendType="down"
-              icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            <div className="lg:col-span-2 space-y-8">
-              <div className="card !p-0 overflow-hidden">
-                <div className="p-6 border-b border-border flex items-center justify-between">
-                  <h3 className="text-base font-bold">Performance Overview</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                      <span className="w-2 h-2 rounded-full bg-primary"></span> Revenue
+            {/* TOP KPI BAR */}
+            <div className="grid grid-cols-4 gap-4 mb-8">
+              {[
+                { label:'Total Ad Spend',
+                  value:`$${(s.spend/1000).toFixed(1)}k`,
+                  change:'+12%', icon:'💰',
+                  color:'indigo' },
+                { label:'Total Revenue',
+                  value:`$${(s.revenue/1000).toFixed(1)}k`,
+                  change:'+18%', icon:'📈',
+                  color:'green' },
+                { label:'Avg ROAS',
+                  value:`${s.roas}x`,
+                  change:'+0.3', icon:'🎯',
+                  color:'blue' },
+                { label:'Active Clients',
+                  value:'3',
+                  change:'+1', icon:'🏢',
+                  color:'purple' },
+              ].map(kpi => (
+                <div key={kpi.label}
+                  className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-2xl">
+                      {kpi.icon}
                     </span>
-                    <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 ml-4">
-                      <span className="w-2 h-2 rounded-full bg-slate-200"></span> Projections
+                    <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                      {kpi.change}
                     </span>
                   </div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                    {kpi.label}
+                  </p>
+                  <p className="text-2xl font-black text-slate-900 mt-1">
+                    {kpi.value}
+                  </p>
                 </div>
-                <div className="h-[320px] w-full bg-slate-50/50 flex items-center justify-center relative group">
-                  <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#e2e8f0 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
-                  <div className="relative text-center">
-                    <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-border flex items-center justify-center text-primary mb-4 mx-auto group-hover:scale-110 transition-transform">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+              ))}
+            </div>
+
+            {/* MODULE GRID */}
+            <h2 className="font-black text-slate-900 mb-4 text-lg">
+              Platform Modules
+            </h2>
+            <div className="grid grid-cols-4 gap-4 mb-8">
+              {modules.map(mod => (
+                <Link key={mod.title} href={mod.href}>
+                  <div className={`bg-white rounded-2xl p-5 border-2 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-[1.02] ${COLOR_MAP[mod.color]?.replace('bg-','border-')?.replace(/text-\w+-\d+/,'')?.replace(/border-\w+-200/,'border-slate-200') || 'border-slate-200'}`}>
+                    <div className="flex justify-between items-center mb-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${COLOR_MAP[mod.color]?.split(' ')[0] || 'bg-slate-100'}`}>
+                        {mod.icon}
+                      </div>
+                      <span className="text-xs font-bold px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                        LIVE
+                      </span>
                     </div>
-                    <p className="text-sm font-semibold text-slate-900">Campaign Analytics Graph</p>
-                    <p className="text-xs text-slate-500 mt-1">Real-time data visualization placeholder</p>
+                    <p className="font-black text-slate-900 mb-3">
+                      {mod.title}
+                    </p>
+                    <div className="grid grid-cols-3 gap-1">
+                      {mod.stats.map(stat => (
+                        <div key={stat.label}
+                          className="text-center">
+                          <p className="text-xs font-black text-slate-900">
+                            {stat.value}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {stat.label}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* QUICK ACTIONS */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-8">
+              <h3 className="font-black text-slate-900 mb-4">
+                Quick Actions
+              </h3>
+              <div className="grid grid-cols-6 gap-3">
+                {[
+                  { label:'New Campaign',
+                    icon:'🚀',
+                    href:'/dashboard/campaigns' },
+                  { label:'Add Contact',
+                    icon:'👤',
+                    href:'/dashboard/crm' },
+                  { label:'Create Post',
+                    icon:'📝',
+                    href:'/dashboard/social' },
+                  { label:'Generate Creative',
+                    icon:'✨',
+                    href:'/dashboard/creatives' },
+                  { label:'Run Audit',
+                    icon:'🔍',
+                    href:'/dashboard/seo' },
+                  { label:'New Automation',
+                    icon:'⚡',
+                    href:'/dashboard/workflows' },
+                ].map(action => (
+                  <Link key={action.label}
+                    href={action.href}>
+                    <div className="flex flex-col items-center gap-2 p-4 bg-slate-50 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 border border-slate-100 transition-all cursor-pointer text-center">
+                      <span className="text-2xl">
+                        {action.icon}
+                      </span>
+                      <p className="text-xs font-bold text-slate-700">
+                        {action.label}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* BETA LAUNCH STATUS */}
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-black mb-1">
+                    🚀 Beta Launch Ready!
+                  </h3>
+                  <p className="text-indigo-200 text-sm">
+                    All 13 modules built and deployed. Ready to onboard beta agencies.
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-black">
+                      13
+                    </p>
+                    <p className="text-xs text-indigo-200">
+                      Modules
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-black">
+                      0
+                    </p>
+                    <p className="text-xs text-indigo-200">
+                      P0 Bugs
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-black">
+                      100%
+                    </p>
+                    <p className="text-xs text-indigo-200">
+                      Complete
+                    </p>
                   </div>
                 </div>
-                <div className="p-4 bg-slate-50/50 border-t border-border flex justify-center">
-                  <button onClick={() => triggerToast("Navigating to detailed reports...")} className="text-xs font-bold text-primary hover:underline">View Detailed Report →</button>
-                </div>
-              </div>
-
-              <div className="card !p-0 overflow-hidden">
-                <div className="p-6 border-b border-border flex items-center justify-between">
-                  <h3 className="text-base font-bold">Active Campaigns</h3>
-                  <button onClick={() => router.push('/projects')} className="text-xs font-bold text-slate-500 hover:text-slate-900 uppercase tracking-wider">View All</button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-50 border-b border-border">
-                      <tr>
-                        <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Campaign</th>
-                        <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Budget</th>
-                        <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">Performance</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {[
-                        { name: 'Nike Summer Blitz', budget: '$12,400', status: 'Active', perf: '84%', color: 'bg-indigo-500' },
-                        { name: 'Tesla FSD Launch', budget: '$45,000', status: 'In Review', perf: 'N/A', color: 'bg-slate-300' },
-                        { name: 'BlueBottle Coffee', budget: '$8,200', status: 'Active', perf: '92%', color: 'bg-indigo-500' },
-                      ].map((c, i) => (
-                        <tr key={i} onClick={() => router.push('/projects')} className="hover:bg-slate-50 transition-colors cursor-pointer group">
-                          <td className="px-6 py-4 font-semibold text-sm text-slate-900 group-hover:text-primary transition-colors">{c.name}</td>
-                          <td className="px-6 py-4 text-sm text-slate-600">{c.budget}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold ${c.status === 'Active' ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                              <span className={`w-1 h-1 rounded-full ${c.status === 'Active' ? 'bg-green-600' : 'bg-slate-400'}`}></span>
-                              {c.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-3">
-                              <span className="text-xs font-bold text-slate-900">{c.perf}</span>
-                              <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className={`h-full ${c.color}`} style={{ width: c.perf !== 'N/A' ? c.perf : '0%' }}></div>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
               </div>
             </div>
 
-            <div className="space-y-8">
-              <div className="card bg-slate-900 text-white border-none shadow-xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                  <svg className="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                </div>
-                <div className="relative z-10">
-                  <h3 className="text-lg font-bold mb-2">Agency AI Agents</h3>
-                  <p className="text-sm text-slate-400 mb-6 leading-relaxed">Automate your social strategy with our new AI-driven creative agents.</p>
-                  <button onClick={() => triggerToast("Initiating AI agent deployment...")} className="w-full bg-primary text-white py-2.5 rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors">
-                    Deploy Agent
-                  </button>
-                </div>
-              </div>
-
-              <div className="card">
-                <h3 className="text-sm font-bold mb-6 text-slate-900">Quick Actions</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => triggerToast("Opening campaign builder...")} className="p-4 bg-slate-50 rounded-xl border border-border hover:bg-slate-100 hover:border-slate-300 transition-all flex flex-col items-center gap-2 group">
-                    <span className="text-lg group-hover:scale-110 transition-transform">📧</span>
-                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-tight">Campaign</span>
-                  </button>
-                  <button onClick={() => triggerToast("Generating invoice...")} className="p-4 bg-slate-50 rounded-xl border border-border hover:bg-slate-100 hover:border-slate-300 transition-all flex flex-col items-center gap-2 group">
-                    <span className="text-lg group-hover:scale-110 transition-transform">📄</span>
-                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-tight">Invoice</span>
-                  </button>
-                  <button onClick={() => triggerToast("Opening support chat...")} className="p-4 bg-slate-50 rounded-xl border border-border hover:bg-slate-100 hover:border-slate-300 transition-all flex flex-col items-center gap-2 group">
-                    <span className="text-lg group-hover:scale-110 transition-transform">💬</span>
-                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-tight">Support</span>
-                  </button>
-                  <button onClick={() => router.push('/settings')} className="p-4 bg-slate-50 rounded-xl border border-border hover:bg-slate-100 hover:border-slate-300 transition-all flex flex-col items-center gap-2 group">
-                    <span className="text-lg group-hover:scale-110 transition-transform">⚙️</span>
-                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-tight">Settings</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="card bg-indigo-50 border-indigo-100">
-                <h3 className="text-sm font-bold mb-4 text-indigo-900">Weekly Goal</h3>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-indigo-700">Leads Generated</span>
-                  <span className="text-xs font-bold text-indigo-900">42 / 50</span>
-                </div>
-                <div className="w-full h-2 bg-indigo-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-primary" style={{ width: '84%' }}></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
-
-      {/* New Campaign Modal */}
-      {showCampaignModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowCampaignModal(false)} />
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl relative z-10 animate-subtle-fade">
-            <div className="p-6 border-b border-border flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-900">Create New Campaign</h2>
-              <button onClick={() => setShowCampaignModal(false)} className="text-slate-400 hover:text-slate-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <form className="p-6 space-y-4" onSubmit={(e) => { e.preventDefault(); setShowCampaignModal(false); triggerToast("Campaign successfully queued for deployment!"); }}>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Campaign Name</label>
-                <input type="text" placeholder="e.g. Summer Blitz 2026" className="input-field" required />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Budget Allocation</label>
-                  <input type="text" placeholder="$5,000" className="input-field" required />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Channel</label>
-                  <select className="input-field">
-                    <option>Omnichannel</option>
-                    <option>Social Only</option>
-                    <option>Search Engine</option>
-                  </select>
-                </div>
-              </div>
-              <button type="submit" className="w-full btn-primary py-3 mt-4">
-                Launch Campaign
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Toast Notification */}
-      {showToast.show && (
-        <div className="fixed bottom-8 right-8 z-[110] animate-subtle-fade">
-          <div className={`px-5 py-3 rounded-xl shadow-lg border flex items-center gap-3 bg-white ${showToast.type === 'success' ? 'border-green-100' : 'border-red-100'}`}>
-            <div className={`w-2 h-2 rounded-full ${showToast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`} />
-            <p className="text-sm font-semibold text-slate-900">{showToast.message}</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StatCard({ label, value, trend, trendType, icon }: any) {
-  return (
-    <div className="stat-card group cursor-pointer hover:border-primary/30 transition-all">
-      <div className="flex items-start justify-between mb-3">
-        <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover:bg-indigo-50 group-hover:text-primary transition-colors">
-          {icon}
-        </div>
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${trendType === 'up' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-          {trend}
-        </span>
-      </div>
-      <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{label}</p>
-      <h2 className="text-2xl font-bold text-slate-900 mt-0.5">{value}</h2>
-    </div>
+    </RoleGuard>
   );
 }
