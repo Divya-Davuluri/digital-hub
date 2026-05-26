@@ -75,17 +75,14 @@ const limiter = rateLimit({
 app.use(cors({
   origin: [
     'https://digital-hub-1-y60b.onrender.com',
-    'http://localhost:3000'
-  ],
+    'http://localhost:3000',
+    process.env.FRONTEND_URL || ''
+  ].filter(Boolean),
   credentials: true,
-  methods: [
-    'GET', 'POST', 'PUT', 
-    'PATCH', 'DELETE', 'OPTIONS'
-  ],
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: [
-    'Content-Type',
-    'Authorization'
-  ]
+    'Content-Type','Authorization','x-tenant-id'
+  ],
 }));
 
 app.use(cookieParser());
@@ -119,10 +116,16 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ 
-    status: 'ok', 
-    time: new Date().toISOString(),
-    env: config.nodeEnv
+  res.json({
+    status:    'ok',
+    timestamp: new Date().toISOString(),
+    version:   '1.0.0',
+    modules: [
+      'analytics','attribution','social',
+      'workflows','links','instagram',
+      'creatives','crm','seo','billing'
+    ],
+    uptime: process.uptime(),
   });
 });
 
@@ -161,15 +164,22 @@ app.use('/api/seo', seoRouter);
 // Root level short link redirect
 app.get('/l/:shortCode', trackClick);
 
-// --- 404 & Error Handling ---
-app.use('/api/*', (req: Request, res: Response) => {
+app.use((req, res) => {
   res.status(404).json({
-    success: false,
-    message: `API Route not found: ${req.method} ${req.originalUrl}`
+    error:   'Route not found',
+    path:    req.path,
+    method:  req.method,
   });
 });
 
-app.use(errorHandler);
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error('[Server Error]:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error',
+    ...(process.env.NODE_ENV === 'development'
+      ? { stack: err.stack } : {}),
+  });
+});
 
 // --- Server Lifecycle ---
 const server = app.listen(config.port, '0.0.0.0', async () => {

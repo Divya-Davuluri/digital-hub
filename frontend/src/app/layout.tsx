@@ -5,8 +5,17 @@ import { BrandingProvider } from "@/context/BrandingContext";
 import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
-  title: "Digital Marketing Hub",
-  description: "All-in-one platform for marketing agencies",
+  title:       'Digital Marketing Hub',
+  description: 'All-in-one marketing platform for agencies',
+  keywords:    'marketing, agency, CRM, analytics, automation',
+  authors:     [{ name: 'Digital Marketing Hub' }],
+  robots:      'noindex, nofollow',
+  // noindex for beta
+  openGraph: {
+    title:       'Digital Marketing Hub',
+    description: 'Replace 10 tools with one platform',
+    type:        'website',
+  },
 };
 
 import { Toaster } from 'react-hot-toast';
