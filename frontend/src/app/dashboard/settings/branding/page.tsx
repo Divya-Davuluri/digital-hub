@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { useBranding } from '@/context/BrandingContext';
 
 export default function BrandingSettingsPage() {
   const [branding, setBranding] = useState({
@@ -30,6 +31,8 @@ export default function BrandingSettingsPage() {
     loginPageBranding: 'center'
   });
 
+  const { refreshBranding } = useBranding();
+
   const [domains, setDomains] = useState<any[]>([]);
   const [newDomain, setNewDomain] = useState('');
   const [loading, setLoading] = useState(true);
@@ -43,7 +46,7 @@ export default function BrandingSettingsPage() {
     const fetchData = async () => {
       try {
         const [bData, dData] = await Promise.all([
-          apiCall('/branding'),
+          apiCall('/settings/branding'),
           apiCall('/branding/domain')
         ]);
         setBranding({
@@ -74,15 +77,38 @@ export default function BrandingSettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await apiCall('/branding', {
-        method: 'POST',
+      const response = await apiCall('/settings/branding', {
+        method: 'PUT',
         body: JSON.stringify(branding)
       });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
       toast.success("Branding saved successfully!");
-    } catch (err) {
-      alert("Failed to save branding");
+      
+      // Refresh global branding context to apply changes instantly
+      if (typeof refreshBranding === 'function') {
+        await refreshBranding();
+      }
+
+      if (response?.branding) {
+        setBranding({
+          agencyName:      response.branding.agencyName || '',
+          primaryColor:    response.branding.primaryColor || '#6366f1',
+          secondaryColor:  response.branding.secondaryColor || '#4f46e5',
+          logoUrl:         response.branding.logoUrl || '',
+          faviconUrl:      response.branding.faviconUrl || '',
+          customCss:       response.branding.customCss || '',
+          footerText:      '',
+          supportEmail:    response.branding.supportEmail || '',
+          removePoweredBy: response.branding.removePoweredBy || 0,
+          sidebarBg:       '#1e293b',
+          cardBg:          '#ffffff',
+          sidebarTheme:    response.branding.sidebarTheme || 'dark',
+          loginPageBranding: response.branding.loginPageBranding || 'center',
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save branding settings");
     } finally {
       setSaving(false);
     }

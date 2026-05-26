@@ -294,6 +294,25 @@ export async function runDbFixes() {
       trial_ends_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+    // agency_branding table
+    `CREATE TABLE IF NOT EXISTS agency_branding (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      workspace_id TEXT,
+      agency_name TEXT DEFAULT '',
+      support_email TEXT DEFAULT '',
+      primary_color TEXT DEFAULT '#6366f1',
+      secondary_color TEXT DEFAULT '#4f46e5',
+      logo_url TEXT DEFAULT '',
+      favicon_url TEXT DEFAULT '',
+      custom_css TEXT DEFAULT '',
+      layout_mode TEXT DEFAULT 'center',
+      theme_mode TEXT DEFAULT 'dark',
+      custom_domain TEXT DEFAULT '',
+      remove_powered_by INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`
   ];
 
@@ -363,9 +382,21 @@ export async function runDbFixes() {
     { table: 'team_assignments', column: 'assigned_by', type: 'TEXT' },
     { table: 'team_assignments', column: 'status', type: "TEXT DEFAULT 'active'" },
     { table: 'team_assignments', column: 'updated_at', type: 'TEXT' },
-    { table: 'subscriptions', column: 'workspace_id', type: 'TEXT' },
     { table: 'subscriptions', column: 'billing_interval', type: "TEXT DEFAULT 'monthly'" },
     { table: 'subscriptions', column: 'trial_ends_at', type: 'TEXT' },
+    { table: 'agency_branding', column: 'tenant_id', type: 'TEXT' },
+    { table: 'agency_branding', column: 'workspace_id', type: 'TEXT' },
+    { table: 'agency_branding', column: 'agency_name', type: "TEXT DEFAULT ''" },
+    { table: 'agency_branding', column: 'support_email', type: "TEXT DEFAULT ''" },
+    { table: 'agency_branding', column: 'primary_color', type: "TEXT DEFAULT '#6366f1'" },
+    { table: 'agency_branding', column: 'secondary_color', type: "TEXT DEFAULT '#4f46e5'" },
+    { table: 'agency_branding', column: 'logo_url', type: "TEXT DEFAULT ''" },
+    { table: 'agency_branding', column: 'favicon_url', type: "TEXT DEFAULT ''" },
+    { table: 'agency_branding', column: 'custom_css', type: "TEXT DEFAULT ''" },
+    { table: 'agency_branding', column: 'layout_mode', type: "TEXT DEFAULT 'center'" },
+    { table: 'agency_branding', column: 'theme_mode', type: "TEXT DEFAULT 'dark'" },
+    { table: 'agency_branding', column: 'custom_domain', type: "TEXT DEFAULT ''" },
+    { table: 'agency_branding', column: 'remove_powered_by', type: 'INTEGER DEFAULT 0' },
   ];
 
   console.log('🔄 Checking and correcting table column structures...');

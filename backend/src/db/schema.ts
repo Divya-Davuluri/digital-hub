@@ -1136,3 +1136,22 @@ export const subscriptions = sqliteTable(
   updatedAt: text('updated_at')
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const agencyBranding = sqliteTable('agency_branding', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  workspaceId: text('workspace_id'),
+  agencyName: text('agency_name').default(''),
+  supportEmail: text('support_email').default(''),
+  primaryColor: text('primary_color').default('#6366f1'),
+  secondaryColor: text('secondary_color').default('#4f46e5'),
+  logoUrl: text('logo_url').default(''),
+  faviconUrl: text('favicon_url').default(''),
+  customCss: text('custom_css').default(''),
+  layoutMode: text('layout_mode').default('center'),
+  themeMode: text('theme_mode').default('dark'),
+  customDomain: text('custom_domain').default(''),
+  removePoweredBy: integer('remove_powered_by').default(0),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
