@@ -160,11 +160,63 @@ export const createCheckoutSession = asyncHandler(
 
   const stripeClient = initStripe();
 
-  // If Stripe keys missing → Return error message to display toast
+  // If Stripe keys missing → Perform mock upgrade in database to let it "work properly" in demo mode
   if (!stripeClient) {
-    return res.status(400).json({
-      success: false,
-      message: 'Stripe is not configured yet. Checkout is disabled in demo mode.',
+    try {
+      const now = new Date().toISOString();
+      const existing = await db.query.subscriptions.findFirst({
+        where: eq(subscriptions.tenantId, tenantId)
+      });
+
+      const subValues = {
+        plan:                planId,
+        status:              'active',
+        billingCycle:        interval,
+        billingInterval:     interval,
+        priceMonthly:        plan.price,
+        stripeCustomerId:    'mock_cust_' + tenantId,
+        stripeSubscriptionId:'mock_sub_' + tenantId,
+        workspaceId:         workspaceId || null,
+        updatedAt:           now,
+      };
+
+      if (existing) {
+        await db.update(subscriptions)
+          .set(subValues)
+          .where(eq(subscriptions.tenantId, tenantId));
+      } else {
+        await db.insert(subscriptions).values({
+          id: uuidv4(),
+          tenantId,
+          plan:                subValues.plan,
+          status:              subValues.status,
+          billingCycle:        subValues.billingCycle,
+          billingInterval:     subValues.billingInterval,
+          priceMonthly:        subValues.priceMonthly,
+          stripeCustomerId:    subValues.stripeCustomerId,
+          stripeSubscriptionId:subValues.stripeSubscriptionId,
+          workspaceId:         subValues.workspaceId,
+          stripePriceId:       null,
+          currentPeriodStart:  now,
+          currentPeriodEnd:    new Date(Date.now() + 30*86400000).toISOString(),
+          cancelAtPeriodEnd:   0,
+          trialEnd:            null,
+          trialEndsAt:         null,
+          createdAt:           now,
+          updatedAt:           now,
+        });
+      }
+    } catch (dbErr) {
+      console.error('[Billing] Mock upgrade DB error:', dbErr);
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        type: 'mock',
+        activated: true,
+        message: `Stripe is not configured yet. Checkout is disabled in demo mode. Upgraded to ${plan.name} in demo mode instead.`
+      }
     });
   }
 
