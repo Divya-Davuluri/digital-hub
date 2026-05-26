@@ -623,6 +623,26 @@ export default function InstagramDMPage() {
                             ⚡ Test Trigger
                           </button>
 
+                          {/* Mark Converted Button */}
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await apiCall(
+                                  `/instagram/automations/${automation.id}/test-conversion`,
+                                  { method: 'POST' }
+                                );
+                                toast.success(res?.message || 'Mock conversion tracked! 🏆');
+                                loadAutomations();
+                                loadStats();
+                              } catch (err) {
+                                toast.error('Failed to track conversion');
+                              }
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
+                          >
+                            🏆 Mark Converted
+                          </button>
+
                           <button
                             onClick={() => handleDelete(automation.id)}
                             className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 ml-auto transition-colors"

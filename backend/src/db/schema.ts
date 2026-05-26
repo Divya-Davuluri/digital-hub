@@ -737,6 +737,10 @@ export const dmAutomations = sqliteTable(
   totalTriggered: integer('total_triggered').default(0),
   totalReplied: integer('total_replied').default(0),
   totalConverted: integer('total_converted').default(0),
+  triggeredCount: integer('triggered_count').default(0),
+  repliedCount: integer('replied_count').default(0),
+  convertedCount: integer('converted_count').default(0),
+  conversionRate: real('conversion_rate').default(0),
   instagramAccountId: text('instagram_account_id'),
   postId: text('post_id').default('any'),
   excludeKeywords: text('exclude_keywords')

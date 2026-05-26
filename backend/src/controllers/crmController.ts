@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { db } from '../db';
-import { contacts, workflows, workspaces, contactActivities, contactEmails, contactNotes, clients, teamAssignments, users } from '../db/schema';
+import { contacts, workflows, workspaces, contactActivities, contactEmails, contactNotes, clients, teamAssignments, users, dmAutomations } from '../db/schema';
 import { eq, and, or, like, desc, sql, inArray } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { asyncHandler, AppError } from '../utils/errors';
@@ -340,6 +340,35 @@ export const updateContact = asyncHandler(async (req: any, res: Response) => {
     }
   }
 
+  if (status === 'converted' && existing[0].status !== 'converted' && existing[0].workflowId) {
+    const autom = await db.select()
+      .from(dmAutomations)
+      .where(and(
+        eq(dmAutomations.id, existing[0].workflowId),
+        eq(dmAutomations.tenantId, tenantId)
+      ))
+      .limit(1);
+
+    if (autom.length > 0) {
+      const currentConverted = autom[0].convertedCount || autom[0].totalConverted || 0;
+      const currentTriggered = autom[0].triggeredCount || autom[0].totalTriggered || 0;
+      const newConverted = currentConverted + 1;
+      const finalTriggered = Math.max(currentTriggered, newConverted);
+      const rate = Math.round((newConverted / finalTriggered) * 100);
+
+      await db.update(dmAutomations)
+        .set({
+          convertedCount: newConverted,
+          totalConverted: newConverted,
+          triggeredCount: finalTriggered,
+          totalTriggered: finalTriggered,
+          conversionRate: rate,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(dmAutomations.id, autom[0].id));
+    }
+  }
+
   await db.update(contacts)
     .set(updateData)
     .where(eq(contacts.id, id));
@@ -443,6 +472,36 @@ export const markConverted = asyncHandler(async (req: any, res: Response) => {
 
   if (contactList.length === 0) {
     throw new AppError('Contact not found', 404);
+  }
+
+  const contact = contactList[0];
+  if (contact.status !== 'converted' && contact.workflowId) {
+    const autom = await db.select()
+      .from(dmAutomations)
+      .where(and(
+        eq(dmAutomations.id, contact.workflowId),
+        eq(dmAutomations.tenantId, tenantId)
+      ))
+      .limit(1);
+
+    if (autom.length > 0) {
+      const currentConverted = autom[0].convertedCount || autom[0].totalConverted || 0;
+      const currentTriggered = autom[0].triggeredCount || autom[0].totalTriggered || 0;
+      const newConverted = currentConverted + 1;
+      const finalTriggered = Math.max(currentTriggered, newConverted);
+      const rate = Math.round((newConverted / finalTriggered) * 100);
+
+      await db.update(dmAutomations)
+        .set({
+          convertedCount: newConverted,
+          totalConverted: newConverted,
+          triggeredCount: finalTriggered,
+          totalTriggered: finalTriggered,
+          conversionRate: rate,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(dmAutomations.id, autom[0].id));
+    }
   }
 
   await db.update(contacts)

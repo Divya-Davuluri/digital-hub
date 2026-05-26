@@ -2,9 +2,10 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import {
   dmAutomations, dmSequences,
-  workspaces, clients
+  workspaces, clients, contacts,
+  contactActivities
 } from '../db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { AppError, asyncHandler } from '../utils/errors';
 
@@ -16,15 +17,13 @@ const safeJsonParse = (
 };
 
 const formatAutomation = (a: any) => {
-  const triggered  = a.totalTriggered  || 0;
-  const replied    = a.totalReplied    || 0;
-  const converted  = a.totalConverted  || 0;
+  const triggered  = a.triggeredCount  || a.totalTriggered || 0;
+  const replied    = a.repliedCount    || a.totalReplied   || 0;
+  const converted  = a.convertedCount  || a.totalConverted || 0;
 
   // For new automations show projected stats
   const isNew = triggered === 0;
-  const projectedTriggered  = isNew ? 0 : triggered;
-  const projectedReplied    = isNew ? 0 : replied;
-  const projectedConverted  = isNew ? 0 : converted;
+  const rate = triggered > 0 ? Math.round((converted / triggered) * 100) : 0;
 
   return {
     ...a,
@@ -34,14 +33,13 @@ const formatAutomation = (a: any) => {
       a.excludeKeywords, []),
     isActive: a.isActive === 1 
               || a.isActive === true,
-    totalTriggered:  projectedTriggered,
-    totalReplied:    projectedReplied,
-    totalConverted:  projectedConverted,
-    conversionRate: projectedTriggered > 0
-      ? parseFloat(
-          ((projectedConverted/projectedTriggered)
-           *100).toFixed(1))
-      : 0,
+    triggeredCount: triggered,
+    repliedCount: replied,
+    convertedCount: converted,
+    totalTriggered: triggered,
+    totalReplied: replied,
+    totalConverted: converted,
+    conversionRate: rate,
     // Status info
     isNew,
     statusMessage: isNew
@@ -421,7 +419,7 @@ export const getAutomationStats = asyncHandler(
           totalTriggered:    1013,
           totalReplied:      943,
           totalConverted:    196,
-          avgConversionRate: 19.3,
+          avgConversionRate: 19,
           topPerforming:     'Live Session Engagement',
         },
         source: 'demo'
@@ -429,19 +427,16 @@ export const getAutomationStats = asyncHandler(
     }
 
     // Real automations exist but may have 0 stats
-    // Show realistic projected stats
     const activeCount = all.filter(
       a => a.isActive === 1).length;
 
     const totalTriggered = all.reduce(
-      (s,a) => s + (a.totalTriggered||0), 0);
+      (s,a) => s + (a.triggeredCount||a.totalTriggered||0), 0);
     const totalReplied = all.reduce(
-      (s,a) => s + (a.totalReplied||0), 0);
+      (s,a) => s + (a.repliedCount||a.totalReplied||0), 0);
     const totalConverted = all.reduce(
-      (s,a) => s + (a.totalConverted||0), 0);
+      (s,a) => s + (a.convertedCount||a.totalConverted||0), 0);
 
-    // If all zeros, show projected stats
-    // based on active automations
     const showProjected = totalTriggered === 0;
 
     res.json({
@@ -460,11 +455,9 @@ export const getAutomationStats = asyncHandler(
           ? activeCount * 8
           : totalConverted,
         avgConversionRate: showProjected
-          ? 18.5
+          ? 18
           : totalTriggered > 0
-          ? parseFloat(
-              ((totalConverted/totalTriggered)*100)
-              .toFixed(1))
+          ? Math.round((totalConverted / totalTriggered) * 100)
           : 0,
         topPerforming: all[0]?.name || 'N/A',
         isProjected:   showProjected,
@@ -480,8 +473,8 @@ export const getAutomationStats = asyncHandler(
         totalTriggered:    89,
         totalReplied:      84,
         totalConverted:    16,
-        avgConversionRate: 18.0,
-        topPerforming:     'price enquiry',
+        avgConversionRate: 18,
+        topPerforming:     'price inquiry',
         isProjected:       true,
       }
     });
@@ -506,24 +499,148 @@ export const testTrigger = asyncHandler(
   }
 
   // Simulate a trigger happening
-  const newTriggered = (automation.totalTriggered||0) + 1;
-  const newReplied   = (automation.totalReplied  ||0) + 1;
+  const newTriggered = (automation.triggeredCount||automation.totalTriggered||0) + 1;
+  const newReplied   = (automation.repliedCount  ||automation.totalReplied  ||0) + 1;
+  const converted    = (automation.convertedCount  ||automation.totalConverted  ||0);
+
+  // Safe round conversion rate calculation
+  const rate = newTriggered > 0 ? Math.round((converted / newTriggered) * 100) : 0;
 
   await db.update(dmAutomations)
     .set({
+      triggeredCount: newTriggered,
+      repliedCount:   newReplied,
       totalTriggered: newTriggered,
       totalReplied:   newReplied,
+      conversionRate: rate,
+      updatedAt:      new Date().toISOString(),
+    })
+    .where(eq(dmAutomations.id, id));
+
+  // Create a mock CRM lead/event linked to this automation
+  let mockLeadId = uuidv4();
+  try {
+    await db.insert(contacts).values({
+      id: mockLeadId,
+      tenantId,
+      workspaceId: automation.workspaceId,
+      name: `IG Test Lead (${newTriggered})`,
+      email: `ig_test_${Date.now()}_${newTriggered}@example.com`,
+      phone: null,
+      company: null,
+      source: 'instagram_dm',
+      status: 'new',
+      leadScore: 10,
+      tags: 'Instagram, Test',
+      workflowId: automation.id,
+      workflowStatus: 'enrolled',
+      message: `Triggered keyword "${automation.triggerKeyword || 'any'}" on "${automation.name}"`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+
+    await db.insert(contactActivities).values({
+      id: uuidv4(),
+      tenantId,
+      workspaceId: automation.workspaceId,
+      contactId: mockLeadId,
+      activityType: 'created',
+      activityMessage: `Lead enrolled from Instagram DM keyword trigger: "${automation.triggerKeyword || 'any'}"`
+    });
+  } catch (err: any) {
+    console.error('Failed to create mock CRM lead:', err.message);
+  }
+
+  res.json({
+    success: true,
+    message: `Test trigger fired! Triggered: ${newTriggered}, Replied: ${newReplied}`,
+    data: {
+      triggeredCount: newTriggered,
+      repliedCount:   newReplied,
+      conversionRate: rate,
+      mockLeadId
+    }
+  });
+});
+
+export const testConversion = asyncHandler(
+  async (req: any, res: Response) => {
+  const { tenantId } = req.user;
+  const { id } = req.params;
+
+  const automation = await db.query.dmAutomations
+    .findFirst({
+      where: and(
+        eq(dmAutomations.id, id),
+        eq(dmAutomations.tenantId, tenantId)
+      )
+    });
+
+  if (!automation) {
+    throw new AppError('Automation not found', 404);
+  }
+
+  // Find the latest mock contact that is enrolled but not yet converted
+  const latestLeads = await db.select()
+    .from(contacts)
+    .where(and(
+      eq(contacts.workflowId, automation.id),
+      eq(contacts.tenantId, tenantId)
+    ))
+    .orderBy(desc(contacts.createdAt))
+    .limit(5);
+
+  let targetContact = latestLeads.find(c => c.status !== 'converted');
+
+  if (targetContact) {
+    // Convert this contact
+    await db.update(contacts)
+      .set({
+        status: 'converted',
+        leadScore: sql`${contacts.leadScore} + 40`,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(contacts.id, targetContact.id));
+
+    try {
+      await db.insert(contactActivities).values({
+        id: uuidv4(),
+        tenantId,
+        workspaceId: automation.workspaceId,
+        contactId: targetContact.id,
+        activityType: 'lead_converted',
+        activityMessage: `Lead status updated to Converted via manual trigger action.`
+      });
+    } catch (e) {}
+  }
+
+  // Manually increment the automation conversion stats
+  const triggered = automation.triggeredCount || automation.totalTriggered || 1;
+  const newConverted = (automation.convertedCount || automation.totalConverted || 0) + 1;
+  const rate = Math.round((newConverted / Math.max(triggered, newConverted)) * 100);
+
+  // If triggered count is less than converted count, bump it to keep maths logical
+  const finalTriggered = Math.max(triggered, newConverted);
+
+  await db.update(dmAutomations)
+    .set({
+      convertedCount: newConverted,
+      totalConverted: newConverted,
+      triggeredCount: finalTriggered,
+      totalTriggered: finalTriggered,
+      conversionRate: rate,
       updatedAt:      new Date().toISOString(),
     })
     .where(eq(dmAutomations.id, id));
 
   res.json({
     success: true,
-    message: `Test trigger fired! Triggered: ${
-      newTriggered}, Replied: ${newReplied}`,
+    message: `Mock conversion tracked! Converted: ${newConverted}, Rate: ${rate}%`,
     data: {
-      triggered: newTriggered,
-      replied:   newReplied,
+      triggeredCount: finalTriggered,
+      convertedCount: newConverted,
+      conversionRate: rate,
+      contactId: targetContact?.id || null
     }
   });
 });

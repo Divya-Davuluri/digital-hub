@@ -8,6 +8,7 @@ import {
   deleteAutomation,
   getAutomationStats,
   testTrigger,
+  testConversion,
 } from '../controllers/dmAutomationController';
 
 const router = Router();
@@ -19,6 +20,7 @@ router.post('/automations', authMiddleware, createAutomation);
 router.put('/automations/:id', authMiddleware, updateAutomation);
 router.post('/automations/:id/toggle', authMiddleware, toggleAutomation);
 router.post('/automations/:id/test-trigger', authMiddleware, testTrigger);
+router.post('/automations/:id/test-conversion', authMiddleware, testConversion);
 router.delete('/automations/:id', authMiddleware, deleteAutomation);
 
 export default router;

@@ -18,49 +18,57 @@ async function main() {
   });
 
   try {
-    console.log("Running SQL queries...");
+    console.log("Running SQLite safe migration queries...");
 
-    // 1. Fix tenant name
-    await client.execute(`
-      UPDATE tenants 
-      SET name = 'Digital Marketing Hub' 
-      WHERE name = '' OR name IS NULL;
-    `);
-    console.log("✓ tenants name corrected");
+    // Add triggered_count
+    try {
+      await client.execute(`
+        ALTER TABLE dm_automations ADD COLUMN triggered_count INTEGER DEFAULT 0;
+      `);
+      console.log("✓ Added triggered_count column");
+    } catch (e: any) {
+      console.log("triggered_count column might already exist:", e.message);
+    }
 
-    // 2. Clean duplicate SEO audit issues
-    await client.execute(`
-      DELETE FROM seo_audit_issues
-      WHERE id NOT IN (
-        SELECT MIN(id) 
-        FROM seo_audit_issues
-        GROUP BY tenant_id, url, issue_type
-      );
-    `);
-    console.log("✓ seo_audit_issues duplicates cleaned");
+    // Add replied_count
+    try {
+      await client.execute(`
+        ALTER TABLE dm_automations ADD COLUMN replied_count INTEGER DEFAULT 0;
+      `);
+      console.log("✓ Added replied_count column");
+    } catch (e: any) {
+      console.log("replied_count column might already exist:", e.message);
+    }
 
-    // 3. Clean duplicate campaigns
-    await client.execute(`
-      DELETE FROM campaigns
-      WHERE id NOT IN (
-        SELECT MIN(id)
-        FROM campaigns
-        GROUP BY tenant_id, name
-      );
-    `);
-    console.log("✓ campaigns duplicates cleaned");
+    // Add converted_count
+    try {
+      await client.execute(`
+        ALTER TABLE dm_automations ADD COLUMN converted_count INTEGER DEFAULT 0;
+      `);
+      console.log("✓ Added converted_count column");
+    } catch (e: any) {
+      console.log("converted_count column might already exist:", e.message);
+    }
 
-    // 4. Verify all tables exist
+    // Add conversion_rate
+    try {
+      await client.execute(`
+        ALTER TABLE dm_automations ADD COLUMN conversion_rate REAL DEFAULT 0;
+      `);
+      console.log("✓ Added conversion_rate column");
+    } catch (e: any) {
+      console.log("conversion_rate column might already exist:", e.message);
+    }
+
+    // Verify columns on dm_automations
     const res = await client.execute(`
-      SELECT name FROM sqlite_master 
-      WHERE type='table' 
-      ORDER BY name;
+      PRAGMA table_info(dm_automations);
     `);
-    console.log("✓ SQLite tables present:");
-    console.table(res.rows.map(r => r.name));
+    console.log("dm_automations table structure:");
+    console.table(res.rows.map(r => ({ name: r.name, type: r.type, dflt_value: r.dflt_value })));
 
   } catch (err: any) {
-    console.error("❌ SQL Query execution failed:", err);
+    console.error("❌ safe migration failed:", err);
   }
 }
 
